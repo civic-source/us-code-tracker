@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PrecedentAnnotationSchema } from '@civic-source/types';
-import { Annotator, mapCourt } from '../annotator.js';
+import { Annotator, mapCourt, buildAnnotationPath, annotationToYaml } from '../annotator.js';
 import { CourtListenerClient, type CourtListenerResult } from '../client.js';
 import { createLogger } from '../logger.js';
 
@@ -68,7 +68,7 @@ describe('Annotator', () => {
     vi.restoreAllMocks();
   });
 
-  it('maps search results to PrecedentAnnotation', async () => {
+  it('maps search results to PrecedentAnnotation with path', async () => {
     const client = makeClient([fakeResult()]);
     const annotator = new Annotator({ client, logger });
 
@@ -76,12 +76,13 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.targetSection).toBe('18 U.S.C. 111');
-    expect(result.value.cases).toHaveLength(1);
-    expect(result.value.cases[0].caseName).toBe('Doe v. United States');
-    expect(result.value.cases[0].citation).toBe('123 U.S. 456');
-    expect(result.value.cases[0].court).toBe('SCOTUS');
-    expect(result.value.cases[0].url).toBe(
+    expect(result.value.path).toBe('annotations/title-18/section-111.yaml');
+    expect(result.value.annotation.targetSection).toBe('18 U.S.C. 111');
+    expect(result.value.annotation.cases).toHaveLength(1);
+    expect(result.value.annotation.cases[0].caseName).toBe('Doe v. United States');
+    expect(result.value.annotation.cases[0].citation).toBe('123 U.S. 456');
+    expect(result.value.annotation.cases[0].court).toBe('SCOTUS');
+    expect(result.value.annotation.cases[0].url).toBe(
       'https://www.courtlistener.com/opinion/12345/doe-v-united-states/'
     );
   });
@@ -94,8 +95,9 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.cases).toHaveLength(0);
-    expect(result.value.targetSection).toBe('99 U.S.C. 9999');
+    expect(result.value.annotation.cases).toHaveLength(0);
+    expect(result.value.annotation.targetSection).toBe('99 U.S.C. 9999');
+    expect(result.value.path).toBe('annotations/title-99/section-9999.yaml');
   });
 
   it('sorts results by court priority: SCOTUS > Appellate > District', async () => {
@@ -111,9 +113,9 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.cases[0].caseName).toBe('SCOTUS Case');
-    expect(result.value.cases[1].caseName).toBe('Appellate Case');
-    expect(result.value.cases[2].caseName).toBe('District Case');
+    expect(result.value.annotation.cases[0].caseName).toBe('SCOTUS Case');
+    expect(result.value.annotation.cases[1].caseName).toBe('Appellate Case');
+    expect(result.value.annotation.cases[2].caseName).toBe('District Case');
   });
 
   it('truncates snippet to 500 chars for holdingSummary', async () => {
@@ -125,8 +127,8 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.cases[0].holdingSummary).toHaveLength(503); // 500 + '...'
-    expect(result.value.cases[0].holdingSummary.endsWith('...')).toBe(true);
+    expect(result.value.annotation.cases[0].holdingSummary).toHaveLength(503); // 500 + '...'
+    expect(result.value.annotation.cases[0].holdingSummary.endsWith('...')).toBe(true);
   });
 
   it('uses first citation when multiple are available', async () => {
@@ -139,7 +141,7 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.cases[0].citation).toBe('123 U.S. 456');
+    expect(result.value.annotation.cases[0].citation).toBe('123 U.S. 456');
   });
 
   it('handles empty citation array gracefully', async () => {
@@ -150,7 +152,7 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.cases[0].citation).toBe('');
+    expect(result.value.annotation.cases[0].citation).toBe('');
   });
 
   it('propagates client errors', async () => {
@@ -172,7 +174,7 @@ describe('Annotator', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const validation = PrecedentAnnotationSchema.safeParse(result.value);
+    const validation = PrecedentAnnotationSchema.safeParse(result.value.annotation);
     expect(validation.success).toBe(true);
   });
 });
@@ -266,6 +268,65 @@ describe('CourtListenerClient', () => {
     expect(calledUrl).toContain('q=%2218+U.S.C.+111%22');
 
     vi.unstubAllGlobals();
+  });
+});
+
+describe('buildAnnotationPath', () => {
+  it('builds path from standard section citation', () => {
+    expect(buildAnnotationPath('18 U.S.C. 111')).toBe('annotations/title-18/section-111.yaml');
+  });
+
+  it('handles title with letter suffix', () => {
+    expect(buildAnnotationPath('26A U.S.C. 501')).toBe('annotations/title-26A/section-501.yaml');
+  });
+
+  it('handles section with letter suffix', () => {
+    expect(buildAnnotationPath('42 U.S.C. 1983a')).toBe('annotations/title-42/section-1983a.yaml');
+  });
+
+  it('falls back to sanitized slug for non-standard citations', () => {
+    const path = buildAnnotationPath('Some weird input!');
+    expect(path).toMatch(/^annotations\/.*\.yaml$/);
+    expect(path).not.toContain('!');
+  });
+});
+
+describe('annotationToYaml', () => {
+  it('serializes annotation to YAML format', () => {
+    const yaml = annotationToYaml({
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [{
+        caseName: 'Doe v. United States',
+        citation: '123 U.S. 456',
+        court: 'SCOTUS',
+        date: '2024-01-15',
+        holdingSummary: 'The court held broadly.',
+        url: 'https://www.courtlistener.com/opinion/12345/',
+      }],
+    });
+    expect(yaml).toContain('targetSection: "18 U.S.C. 111"');
+    expect(yaml).toContain('cases:');
+    expect(yaml).toContain('  - caseName: "Doe v. United States"');
+    expect(yaml).toContain('    court: "SCOTUS"');
+    expect(yaml.endsWith('\n')).toBe(true);
+  });
+
+  it('escapes double quotes in values', () => {
+    const yaml = annotationToYaml({
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [{
+        caseName: 'Case with "quotes"',
+        citation: '',
+        court: 'District',
+        date: '2024-01-01',
+        holdingSummary: 'Summary with "quotes"',
+        url: 'https://example.com',
+      }],
+    });
+    expect(yaml).toContain('caseName: "Case with \\"quotes\\""');
+    expect(yaml).toContain('holdingSummary: "Summary with \\"quotes\\""');
   });
 });
 

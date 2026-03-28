@@ -31,6 +31,13 @@ interface RateLimitTracker {
   windowStart: number;
 }
 
+/** Validate that an unknown value has the expected SearchResponse shape */
+function isSearchResponse(data: unknown): data is SearchResponse {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return Array.isArray(obj['results']);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -71,8 +78,11 @@ export class CourtListenerClient {
     const result = await this.fetchWithRetry(url.toString());
     if (!result.ok) return result;
 
-    const data = result.value as SearchResponse;
-    return ok(data.results ?? []);
+    const data = result.value;
+    if (!isSearchResponse(data)) {
+      return ok([]);
+    }
+    return ok(data.results);
   }
 
   /** Check rate limit and pause if approaching the threshold */

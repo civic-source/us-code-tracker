@@ -167,7 +167,7 @@ export function generateMarkdownForSection(
   currentThrough: string
 ): MarkdownFile {
   const heading = extractHeading(sectionChildren);
-  const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/New_York' }).replace(' ', 'T') + '-04:00';
+  const now = new Date().toISOString();
 
   const uscTitle = parseInt(titleNum, 10) || 0;
   const chapterInt = parseInt(chapterNum, 10) || 0;

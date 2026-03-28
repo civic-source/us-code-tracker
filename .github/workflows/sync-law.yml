@@ -180,11 +180,12 @@ jobs:
         id: annotate
         run: |
           node --input-type=module <<'SCRIPT'
-          import { Annotator } from '@civic-source/annotator';
-          import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
+          import { Annotator, annotationToYaml } from '@civic-source/annotator';
+          import { readdir, writeFile, mkdir } from 'node:fs/promises';
           import { join, dirname } from 'node:path';
 
           const statutesDir = 'us-code/statutes';
+          const annotationsDir = 'us-code/annotations';
           const annotator = new Annotator();
           let annotatedCount = 0;
           let failedCount = 0;
@@ -210,8 +211,9 @@ jobs:
                 try {
                   const result = await annotator.annotateSection(sectionRef);
                   if (result.ok) {
-                    const annotationPath = fullPath.replace(/\.md$/, '.annotations.json');
-                    await writeFile(annotationPath, JSON.stringify(result.value, null, 2) + '\n', 'utf-8');
+                    const outputPath = join('us-code', result.value.path);
+                    await mkdir(dirname(outputPath), { recursive: true });
+                    await writeFile(outputPath, annotationToYaml(result.value.annotation), 'utf-8');
                     annotatedCount++;
                   } else {
                     console.warn(`Annotation failed for ${sectionRef}: ${result.error.message}`);
@@ -239,7 +241,7 @@ jobs:
         id: commit_annotations
         working-directory: us-code
         run: |
-          git add '*.annotations.json'
+          git add 'annotations/'
           if git diff --cached --quiet; then
             echo "committed=false" >> "$GITHUB_OUTPUT"
             echo "No annotation changes to commit"

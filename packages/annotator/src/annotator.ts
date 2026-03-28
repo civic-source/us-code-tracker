@@ -1,7 +1,14 @@
 import { type PrecedentAnnotation, PrecedentAnnotationSchema, type Result, ok, err } from '@civic-source/types';
 import { type CourtListenerResult, CourtListenerClient } from './client.js';
-import { COURT_PRIORITY, MAX_HOLDING_SUMMARY_LENGTH, TIMEZONE, getApiToken } from './constants.js';
+import { COURT_PRIORITY, MAX_HOLDING_SUMMARY_LENGTH, getApiToken } from './constants.js';
 import { type Logger, createLogger } from './logger.js';
+
+/** Result of annotating a section, including the output path */
+export interface AnnotationResult {
+  annotation: PrecedentAnnotation;
+  /** Relative output path: annotations/title-{n}/chapter-{n}/section-{n}.yaml */
+  path: string;
+}
 
 type CourtType = 'SCOTUS' | 'Appellate' | 'District';
 
@@ -31,6 +38,39 @@ function truncateSnippet(snippet: string): string {
 }
 
 /**
+ * Build the annotation output path from a section citation.
+ * Input: "18 U.S.C. 111" → "annotations/title-18/section-111.yaml"
+ * Falls back to a sanitized slug when the citation doesn't match the expected pattern.
+ */
+export function buildAnnotationPath(section: string): string {
+  const match = /^(\d+[a-zA-Z]?)\s+U\.S\.C\.\s+(\d+[a-zA-Z-]*)$/.exec(section);
+  if (!match) {
+    // Fallback: sanitize the section string into a safe filename
+    const slug = section.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
+    return `annotations/${slug}.yaml`;
+  }
+  const [, titleNum, sectionNum] = match;
+  return `annotations/title-${titleNum}/section-${sectionNum}.yaml`;
+}
+
+/** Serialize a PrecedentAnnotation to simple YAML (no external deps) */
+export function annotationToYaml(annotation: PrecedentAnnotation): string {
+  const lines: string[] = [];
+  lines.push(`targetSection: "${annotation.targetSection}"`);
+  lines.push(`lastSyncedET: "${annotation.lastSyncedET}"`);
+  lines.push('cases:');
+  for (const c of annotation.cases) {
+    lines.push(`  - caseName: "${c.caseName.replace(/"/g, '\\"')}"`);
+    lines.push(`    citation: "${c.citation.replace(/"/g, '\\"')}"`);
+    lines.push(`    court: "${c.court}"`);
+    lines.push(`    date: "${c.date}"`);
+    lines.push(`    holdingSummary: "${c.holdingSummary.replace(/"/g, '\\"')}"`);
+    lines.push(`    url: "${c.url}"`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+/**
  * Annotate a US Code section with precedent cases from CourtListener.
  *
  * Coverage caveat: CourtListener does not index statute citations as structured
@@ -50,7 +90,7 @@ export class Annotator {
   }
 
   /** Query CourtListener for a section and build a validated PrecedentAnnotation */
-  async annotateSection(section: string): Promise<Result<PrecedentAnnotation>> {
+  async annotateSection(section: string): Promise<Result<AnnotationResult>> {
     const timer = this.logger.startTimer('annotateSection');
     this.logger.info('Annotating section', { section });
 
@@ -61,8 +101,7 @@ export class Annotator {
     }
 
     const sorted = sortByCourtPriority(searchResult.value);
-    const now = new Date().toLocaleString('en-US', { timeZone: TIMEZONE });
-    const isoNow = new Date(now).toISOString();
+    const isoNow = new Date().toISOString();
 
     const annotation: PrecedentAnnotation = {
       targetSection: section,
@@ -83,8 +122,10 @@ export class Annotator {
       return err(new Error(`Schema validation failed: ${parsed.error.message}`));
     }
 
+    const path = buildAnnotationPath(section);
+
     timer();
-    this.logger.info('Annotation complete', { section, caseCount: annotation.cases.length });
-    return ok(parsed.data);
+    this.logger.info('Annotation complete', { section, caseCount: annotation.cases.length, path });
+    return ok({ annotation: parsed.data, path });
   }
 }

@@ -13,5 +13,5 @@ export {
 } from './constants.js';
 
 export { CourtListenerClient, type CourtListenerResult } from './client.js';
-export { Annotator, mapCourt } from './annotator.js';
+export { Annotator, mapCourt, buildAnnotationPath, annotationToYaml, type AnnotationResult } from './annotator.js';
 export { createLogger, type Logger, type LogLevel } from './logger.js';

@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { type ReleasePoint, type Result, ok } from '@civic-source/types';
 import { OlrcFetcher, HashStore, createLogger } from '@civic-source/fetcher';
 import { XmlToMarkdownAdapter } from '@civic-source/transformer';
-import { Annotator } from '@civic-source/annotator';
+import { Annotator, annotationToYaml } from '@civic-source/annotator';
 import type { MarkdownFile } from '@civic-source/transformer';
 
 const log = createLogger('pipeline');
@@ -184,17 +184,31 @@ async function processTitle(
   };
 }
 
+/**
+ * Check that a resolved path stays within the base directory.
+ * Returns true if the path is safe, false if traversal is detected.
+ */
+function isSafePath(baseDir: string, filePath: string): boolean {
+  const resolvedBase = resolve(baseDir);
+  const resolvedFull = resolve(join(baseDir, filePath));
+  return resolvedFull.startsWith(resolvedBase);
+}
+
 /** Write a single Markdown file to disk, creating directories as needed */
 async function writeMarkdownFile(
   outputDir: string,
   file: MarkdownFile
 ): Promise<void> {
+  if (!isSafePath(outputDir, file.path)) {
+    log.warn('Path traversal detected, skipping file', { path: file.path });
+    return;
+  }
   const fullPath = join(outputDir, file.path);
   await mkdir(dirname(fullPath), { recursive: true });
   await writeFile(fullPath, file.content, 'utf-8');
 }
 
-/** Annotate transformed sections, writing annotation JSON alongside each Markdown file */
+/** Annotate transformed sections, writing annotation YAML to annotations/ directory */
 async function annotateSections(
   files: MarkdownFile[],
   outputDir: string,
@@ -218,11 +232,15 @@ async function annotateSections(
       continue;
     }
 
-    // Write annotation JSON alongside the Markdown file
-    const annotationPath = file.path.replace(/\.md$/, '.annotations.json');
+    // Write annotation YAML to annotations/ directory
+    const annotationPath = result.value.path;
+    if (!isSafePath(outputDir, annotationPath)) {
+      log.warn('Path traversal detected in annotation path, skipping', { path: annotationPath });
+      continue;
+    }
     const fullPath = join(outputDir, annotationPath);
     await mkdir(dirname(fullPath), { recursive: true });
-    await writeFile(fullPath, JSON.stringify(result.value, null, 2) + '\n', 'utf-8');
+    await writeFile(fullPath, annotationToYaml(result.value.annotation), 'utf-8');
     count++;
   }
 
