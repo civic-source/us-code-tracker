@@ -70,8 +70,10 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
 
     results.push({
       title,
-      date: new Date().toISOString().slice(0, 10),
-      xmlUrl: fullUrl,
+      publicLaw: '',
+      dateET: new Date().toISOString(),
+      uslmUrl: fullUrl,
+      sha256Hash: '0'.repeat(64),
     });
   }
   return results;
@@ -115,10 +117,10 @@ export class OlrcFetcher implements IUsCodeFetcher {
 
   /** Download and extract XML for a release point with hash-based caching */
   async fetchXml(releasePoint: ReleasePoint): Promise<Result<string>> {
-    this.logger.info('Fetching XML', { title: releasePoint.title, url: releasePoint.xmlUrl });
+    this.logger.info('Fetching XML', { title: releasePoint.title, url: releasePoint.uslmUrl });
     const timer = this.logger.startTimer('fetchXml');
 
-    const result = await fetchWithRetry(releasePoint.xmlUrl, this.logger);
+    const result = await fetchWithRetry(releasePoint.uslmUrl, this.logger);
     if (!result.ok) {
       timer();
       return result;
@@ -126,7 +128,7 @@ export class OlrcFetcher implements IUsCodeFetcher {
 
     const buffer = Buffer.from(await result.value.arrayBuffer());
     const hash = sha256(buffer);
-    const hashKey = `xml:${releasePoint.title}:${releasePoint.xmlUrl}`;
+    const hashKey = `xml:${releasePoint.title}:${releasePoint.uslmUrl}`;
 
     // Check if content has changed since last download
     const changed = await this.hashStore.hasChanged(hashKey, hash);

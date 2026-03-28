@@ -181,11 +181,11 @@ describe('FrontmatterSchema', () => {
 
 describe('buildSectionPath', () => {
   it('generates correct file path from title/chapter/section', () => {
-    expect(buildSectionPath('26', '1', '101')).toBe('title-26/chapter-1/section-101.md');
+    expect(buildSectionPath('26', '1', '101')).toBe('statutes/title-26/chapter-1/section-101.md');
   });
 
   it('handles multi-digit numbers', () => {
-    expect(buildSectionPath('42', '157', '12345')).toBe('title-42/chapter-157/section-12345.md');
+    expect(buildSectionPath('42', '157', '12345')).toBe('statutes/title-42/chapter-157/section-12345.md');
   });
 });
 
@@ -243,7 +243,7 @@ describe('generateMarkdownForSection', () => {
       heading: 'Certain death benefits',
     };
     const file = generateMarkdownForSection(sectionNode, '26', '1', '101', 'PL 119-73');
-    expect(file.path).toBe('title-26/chapter-1/section-101.md');
+    expect(file.path).toBe('statutes/title-26/chapter-1/section-101.md');
     expect(file.content).toContain('---');
     expect(file.content).toContain('usc_title: 26');
     expect(file.content).toContain('# 101 Certain death benefits');

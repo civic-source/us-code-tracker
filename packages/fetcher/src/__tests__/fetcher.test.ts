@@ -30,7 +30,7 @@ describe('parseReleasePoints', () => {
     const points = parseReleasePoints(html);
     expect(points).toHaveLength(2);
     expect(points[0].title).toBe('42');
-    expect(points[0].xmlUrl).toContain('usc42@118-200.zip');
+    expect(points[0].uslmUrl).toContain('usc42@118-200.zip');
     expect(points[1].title).toBe('26');
   });
 
@@ -188,7 +188,7 @@ describe('OlrcFetcher', () => {
       new Response(nonZip, { status: 200 })
     );
 
-    const rp: ReleasePoint = { title: '42', date: '2024-01-01', xmlUrl: 'https://example.com/t42.zip' };
+    const rp: ReleasePoint = { title: '42', publicLaw: 'PL 118-200', dateET: '2024-01-01T00:00:00Z', uslmUrl: 'https://example.com/t42.zip', sha256Hash: '0'.repeat(64) };
     const fetcher = new OlrcFetcher({ logger });
     const result = await fetcher.fetchXml(rp);
     expect(result.ok).toBe(false);
@@ -208,8 +208,8 @@ describe('OlrcFetcher', () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'fetcher-test-'));
     const hashStore = new HashStore(tmpDir);
 
-    const rp: ReleasePoint = { title: '42', date: '2024-01-01', xmlUrl: 'https://example.com/t42.zip' };
-    const hashKey = `xml:${rp.title}:${rp.xmlUrl}`;
+    const rp: ReleasePoint = { title: '42', publicLaw: 'PL 118-200', dateET: '2024-01-01T00:00:00Z', uslmUrl: 'https://example.com/t42.zip', sha256Hash: '0'.repeat(64) };
+    const hashKey = `xml:${rp.title}:${rp.uslmUrl}`;
     await hashStore.setHash(hashKey, hash);
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
@@ -238,7 +238,7 @@ describe('OlrcFetcher', () => {
       new Response(zipContent, { status: 200 })
     );
 
-    const rp: ReleasePoint = { title: '42', date: '2024-01-01', xmlUrl: 'https://example.com/t42.zip' };
+    const rp: ReleasePoint = { title: '42', publicLaw: 'PL 118-200', dateET: '2024-01-01T00:00:00Z', uslmUrl: 'https://example.com/t42.zip', sha256Hash: '0'.repeat(64) };
     const fetcher = new OlrcFetcher({ logger, hashStore });
     const result = await fetcher.fetchXml(rp);
     expect(result.ok).toBe(true);

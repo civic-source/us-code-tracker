@@ -19,15 +19,34 @@ export function err<E>(error: E): Result<never, E> {
 export const ReleasePointSchema = z.object({
   /** Title number (e.g., "26" for Internal Revenue Code) */
   title: z.string().min(1),
-  /** Release date in YYYY-MM-DD format */
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  /** URL to the XML download for this release */
-  xmlUrl: z.string().url(),
-  /** Optional hash for integrity verification */
-  hash: z.string().optional(),
+  /** Public law reference (e.g., "PL 118-200") */
+  publicLaw: z.string(),
+  /** Release date in ISO 8601 datetime format (ET timezone) */
+  dateET: z.string().datetime(),
+  /** URL to the USLM XML download for this release */
+  uslmUrl: z.string().url(),
+  /** SHA-256 hex digest for integrity verification (64 hex characters) */
+  sha256Hash: z.string().length(64),
 });
 
 export type ReleasePoint = z.infer<typeof ReleasePointSchema>;
+
+// --- Precedent Annotation schema ---
+
+export const PrecedentAnnotationSchema = z.object({
+  targetSection: z.string(),
+  lastSyncedET: z.string().datetime(),
+  cases: z.array(z.object({
+    caseName: z.string(),
+    citation: z.string(),
+    court: z.enum(["SCOTUS", "Appellate", "District"]),
+    date: z.string(),
+    holdingSummary: z.string(),
+    url: z.string().url()
+  }))
+});
+
+export type PrecedentAnnotation = z.infer<typeof PrecedentAnnotationSchema>;
 
 // --- Interfaces ---
 

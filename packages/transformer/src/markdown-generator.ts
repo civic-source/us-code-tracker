@@ -17,7 +17,7 @@ export type Frontmatter = z.infer<typeof FrontmatterSchema>;
 
 /** A generated markdown file with its path and content */
 export interface MarkdownFile {
-  /** Relative path: title-{n}/chapter-{n}/section-{n}.md */
+  /** Relative path: statutes/title-{n}/chapter-{n}/section-{n}.md */
   path: string;
   /** Full markdown content including frontmatter */
   content: string;
@@ -25,7 +25,7 @@ export interface MarkdownFile {
 
 /** Build the output file path for a section */
 export function buildSectionPath(titleNum: string, chapterNum: string, sectionNum: string): string {
-  return `title-${titleNum}/chapter-${chapterNum}/section-${sectionNum}.md`;
+  return `statutes/title-${titleNum}/chapter-${chapterNum}/section-${sectionNum}.md`;
 }
 
 /** Generate YAML frontmatter string from validated data */

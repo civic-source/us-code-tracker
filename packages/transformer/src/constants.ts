@@ -70,4 +70,4 @@ export const INDENT_PER_LEVEL = 2;
 export const MAX_NESTING_DEPTH = 20;
 
 /** Output directory structure pattern */
-export const OUTPUT_PATH_PATTERN = 'title-{title}/chapter-{chapter}/section-{section}.md';
+export const OUTPUT_PATH_PATTERN = 'statutes/title-{title}/chapter-{chapter}/section-{section}.md';
