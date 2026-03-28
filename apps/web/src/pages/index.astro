@@ -1,13 +1,41 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenLaw-Git</title>
-  </head>
-  <body>
-    <h1>OpenLaw-Git</h1>
-    <p>US Code change tracking powered by Git.</p>
-  </body>
-</html>
+
+<BaseLayout
+  title="Home"
+  description="Track changes to the United States Code with Git-based version control and diff history."
+>
+  <h1 class="text-navy dark:text-amber">US Code Tracker</h1>
+
+  <p>
+    US Code Tracker converts each release of the United States Code into a Git
+    repository, making it possible to view the precise text that changed between
+    any two releases of federal law.
+  </p>
+
+  <h2>What this project does</h2>
+  <ul>
+    <li>Downloads official XML releases from the Office of the Law Revision Counsel.</li>
+    <li>Converts each title, chapter, and section into plain-text files tracked by Git.</li>
+    <li>Generates diffs that show exactly which words were added, removed, or amended.</li>
+    <li>Provides a browsable interface for exploring all 54 titles of the US Code.</li>
+  </ul>
+
+  <h2>Getting started</h2>
+  <p>
+    <a href={`${import.meta.env.BASE_URL}browse/`} class="text-teal hover:underline">
+      Browse all titles
+    </a>
+    to explore the current structure of the United States Code. Each title page
+    will show its chapters, sections, and the history of changes over time.
+  </p>
+
+  <h2>Data source</h2>
+  <p>
+    All text is sourced from the official releases published at
+    <a href="https://uscode.house.gov/" class="text-teal hover:underline">uscode.house.gov</a>
+    by the Office of the Law Revision Counsel of the U.S. House of Representatives.
+    This project does not alter the statutory text.
+  </p>
+</BaseLayout>

@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-serif: "Georgia", "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --color-navy: #1B3A5C;
+  --color-teal: #0D7377;
+  --color-amber: #D4A843;
+  --color-slate: #4A5568;
+}

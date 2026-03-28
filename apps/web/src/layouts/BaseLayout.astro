@@ -1,0 +1,94 @@
+---
+import '../styles/global.css';
+import ThemeToggle from '../components/ThemeToggle.svelte';
+import SearchBar from '../components/SearchBar.svelte';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'US Code Tracker',
+  description = 'Track changes to the United States Code with Git-based version control.',
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
+    <title>{title} | US Code Tracker</title>
+    <script is:inline>
+      // Apply theme before render to prevent flash
+      (function () {
+        const stored = localStorage.getItem('theme');
+        if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body class="h-full bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+    <div class="flex h-full flex-col lg:flex-row">
+      <!-- Sidebar -->
+      <aside class="w-full border-b border-gray-200 bg-gray-50 font-sans lg:w-64 lg:border-b-0 lg:border-r dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex items-center justify-between p-4 lg:flex-col lg:items-start lg:gap-4">
+          <a href={base} class="text-lg font-bold text-navy dark:text-amber">
+            US Code Tracker
+          </a>
+          <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch">
+            <ThemeToggle client:load />
+            <SearchBar client:load />
+          </div>
+        </div>
+        <nav class="hidden px-4 pb-4 font-sans lg:block" aria-label="Main navigation">
+          <ul class="space-y-1 text-sm">
+            <li>
+              <a
+                href={base}
+                class="block rounded px-2 py-1 text-slate hover:bg-gray-200 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber"
+              >
+                Home
+              </a>
+            </li>
+            <li>
+              <a
+                href={`${base}browse/`}
+                class="block rounded px-2 py-1 text-slate hover:bg-gray-200 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber"
+              >
+                Browse Titles
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <main class="min-h-0 flex-1 overflow-y-auto">
+        <article class="prose prose-gray mx-auto max-w-4xl p-6 font-serif dark:prose-invert lg:p-10">
+          <slot />
+        </article>
+
+        <!-- Footer -->
+        <footer class="border-t border-gray-200 px-6 py-4 text-center font-sans text-xs text-slate dark:border-gray-800 dark:text-gray-500">
+          <p>
+            This is an independent project and is not affiliated with, endorsed by, or
+            connected to the United States Government, the Office of the Law Revision
+            Counsel, or any government agency.
+          </p>
+          <p class="mt-1">
+            Source data from <a href="https://uscode.house.gov/" class="underline hover:text-teal">uscode.house.gov</a>.
+            Built with Astro.
+          </p>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

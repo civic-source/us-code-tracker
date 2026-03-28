@@ -1,3 +1,10 @@
 import { defineConfig } from 'astro/config';
+import svelte from '@astrojs/svelte';
+import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({});
+export default defineConfig({
+  integrations: [svelte()],
+  vite: { plugins: [tailwindcss()] },
+  site: 'https://civic-source.github.io',
+  base: '/us-code-tracker',
+});
