@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lawDoc identifier="/us/usc/t18">
+  <title identifier="/us/usc/t18">
+    <num>Title 18</num>
+    <heading>Crimes and Criminal Procedure</heading>
+    <chapter identifier="/us/usc/t18/ch1">
+      <num>Chapter 1</num>
+      <heading>General Provisions</heading>
+      <section identifier="/us/usc/t18/s1">
+        <num>1</num>
+        <heading>Offenses classified</heading>
+        <subsection>
+          <num>(a)</num>
+          <chapeau>Notwithstanding any Act of Congress to the contrary:</chapeau>
+          <paragraph>
+            <num>(1)</num>
+            <content>Any offense punishable by death or imprisonment for a term exceeding one year is a felony.</content>
+          </paragraph>
+          <paragraph>
+            <num>(2)</num>
+            <content>Any other offense is a misdemeanor.</content>
+          </paragraph>
+        </subsection>
+        <subsection>
+          <num>(b)</num>
+          <content>An offense that is not specifically classified by a letter grade in the section defining it, as provided in <ref href="/us/usc/t18/s3559">section 3559</ref> of this title, is classified as determined by this section.</content>
+        </subsection>
+      </section>
+      <section identifier="/us/usc/t18/s2">
+        <num>2</num>
+        <heading>Principals</heading>
+        <subsection>
+          <num>(a)</num>
+          <content>Whoever commits an offense against the United States or aids, abets, counsels, commands, induces or procures its commission, is punishable as a principal.</content>
+        </subsection>
+        <subsection>
+          <num>(b)</num>
+          <content>Whoever willfully causes an act to be done which if directly performed by him or another would be an offense against the United States, is punishable as a principal.</content>
+        </subsection>
+      </section>
+    </chapter>
+  </title>
+</lawDoc>
