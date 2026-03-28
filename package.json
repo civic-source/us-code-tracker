@@ -1,6 +1,6 @@
 {
   "name": "openlaw-git-pipeline",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.0",
@@ -8,12 +8,20 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -s",
+    "version:patch": "npm version patch --no-git-tag-version && pnpm changelog",
+    "version:minor": "npm version minor --no-git-tag-version && pnpm changelog",
+    "version:major": "npm version major --no-git-tag-version && pnpm changelog",
+    "release": "git add -A && git commit -m \"chore(release): v$(node -p 'require(\"./package.json\").version')\" && git tag v$(node -p 'require(\"./package.json\").version') && git push && git push --tags"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
+    "conventional-changelog-cli": "^5.0.0",
     "eslint": "^10.1.0",
     "turbo": "^2.4.0",
     "typescript": "^5.8.0",

@@ -1,19 +1,20 @@
-name: CI
+name: Release
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - 'v*'
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
@@ -32,6 +33,11 @@ jobs:
 
       - run: pnpm test
 
-      - name: Validate commit messages
-        if: github.event_name == 'pull_request'
-        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+      - name: Generate release changelog
+        run: npx conventional-changelog -p conventionalcommits -r 2 -o RELEASE_NOTES.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.5.0
+        with:
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false

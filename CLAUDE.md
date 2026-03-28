@@ -51,3 +51,23 @@ Cron and workflow_dispatch jobs may use self-hosted runners. Push/PR CI runs on 
 Use conventional commits: `type(scope): description`
 
 Types: feat, fix, refactor, docs, test, chore, perf
+
+Enforced by commitlint in CI (on PRs) via `commitlint.config.ts`.
+
+## Releases
+
+**Semver policy:** 0.x = pre-release (breaking changes allowed in minor bumps). 1.0 = first stable release.
+
+**Cutting a release:**
+
+```bash
+# 1. Bump version + regenerate changelog
+pnpm version:patch   # or version:minor / version:major
+
+# 2. Commit, tag, and push
+pnpm release
+```
+
+This creates a git tag (`v0.1.0`, etc.) which triggers the `release.yml` workflow to build, test, and publish a GitHub Release with auto-generated changelog notes.
+
+**Changelog:** Generated from conventional commits via `conventional-changelog`. The full history lives in `CHANGELOG.md`.
