@@ -1,3 +1,12 @@
+## [0.2.0](https://github.com/civic-source/us-code-tracker/compare/v0.1.0...v0.2.0) (2026-03-28)
+
+### Features
+
+* **web:** Content Collections, dynamic pages, Pagefind search ([#33](https://github.com/civic-source/us-code-tracker/issues/33), [#34](https://github.com/civic-source/us-code-tracker/issues/34)) ([ceaa785](https://github.com/civic-source/us-code-tracker/commit/ceaa785c1215d7a4d05a0ed1f5fb5dbf5f98758f))
+
+### Bug Fixes
+
+* **ci:** update action-gh-release to v2.6.1 for Node.js 24 ([#32](https://github.com/civic-source/us-code-tracker/issues/32)) ([40b2994](https://github.com/civic-source/us-code-tracker/commit/40b29943d837b010becb709cbb25b939da092562))
 ## 0.1.0 (2026-03-28)
 
 ### Features
