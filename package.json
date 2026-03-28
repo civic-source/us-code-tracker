@@ -2,6 +2,7 @@
   "name": "openlaw-git-pipeline",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "turbo run build",
@@ -10,8 +11,13 @@
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^10.1.0",
     "turbo": "^2.4.0",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^3.1.0"
   }
 }

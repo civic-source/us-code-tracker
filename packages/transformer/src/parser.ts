@@ -3,7 +3,7 @@ import { ok, err } from '@civic-source/types';
 import type { Result } from '@civic-source/types';
 import { USLM_ELEMENTS } from './constants.js';
 import { createLogger } from './logger.js';
-import { extractTextFromNodes, findElements, getAttributes } from './xml-utils.js';
+import { extractTextFromNodes, findElements } from './xml-utils.js';
 
 const log = createLogger('parser');
 

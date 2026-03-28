@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { type IUsCodeFetcher, type ReleasePoint, type Result, ok, err } from '@civic-source/types';
 import {
   OLRC_DOWNLOAD_PAGE,
-  OLRC_RELEASE_POINTS_URL,
   MAX_RETRIES,
   BASE_BACKOFF_MS,
 } from './constants.js';

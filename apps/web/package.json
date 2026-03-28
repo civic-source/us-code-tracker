@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
-    "lint": "echo 'no linter configured yet'",
+    "lint": "echo 'web app lint not configured (Astro/Svelte needs separate plugins)'",
     "test": "echo 'no tests yet'"
   },
   "dependencies": {

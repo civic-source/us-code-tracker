@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { type ReleasePoint, type Result, ok, err } from '@civic-source/types';
+import { type ReleasePoint, type Result, ok } from '@civic-source/types';
 import { OlrcFetcher, HashStore, createLogger } from '@civic-source/fetcher';
 import { XmlToMarkdownAdapter } from '@civic-source/transformer';
 import { Annotator } from '@civic-source/annotator';
