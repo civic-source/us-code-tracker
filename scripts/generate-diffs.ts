@@ -1,6 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
  * Pre-compute version diffs from the us-code git repo.
+ * Only generates diffs for sections with meaningful BODY changes
+ * (excludes frontmatter-only changes like current_through, generated_at).
+ *
  * Usage: npx tsx scripts/generate-diffs.ts --repo /path/to/us-code --output apps/web/public/diffs/
  */
 
@@ -9,16 +12,24 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
+interface DiffLine {
+  type: 'add' | 'del' | 'context';
+  content: string;
+}
+
 interface SectionDiff {
   from: string;
   to: string;
-  lines: { type: 'add' | 'del' | 'context'; content: string }[];
+  lines: DiffLine[];
 }
 
 interface DiffManifest {
   pairs: { from: string; to: string; changedSections: number }[];
   generatedAt: string;
 }
+
+/** Frontmatter fields that change on every regeneration — not meaningful diffs */
+const FRONTMATTER_NOISE = ['current_through', 'generated_at', 'classification'];
 
 function parseTag(name: string): [number, number] {
   const m = /pl-(\d+)-(\d+)/.exec(name);
@@ -44,17 +55,41 @@ function getRawDiff(repo: string, from: string, to: string): string {
   } catch { return ''; }
 }
 
+/** Check if a diff line is a frontmatter noise change */
+function isFrontmatterNoise(content: string): boolean {
+  return FRONTMATTER_NOISE.some((field) => content.trimStart().startsWith(`${field}:`));
+}
+
+/** Check if a diff has meaningful body changes (not just frontmatter) */
+function hasMeaningfulChanges(lines: DiffLine[]): boolean {
+  return lines.some(
+    (line) => (line.type === 'add' || line.type === 'del') && !isFrontmatterNoise(line.content)
+  );
+}
+
+/** Filter diff to only body-relevant lines (strip frontmatter noise) */
+function filterToBodyChanges(lines: DiffLine[]): DiffLine[] {
+  return lines.filter(
+    (line) => line.type === 'context' || !isFrontmatterNoise(line.content)
+  );
+}
+
 function parseDiff(raw: string, from: string, to: string): Map<string, SectionDiff> {
   const result = new Map<string, SectionDiff>();
   if (!raw.trim()) return result;
 
   let currentPath = '';
-  let currentLines: SectionDiff['lines'] = [];
+  let currentLines: DiffLine[] = [];
 
   for (const line of raw.split('\n')) {
     const fileHeader = /^diff --git a\/(.+) b\/.+$/.exec(line);
     if (fileHeader) {
-      if (currentPath && currentLines.length > 0) result.set(currentPath, { from, to, lines: currentLines });
+      if (currentPath && currentLines.length > 0) {
+        // Only include if there are meaningful body changes
+        if (hasMeaningfulChanges(currentLines)) {
+          result.set(currentPath, { from, to, lines: filterToBodyChanges(currentLines) });
+        }
+      }
       currentPath = fileHeader[1] ?? '';
       currentLines = [];
       continue;
@@ -64,7 +99,9 @@ function parseDiff(raw: string, from: string, to: string): Map<string, SectionDi
     else if (line.startsWith('-')) currentLines.push({ type: 'del', content: line.slice(1) });
     else currentLines.push({ type: 'context', content: line.slice(1) });
   }
-  if (currentPath && currentLines.length > 0) result.set(currentPath, { from, to, lines: currentLines });
+  if (currentPath && currentLines.length > 0 && hasMeaningfulChanges(currentLines)) {
+    result.set(currentPath, { from, to, lines: filterToBodyChanges(currentLines) });
+  }
   return result;
 }
 
@@ -103,12 +140,12 @@ for (let i = 0; i < tags.length - 1; i++) {
     if (!parts) continue;
     const sectionDir = join(dir, parts.title);
     await mkdir(sectionDir, { recursive: true });
-    await writeFile(join(sectionDir, `${parts.section}.json`), JSON.stringify(diff, null, 2));
+    await writeFile(join(sectionDir, `${parts.section}.json`), JSON.stringify(diff));
     changedSections++;
   }
 
   manifest.pairs.push({ from, to, changedSections });
-  console.log(`    ${changedSections} sections changed`);
+  console.log(`    ${changedSections} sections with body changes (excluded frontmatter-only)`);
 }
 
 await mkdir(output, { recursive: true });
