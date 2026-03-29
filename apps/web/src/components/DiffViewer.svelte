@@ -24,11 +24,22 @@
   let diffLines = $state<DiffLine[]>([]);
   let loading = $state(false);
   let diffLoading = $state(false);
+  let tagLoading = $state(false);
   let error = $state("");
   let compareFrom = $state("");
   let compareTo = $state("");
   let selectedTagContent = $state("");
   let selectedTag = $state("");
+
+  function cleanMarkdownForDisplay(raw: string): string {
+    return raw
+      .replace(/^---[\s\S]*?---\n*/m, "")
+      .replace(/^# .*/m, "")
+      .replace(/- \*\*\(([^)]+)\)\*\*/g, "($1)")
+      .replace(/^\s*- /gm, "")
+      .trim();
+  }
+
   async function loadHistory() {
     loading = true;
     error = "";
@@ -44,11 +55,9 @@
         if (tags.length > 1) compareFrom = tags[tags.length - 2].name;
       }
     } catch (e: unknown) {
-      if (isRateLimited(e)) {
-        error = "GitHub API rate limit reached. Try again later or provide a token.";
-      } else {
-        error = e instanceof Error ? e.message : "Failed to load history";
-      }
+      error = isRateLimited(e)
+        ? "GitHub API rate limit reached. Try again later or provide a token."
+        : e instanceof Error ? e.message : "Failed to load history";
     } finally {
       loading = false;
     }
@@ -66,11 +75,9 @@
       });
       diffLines = result ?? [];
     } catch (e: unknown) {
-      if (isRateLimited(e)) {
-        error = "GitHub API rate limit reached. Try again later or provide a token.";
-      } else {
-        error = e instanceof Error ? e.message : "Failed to load diff";
-      }
+      error = isRateLimited(e)
+        ? "GitHub API rate limit reached. Try again later or provide a token."
+        : e instanceof Error ? e.message : "Failed to load diff";
     } finally {
       diffLoading = false;
     }
@@ -79,9 +86,14 @@
   async function viewTag(tag: ReleaseTag) {
     selectedTag = tag.name;
     selectedTagContent = "";
+    tagLoading = true;
     error = "";
-    const content = await getFileAtRef(repoOwner, repoName, sectionPath, tag.name, githubToken);
-    selectedTagContent = content ?? "File not found at this version.";
+    try {
+      const content = await getFileAtRef(repoOwner, repoName, sectionPath, tag.name, githubToken);
+      selectedTagContent = content ? cleanMarkdownForDisplay(content) : "File not found at this version.";
+    } finally {
+      tagLoading = false;
+    }
   }
 
   function formatCommitMessage(msg: string): string {
@@ -105,15 +117,11 @@
   {:else if error}
     <p class="text-red-600 dark:text-red-400">{error}</p>
   {:else}
-    <!-- Section 1: Version Timeline -->
     {#if tags.length > 0}
       <h3 class="mb-2 text-base font-semibold text-gray-800 dark:text-gray-200">Version Timeline</h3>
       <div class="relative mb-4 flex items-center gap-0 overflow-x-auto pb-2">
         {#each tags as tag, i (tag.name)}
-          <button
-            class="group relative flex flex-col items-center px-3"
-            onclick={() => void viewTag(tag)}
-          >
+          <button class="group relative flex flex-col items-center px-3" onclick={() => void viewTag(tag)}>
             {#if i > 0}
               <span class="absolute left-0 top-3 h-0.5 w-3 bg-teal/40"></span>
             {/if}
@@ -130,7 +138,9 @@
         {/each}
       </div>
 
-      {#if selectedTagContent}
+      {#if tagLoading}
+        <p class="mb-4 text-xs text-gray-500">Loading version content...</p>
+      {:else if selectedTagContent}
         <div class="mb-4 rounded border border-gray-200 dark:border-gray-700">
           <div class="flex items-center justify-between bg-gray-50 px-3 py-1.5 text-xs dark:bg-gray-800">
             <span class="font-medium text-gray-600 dark:text-gray-300">Content at {formatTagName(selectedTag)}</span>
@@ -140,32 +150,23 @@
         </div>
       {/if}
 
-      <!-- Section 2: Version Comparison -->
       <h3 class="mb-2 text-base font-semibold text-gray-800 dark:text-gray-200">Compare Versions</h3>
       <div class="mb-3 flex flex-wrap items-center gap-2">
-        <label class="text-xs text-gray-500">
-          From:
+        <label class="text-xs text-gray-500">From:
           <select class="ml-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200" bind:value={compareFrom}>
-            {#each tags as tag (tag.name)}
-              <option value={tag.name}>{formatTagName(tag.name)}</option>
-            {/each}
+            {#each tags as tag (tag.name)}<option value={tag.name}>{formatTagName(tag.name)}</option>{/each}
           </select>
         </label>
-        <label class="text-xs text-gray-500">
-          To:
+        <label class="text-xs text-gray-500">To:
           <select class="ml-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200" bind:value={compareTo}>
-            {#each tags as tag (tag.name)}
-              <option value={tag.name}>{formatTagName(tag.name)}</option>
-            {/each}
+            {#each tags as tag (tag.name)}<option value={tag.name}>{formatTagName(tag.name)}</option>{/each}
           </select>
         </label>
         <button
           class="rounded bg-teal px-3 py-1 text-xs text-white hover:bg-teal/80 disabled:opacity-50"
           onclick={() => void compareVersions()}
           disabled={diffLoading || !compareFrom || !compareTo || compareFrom === compareTo}
-        >
-          {diffLoading ? "Comparing..." : "Compare"}
-        </button>
+        >{diffLoading ? "Comparing..." : "Compare"}</button>
       </div>
 
       {#if diffLines.length > 0}
@@ -177,13 +178,13 @@
       {/if}
     {/if}
 
-    <!-- Section 3: Change History -->
     <h3 class="mb-2 text-base font-semibold text-gray-800 dark:text-gray-200">Change History</h3>
     {#if commits.length === 0}
       <p class="text-gray-500">No history yet for this section.</p>
     {:else}
-      {@const hasLegislativeChanges = commits.some(c => isLegislativeChange(c.message))}
-      {#if !hasLegislativeChanges}
+      {#if tags.length === 0}
+        <p class="mb-3 rounded bg-teal/10 p-2 text-xs text-teal-700 dark:text-teal-300">Version timeline available when release point tags are published.</p>
+      {:else if !commits.some(c => isLegislativeChange(c.message))}
         <p class="mb-3 rounded bg-amber/10 p-2 text-xs text-amber dark:bg-amber/5">No legislative changes tracked yet. Future updates will appear here as diffs.</p>
       {/if}
       <ul class="max-h-48 space-y-1 overflow-y-auto">

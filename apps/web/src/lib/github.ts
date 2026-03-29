@@ -61,10 +61,10 @@ export async function getFileDiff(
 
     return file.patch.split("\n").map((line) => {
       if (line.startsWith("+") && !line.startsWith("+++")) {
-        return { type: "add", content: line };
+        return { type: "add", content: line.slice(1) };
       }
       if (line.startsWith("-") && !line.startsWith("---")) {
-        return { type: "del", content: line };
+        return { type: "del", content: line.slice(1) };
       }
       return { type: "context", content: line };
     });
@@ -85,22 +85,20 @@ export async function getReleaseTags(
 ): Promise<ReleaseTag[]> {
   const octokit = createClient(token);
   const response = await octokit.repos.listTags({ owner, repo, per_page: 100 });
-  const plTags = response.data.filter((t) => t.name.startsWith("pl-"));
 
-  const results: ReleaseTag[] = [];
-  for (const tag of plTags) {
-    try {
-      const commit = await octokit.repos.getCommit({ owner, repo, ref: tag.commit.sha });
-      results.push({
-        name: tag.name,
-        date: commit.data.commit.author?.date ?? "",
-      });
-    } catch {
-      results.push({ name: tag.name, date: "" });
-    }
-  }
+  const parseTag = (name: string): [number, number] => {
+    const m = /pl-(\d+)-(\d+)/.exec(name);
+    return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [0, 0];
+  };
 
-  return results.sort((a, b) => a.date.localeCompare(b.date));
+  return response.data
+    .filter((t) => t.name.startsWith("pl-"))
+    .map((t) => ({ name: t.name, date: "" }))
+    .sort((a, b) => {
+      const [ac, al] = parseTag(a.name);
+      const [bc, bl] = parseTag(b.name);
+      return ac !== bc ? ac - bc : al - bl;
+    });
 }
 
 export async function getFileAtRef(
