@@ -72,6 +72,24 @@
     }
   }
 
+  /** Format raw commit message into user-friendly text */
+  function formatCommitMessage(msg: string): string {
+    // "chore(law): Update to PL 119-73" → "Updated to Public Law 119-73"
+    const plMatch = /Update to (?:PL |Public Law )?([\d-]+)/i.exec(msg);
+    if (plMatch) return `Updated to Public Law ${plMatch[1]}`;
+    // "chore(law): Regenerate..." → "Formatting update"
+    if (/regenerate|reformat|markdown/i.test(msg)) return 'Formatting update';
+    // "chore(law): Import..." → "Initial import"
+    if (/import|initial/i.test(msg)) return 'Initial import';
+    // Fallback: strip conventional commit prefix
+    return msg.replace(/^(?:chore|feat|fix)\([^)]*\):\s*/i, '');
+  }
+
+  /** Check if a commit represents an actual legislative change (not pipeline maintenance) */
+  function isLegislativeChange(msg: string): boolean {
+    return /Update to (?:PL |Public Law )/i.test(msg);
+  }
+
   $effect(() => {
     void loadHistory();
   });
@@ -87,7 +105,14 @@
   {:else if commits.length === 0}
     <p class="text-gray-500">No history yet for this section.</p>
   {:else}
-    <p class="mb-2 text-xs text-gray-500">Select two commits to compare:</p>
+    {@const hasLegislativeChanges = commits.some(c => isLegislativeChange(c.message))}
+    {#if !hasLegislativeChanges}
+      <div class="mb-3 rounded bg-amber/10 p-3 text-xs text-amber dark:bg-amber/5">
+        <p class="font-medium">No legislative changes tracked yet.</p>
+        <p class="mt-1 text-gray-500 dark:text-gray-400">This section was imported from the current release (PL 119-73). Future legislation updates will appear here as diffs.</p>
+      </div>
+    {/if}
+    <p class="mb-2 text-xs text-gray-500">{hasLegislativeChanges ? 'Select two versions to compare:' : 'Import history:'}</p>
     <ul class="mb-4 max-h-48 space-y-1 overflow-y-auto">
       {#each commits as commit (commit.sha)}
         <li>
@@ -98,8 +123,7 @@
             onclick={() => toggleCommit(commit.sha)}
             aria-pressed={selected.includes(commit.sha)}
           >
-            <code class="font-mono text-teal dark:text-teal">{commit.sha.slice(0, 7)}</code>
-            <span class="ml-2 text-gray-700 dark:text-gray-300">{commit.message}</span>
+            <span class="text-gray-700 dark:text-gray-300">{formatCommitMessage(commit.message)}</span>
             <span class="ml-2 text-gray-400">{commit.date ? new Date(commit.date).toLocaleDateString() : ""}</span>
           </button>
         </li>

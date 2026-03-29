@@ -53,8 +53,8 @@ const sectionPath = `statutes/title-${usc_title}/chapter-${chapter}/section-${us
 
 const base = import.meta.env.BASE_URL;
 
-// OLRC link
-const olrcUrl = `https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title${usc_title}-section${usc_section}`;
+// OLRC link — requires &num=0&edition=prelim to resolve correctly
+const olrcUrl = `https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title${usc_title}-section${usc_section}&num=0&edition=prelim`;
 
 // Format generated_at date
 const formattedDate = generated_at
