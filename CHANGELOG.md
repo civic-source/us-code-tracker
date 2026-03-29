@@ -1,3 +1,13 @@
+## [0.4.0](https://github.com/civic-source/us-code-tracker/compare/v0.3.0...v0.4.0) (2026-03-29)
+
+### Features
+
+* bulk import 9 titles (2,885 sections) + bulk-import script ([#34](https://github.com/civic-source/us-code-tracker/issues/34)) ([ecc5628](https://github.com/civic-source/us-code-tracker/commit/ecc5628220b364230654892d43e9af93f4cab610)), closes [#35](https://github.com/civic-source/us-code-tracker/issues/35)
+* **web:** hierarchical navigation, Pagefind search, 46K page build ([#36](https://github.com/civic-source/us-code-tracker/issues/36)) ([b04e25c](https://github.com/civic-source/us-code-tracker/commit/b04e25c84c8510b9ee00a8e4fa0684f8d7c118fc))
+
+### Bug Fixes
+
+* **transformer:** handle deeply nested US Code titles ([#35](https://github.com/civic-source/us-code-tracker/issues/35)) ([abae5da](https://github.com/civic-source/us-code-tracker/commit/abae5da9059afc6ff6563c542582c319691b98f2))
 ## [0.3.0](https://github.com/civic-source/us-code-tracker/compare/v0.2.0...v0.3.0) (2026-03-29)
 
 ### Features
