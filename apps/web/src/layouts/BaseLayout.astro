@@ -38,6 +38,18 @@ const titleEntries = Object.entries(TITLE_NAMES)
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
     <meta name="base-url" content={base} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title === 'US Code Tracker' ? title : `${title} | US Code Tracker`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.site).href} />
+    <meta property="og:site_name" content="US Code Tracker" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title === 'US Code Tracker' ? title : `${title} | US Code Tracker`} />
+    <meta name="twitter:description" content={description} />
+    <!-- CSP: defense-in-depth against XSS -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.github.com;" />
     <title>{title === 'US Code Tracker' ? title : `${title} | US Code Tracker`}</title>
     <script is:inline>
       // Apply theme before render to prevent flash
