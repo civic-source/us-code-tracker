@@ -1,3 +1,8 @@
+## [0.5.5](https://github.com/civic-source/us-code-tracker/compare/v0.5.4...v0.5.5) (2026-03-29)
+
+### Features
+
+* **web:** version timeline + comparison in DiffViewer ([#46](https://github.com/civic-source/us-code-tracker/issues/46)) ([20766db](https://github.com/civic-source/us-code-tracker/commit/20766db636068bb9324aff7d7a7b3c207ff64364))
 ## [0.5.4](https://github.com/civic-source/us-code-tracker/compare/v0.5.3...v0.5.4) (2026-03-29)
 
 ### Bug Fixes
