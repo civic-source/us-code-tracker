@@ -1,3 +1,9 @@
+## [0.5.6](https://github.com/civic-source/us-code-tracker/compare/v0.5.5...v0.5.6) (2026-03-29)
+
+### Bug Fixes
+
+* **scripts:** add network retry + error resilience to historical importer ([de6fec5](https://github.com/civic-source/us-code-tracker/commit/de6fec593af281a48a0f83d616bb57062c0b26ac))
+* **scripts:** batch git add by title directory + use 255 verified release points ([7332794](https://github.com/civic-source/us-code-tracker/commit/73327942cf25a1fd24bf25bdc83333033f1c359a))
 ## [0.5.5](https://github.com/civic-source/us-code-tracker/compare/v0.5.4...v0.5.5) (2026-03-29)
 
 ### Features
