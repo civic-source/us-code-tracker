@@ -17,6 +17,12 @@ pnpm build          # Build all packages (topological order)
 pnpm test           # Run all tests
 pnpm lint           # Lint all packages
 pnpm typecheck      # Type-check all packages
+
+# Historical import
+npx tsx scripts/import-history.ts --repo /path/to/us-code                          # Full import
+npx tsx scripts/import-history.ts --repo /path/to/us-code --start pl/119/1 --end pl/119/73  # Range
+npx tsx scripts/import-history.ts --repo /path/to/us-code --title 18 --dry-run     # Single title dry run
+npx tsx scripts/import-history.ts --repo /path/to/us-code --resume                 # Resume interrupted
 ```
 
 ## Core Principles
