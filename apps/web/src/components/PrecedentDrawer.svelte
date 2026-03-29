@@ -34,40 +34,36 @@
   }
 </script>
 
-<!-- Toggle button -->
-<button
-  onclick={() => (open = !open)}
-  class="fixed right-0 top-1/2 z-40 -translate-y-1/2 rounded-l-md bg-teal-600 px-2 py-3 text-xs font-semibold text-white shadow-lg hover:bg-teal-700"
-  aria-label={open ? 'Close precedent drawer' : 'Open precedent drawer'}
->
-  {open ? '›' : '‹'} Cases ({annotations.length})
-</button>
-
-<!-- Drawer panel -->
-{#if open}
-  <aside
-    class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-xl sm:w-[400px] dark:border-gray-700 dark:bg-[#0a1628]"
+{#if annotations.length > 0}
+  <!-- Toggle button -->
+  <button
+    onclick={() => (open = !open)}
+    class="fixed right-0 top-1/2 z-40 -translate-y-1/2 rounded-l-md bg-teal-600 px-2 py-3 text-xs font-semibold text-white shadow-lg hover:bg-teal-700"
+    aria-label={open ? 'Close precedent drawer' : 'Open precedent drawer'}
   >
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-lg font-bold text-slate-900 dark:text-gray-100">
-        Precedent <code class="text-sm font-mono">§{sectionId}</code>
-      </h2>
-      <button
-        onclick={() => (open = false)}
-        class="rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-        aria-label="Close drawer"
-      >✕</button>
-    </div>
+    {open ? '›' : '‹'} Cases ({annotations.length})
+  </button>
 
-    <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
-      {annotations.length} annotation{annotations.length !== 1 ? 's' : ''}
-    </p>
+  <!-- Drawer panel -->
+  {#if open}
+    <aside
+      class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-xl sm:w-[400px] dark:border-gray-700 dark:bg-[#0a1628]"
+    >
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-gray-100">
+          Precedent <code class="text-sm font-mono">§{sectionId}</code>
+        </h2>
+        <button
+          onclick={() => (open = false)}
+          class="rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Close drawer"
+        >✕</button>
+      </div>
 
-    {#if annotations.length === 0}
-      <p class="text-sm italic text-gray-400 dark:text-gray-500">
-        No precedent annotations available for this section.
+      <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+        {annotations.length} annotation{annotations.length !== 1 ? 's' : ''}
       </p>
-    {:else}
+
       {#each [...grouped()] as [court, cases]}
         <h3 class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide {COURT_COLORS[court]}">
           {court} ({cases.length})
@@ -100,6 +96,6 @@
           {/each}
         </ul>
       {/each}
-    {/if}
-  </aside>
+    </aside>
+  {/if}
 {/if}

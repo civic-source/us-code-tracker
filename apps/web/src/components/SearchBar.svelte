@@ -24,6 +24,7 @@
   let results = $state<PagefindResultData[]>([]);
   let loading = $state(false);
   let showResults = $state(false);
+  let activeIndex = $state(-1);
   let pagefind = $state<PagefindModule | null>(null);
   let devMode = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -92,7 +93,26 @@
     // Delay to allow click on result links
     setTimeout(() => {
       showResults = false;
+      activeIndex = -1;
     }, 200);
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (!showResults || results.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      activeIndex = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      activeIndex = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
+    } else if (event.key === 'Enter' && activeIndex >= 0) {
+      event.preventDefault();
+      const selected = results[activeIndex];
+      if (selected) {
+        window.location.href = selected.url;
+      }
+    }
   }
 </script>
 
@@ -112,6 +132,11 @@
       bind:value={query}
       onfocusin={() => { if (query.length > 0) showResults = true; }}
       onfocusout={closeResults}
+      onkeydown={handleKeydown}
+      role="combobox"
+      aria-expanded={showResults}
+      aria-controls="search-results"
+      aria-activedescendant={activeIndex >= 0 ? `result-${activeIndex}` : undefined}
       class="w-full rounded border border-gray-300 bg-white py-1 pl-8 pr-2 text-xs text-gray-900 placeholder-gray-400 focus:border-teal focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 lg:w-48"
     />
   </div>
@@ -123,12 +148,12 @@
       {:else if results.length === 0}
         <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No results found.</div>
       {:else}
-        <ul class="divide-y divide-gray-100 dark:divide-gray-800">
-          {#each results as result}
-            <li>
+        <ul id="search-results" class="divide-y divide-gray-100 dark:divide-gray-800" role="listbox">
+          {#each results as result, i}
+            <li role="option" id="result-{i}" aria-selected={i === activeIndex}>
               <a
                 href={result.url}
-                class="block px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                class="block px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 {i === activeIndex ? 'bg-gray-100 dark:bg-gray-800' : ''}"
               >
                 <div class="text-xs font-medium text-gray-900 dark:text-gray-100">
                   {result.meta.title ?? 'Untitled'}

@@ -42,7 +42,7 @@
 
 <button
   onclick={cycle}
-  aria-label="Toggle theme: {labels[theme]}"
+  aria-label={`Toggle theme: ${labels[theme]}`}
   title="Theme: {labels[theme]}"
   class="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs font-sans transition-colors hover:bg-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
 >

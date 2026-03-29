@@ -55,6 +55,7 @@ const base = import.meta.env.BASE_URL;
 >
   <!-- Breadcrumbs -->
   <Breadcrumbs items={[
+    { label: 'Home', href: base },
     { label: 'Browse', href: `${base}browse/` },
     { label: `Title ${usc_title}`, href: `${base}browse/title-${usc_title}/` },
     { label: `Chapter ${chapter}`, href: `${base}browse/title-${usc_title}/chapter-${chapter}/` },
@@ -77,6 +78,34 @@ const base = import.meta.env.BASE_URL;
     </span>
   </div>
 
+  <!-- Mobile TOC fallback -->
+  {chapterSiblings.length > 1 && (
+    <details class="not-prose lg:hidden mb-4">
+      <summary class="font-sans text-sm font-medium cursor-pointer">Sections in this chapter</summary>
+      <ul class="mt-2 space-y-0.5 text-xs font-sans">
+        {chapterSiblings.map((sibling) => {
+          const isCurrent = sibling.id === entry.id;
+          return (
+            <li>
+              <a
+                href={`${base}statute/${sibling.id}/`}
+                class:list={[
+                  'block rounded px-2 py-1 transition-colors',
+                  isCurrent
+                    ? 'bg-navy/10 font-medium text-navy dark:bg-amber/10 dark:text-amber'
+                    : 'text-slate hover:bg-gray-100 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber',
+                ]}
+                aria-current={isCurrent ? 'page' : undefined}
+              >
+                &sect; {sibling.data.usc_section}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  )}
+
   <!-- Content with chapter sidebar -->
   <div class="not-prose flex gap-8">
     <!-- Main statute content -->
@@ -86,7 +115,7 @@ const base = import.meta.env.BASE_URL;
 
     <!-- Chapter TOC sidebar -->
     {chapterSiblings.length > 1 && (
-      <aside class="hidden w-56 shrink-0 xl:block">
+      <aside class="hidden w-56 shrink-0 lg:block">
         <nav class="sticky top-6 font-sans" aria-label="Chapter sections">
           <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate dark:text-gray-500">
             Chapter {chapter} Sections

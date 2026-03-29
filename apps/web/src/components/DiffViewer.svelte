@@ -93,11 +93,11 @@
         <li>
           <button
             class="w-full rounded px-2 py-1 text-left text-xs transition-colors {selected.includes(commit.sha)
-              ? 'bg-blue-100 dark:bg-blue-900'
+              ? 'bg-teal/10 dark:bg-navy'
               : 'hover:bg-gray-100 dark:hover:bg-gray-800'}"
             onclick={() => toggleCommit(commit.sha)}
           >
-            <code class="font-mono text-blue-600 dark:text-blue-400">{commit.sha.slice(0, 7)}</code>
+            <code class="font-mono text-teal dark:text-teal">{commit.sha.slice(0, 7)}</code>
             <span class="ml-2 text-gray-700 dark:text-gray-300">{commit.message}</span>
             <span class="ml-2 text-gray-400">{commit.date ? new Date(commit.date).toLocaleDateString() : ""}</span>
           </button>
@@ -107,7 +107,7 @@
 
     {#if selected.length === 2}
       <button
-        class="mb-3 rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+        class="mb-3 rounded bg-teal px-3 py-1 text-xs text-white hover:bg-teal/80 disabled:opacity-50"
         onclick={() => void loadDiff()}
         disabled={diffLoading}
       >
