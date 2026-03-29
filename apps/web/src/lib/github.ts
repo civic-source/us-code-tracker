@@ -73,6 +73,74 @@ export async function getFileDiff(
   }
 }
 
+export interface ReleaseTag {
+  name: string;
+  date: string;
+}
+
+export async function getReleaseTags(
+  owner: string,
+  repo: string,
+  token?: string,
+): Promise<ReleaseTag[]> {
+  const octokit = createClient(token);
+  const response = await octokit.repos.listTags({ owner, repo, per_page: 100 });
+  const plTags = response.data.filter((t) => t.name.startsWith("pl-"));
+
+  const results: ReleaseTag[] = [];
+  for (const tag of plTags) {
+    try {
+      const commit = await octokit.repos.getCommit({ owner, repo, ref: tag.commit.sha });
+      results.push({
+        name: tag.name,
+        date: commit.data.commit.author?.date ?? "",
+      });
+    } catch {
+      results.push({ name: tag.name, date: "" });
+    }
+  }
+
+  return results.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getFileAtRef(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token?: string,
+): Promise<string | null> {
+  try {
+    const octokit = createClient(token);
+    const response = await octokit.repos.getContent({ owner, repo, path, ref });
+    const data = response.data;
+    if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
+      return null;
+    }
+    const decoded = atob(data.content);
+    return sanitizeContent(decoded);
+  } catch {
+    return null;
+  }
+}
+
+/** Strip HTML tags from content to prevent XSS */
+export function sanitizeContent(raw: string): string {
+  return raw.replace(/<[^>]*>/g, "");
+}
+
+/** Format a pl-* tag name into a human-readable label */
+export function formatTagName(tag: string): string {
+  // "pl-113-100" → "PL 113-100"
+  return tag.replace(/^pl-/, "PL ").replace(/-/g, "-");
+}
+
+/** Extract year from an ISO date string */
+export function extractYear(date: string): string {
+  if (!date) return "";
+  return new Date(date).getFullYear().toString();
+}
+
 export function isRateLimited(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("status" in error)) {
     return false;
