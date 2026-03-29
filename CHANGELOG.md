@@ -1,3 +1,9 @@
+## [0.4.1](https://github.com/civic-source/us-code-tracker/compare/v0.4.0...v0.4.1) (2026-03-29)
+
+### Bug Fixes
+
+* **web:** add trailing slash to base path — fixes broken navigation URLs ([8ce6250](https://github.com/civic-source/us-code-tracker/commit/8ce6250d9d418d76bccb583ab2e36a51d66c1fab))
+* **web:** resolve 12 UX/UI audit findings — accessibility, navigation, design ([#37](https://github.com/civic-source/us-code-tracker/issues/37)) ([3a7e353](https://github.com/civic-source/us-code-tracker/commit/3a7e3531061610feeb810afa6dbaec66a0108936))
 ## [0.4.0](https://github.com/civic-source/us-code-tracker/compare/v0.3.0...v0.4.0) (2026-03-29)
 
 ### Features
