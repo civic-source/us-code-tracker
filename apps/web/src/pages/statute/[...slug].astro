@@ -61,9 +61,12 @@ const formattedDate = generated_at
   ? new Date(generated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   : undefined;
 
-// Repealed / Reserved detection
+// Repealed / Reserved / Omitted / Transferred / Renumbered detection
 const isRepealed = entry.data.title.includes('Repealed');
 const isReserved = entry.data.title.includes('Reserved');
+const isOmitted = entry.data.title.includes('Omitted');
+const isTransferred = entry.data.title.includes('Transferred') && !entry.data.title.includes('Transferred or reemployed');
+const isRenumbered = entry.data.title.includes('Renumbered');
 ---
 
 <BaseLayout
@@ -119,6 +122,24 @@ const isReserved = entry.data.title.includes('Reserved');
   {isReserved && (
     <div class="not-prose my-4 rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm font-sans dark:border-gray-700 dark:bg-gray-900">
       <p class="font-medium">This section is reserved for future legislation.</p>
+    </div>
+  )}
+  {isOmitted && (
+    <div class="not-prose my-4 rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm font-sans dark:border-gray-700 dark:bg-gray-900">
+      <p class="font-medium text-gray-600 dark:text-gray-400">This section was omitted from the Code.</p>
+      <p class="mt-1 text-gray-500 dark:text-gray-500">Omitted sections were formerly part of the U.S. Code but are no longer included, typically because the underlying law expired, was superseded, or was executed (completed its purpose).</p>
+    </div>
+  )}
+  {isTransferred && (
+    <div class="not-prose my-4 rounded-lg border border-teal/30 bg-teal/5 p-4 text-sm font-sans">
+      <p class="font-medium text-teal">This section has been transferred.</p>
+      <p class="mt-1 text-gray-600 dark:text-gray-400">The content of this section has been moved to a different location in the U.S. Code. Check the heading above for the transfer reference.</p>
+    </div>
+  )}
+  {isRenumbered && (
+    <div class="not-prose my-4 rounded-lg border border-teal/30 bg-teal/5 p-4 text-sm font-sans">
+      <p class="font-medium text-teal">This section has been renumbered.</p>
+      <p class="mt-1 text-gray-600 dark:text-gray-400">This section's number was changed. Check the heading above for the new section number.</p>
     </div>
   )}
 
