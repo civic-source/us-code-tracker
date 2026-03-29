@@ -1,3 +1,9 @@
+## [0.4.2](https://github.com/civic-source/us-code-tracker/compare/v0.4.1...v0.4.2) (2026-03-29)
+
+### Features
+
+* **web:** improved list formatting, sidebar navigation, footer ([#37](https://github.com/civic-source/us-code-tracker/issues/37)) ([1a98216](https://github.com/civic-source/us-code-tracker/commit/1a9821694883b1f04660187622330ab3706b72a1))
+* **web:** markdown rendering improvements — prose tuning, repealed notices, OLRC links ([#38](https://github.com/civic-source/us-code-tracker/issues/38)) ([0b4b1e5](https://github.com/civic-source/us-code-tracker/commit/0b4b1e50400ac8650918114965e13da2b525ed20))
 ## [0.4.1](https://github.com/civic-source/us-code-tracker/compare/v0.4.0...v0.4.1) (2026-03-29)
 
 ### Bug Fixes
