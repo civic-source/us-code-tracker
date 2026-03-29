@@ -118,6 +118,28 @@ export async function scrapeReleasePoints(
     // Fall through to cached list
   }
 
+  // Try loading from verified release points file (255 entries from background scan)
+  try {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const thisDir = dirname(fileURLToPath(import.meta.url));
+    const verifiedPath = join(thisDir, 'verified-release-points.txt');
+    const lines = readFileSync(verifiedPath, 'utf-8').trim().split('\n');
+    const verified: ReleasePointId[] = [];
+    for (const line of lines) {
+      const rp = parseReleasePointStr(`pl/${line.trim()}`);
+      if (rp) verified.push(rp);
+    }
+    if (verified.length > 0) {
+      console.log(`Using verified release points list (${verified.length} entries)`);
+      verified.sort(compareReleasePoints);
+      return verified;
+    }
+  } catch {
+    // Fall through to cached
+  }
+
   console.log('Using cached release points list (OLRC index unavailable)');
   return [...CACHED_RELEASE_POINTS];
 }

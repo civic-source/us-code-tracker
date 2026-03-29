@@ -44,10 +44,27 @@ export async function saveState(repo: string, state: ImportState): Promise<void>
 // --- Git operations ---
 
 export async function gitCommit(repo: string, message: string): Promise<void> {
-  await execFileAsync('git', ['add', '-A'], { cwd: repo, timeout: 30_000 });
+  // Batch git add by top-level title directories to avoid OOM on 50K+ files
+  const statutesDir = join(repo, 'statutes');
+  try {
+    const entries = readdirSync(statutesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        await execFileAsync('git', ['add', join('statutes', entry.name)], {
+          cwd: repo,
+          timeout: 60_000,
+        });
+      }
+    }
+  } catch {
+    // Fallback to git add -A if statutes dir doesn't exist yet
+    await execFileAsync('git', ['add', '-A'], { cwd: repo, timeout: 120_000 });
+  }
+  // Also add any root-level files (like .import-state.json)
+  await execFileAsync('git', ['add', '-A'], { cwd: repo, timeout: 60_000 }).catch(() => {});
   await execFileAsync('git', ['commit', '-m', message, '--allow-empty'], {
     cwd: repo,
-    timeout: 30_000,
+    timeout: 120_000,
   });
 }
 
