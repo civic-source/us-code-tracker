@@ -1,3 +1,14 @@
+## [0.5.7](https://github.com/civic-source/us-code-tracker/compare/v0.5.6...v0.5.7) (2026-03-29)
+
+### Features
+
+* pre-computed static diffs for zero-API version comparison ([#55](https://github.com/civic-source/us-code-tracker/issues/55)) ([46b5dd1](https://github.com/civic-source/us-code-tracker/commit/46b5dd18f6a970be3aa0c780af8ba751d23f6452))
+
+### Bug Fixes
+
+* **scripts:** filter diffs to body-only changes, exclude frontmatter noise ([#55](https://github.com/civic-source/us-code-tracker/issues/55)) ([ea56f15](https://github.com/civic-source/us-code-tracker/commit/ea56f151ead06b62b61997dfb31b51e2f0a4d3a3))
+* **web:** DiffViewer — eliminate N+1 API calls, clean markdown display ([577aed3](https://github.com/civic-source/us-code-tracker/commit/577aed3d40c4ab387e47fecd06312877a54684b7))
+* **web:** resolve 5 DiffViewer cosmetic issues ([#50](https://github.com/civic-source/us-code-tracker/issues/50)-[#54](https://github.com/civic-source/us-code-tracker/issues/54)) ([35042bc](https://github.com/civic-source/us-code-tracker/commit/35042bcff02821c0f847d24464b4d757c0c368d2)), closes [#51](https://github.com/civic-source/us-code-tracker/issues/51) [#52](https://github.com/civic-source/us-code-tracker/issues/52) [#53](https://github.com/civic-source/us-code-tracker/issues/53)
 ## [0.5.6](https://github.com/civic-source/us-code-tracker/compare/v0.5.5...v0.5.6) (2026-03-29)
 
 ### Bug Fixes
