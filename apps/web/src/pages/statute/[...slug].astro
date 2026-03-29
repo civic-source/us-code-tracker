@@ -41,6 +41,11 @@ export async function getStaticPaths() {
 const { entry, chapterSiblings } = Astro.props;
 const { Content } = await render(entry);
 
+// Compute prev/next section links
+const currentIdx = chapterSiblings.findIndex((s: typeof entry) => s.id === entry.id);
+const prevSection = currentIdx > 0 ? chapterSiblings[currentIdx - 1] : null;
+const nextSection = currentIdx < chapterSiblings.length - 1 ? chapterSiblings[currentIdx + 1] : null;
+
 const { usc_title, usc_section, chapter, classification, current_through, generated_at } = entry.data;
 
 // Build the file path in the us-code repo for DiffViewer
@@ -183,6 +188,20 @@ const isReserved = entry.data.title.includes('Reserved');
       </aside>
     )}
   </div>
+
+  <!-- Prev / Next section navigation -->
+  <nav class="not-prose mt-8 flex items-center justify-between border-t border-gray-200 pt-4 font-sans text-sm dark:border-gray-800" aria-label="Section navigation">
+    {prevSection ? (
+      <a href={`${base}statute/${prevSection.id}/`} class="flex items-center gap-1 text-teal hover:underline">
+        <span aria-hidden="true">&larr;</span> &sect; {prevSection.data.usc_section}
+      </a>
+    ) : <span></span>}
+    {nextSection ? (
+      <a href={`${base}statute/${nextSection.id}/`} class="flex items-center gap-1 text-teal hover:underline">
+        &sect; {nextSection.data.usc_section} <span aria-hidden="true">&rarr;</span>
+      </a>
+    ) : <span></span>}
+  </nav>
 
   <!-- Diff viewer for change history -->
   <div class="not-prose mt-8">

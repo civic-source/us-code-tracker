@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import ThemeToggle from '../components/ThemeToggle.svelte';
 import SearchBar from '../components/SearchBar.svelte';
+import BackToTop from '../components/BackToTop.svelte';
 import { TITLE_NAMES } from '../data/title-names';
 
 interface Props {
@@ -179,5 +180,6 @@ const titleEntries = Object.entries(TITLE_NAMES)
         });
       })();
     </script>
+    <BackToTop client:load />
   </body>
 </html>

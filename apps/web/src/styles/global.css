@@ -16,7 +16,14 @@
 .prose {
   --tw-prose-body-line-height: 1.85;
   font-size: 1.125rem; /* 18px */
-  max-width: 72ch;
+  max-width: min(72ch, 100%);
+}
+
+/* On wider screens, allow more width for deeply nested content */
+@media (min-width: 1280px) {
+  .prose {
+    max-width: min(80ch, 100%);
+  }
 }
 
 /* Paragraph spacing for legal text */
@@ -66,6 +73,11 @@
 /* Dark mode: slightly brighter teal border for nested lists */
 :where(.dark, .dark *) .prose ul ul {
   border-left-color: #14a3a8;
+}
+
+/* At deep nesting, reduce padding to prevent horizontal overflow */
+.prose ul ul ul ul {
+  padding-left: 1em;
 }
 
 /* Legal text long paragraphs — list item spacing */
