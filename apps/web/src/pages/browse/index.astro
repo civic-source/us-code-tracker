@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 
 const allStatutes = await getCollection('statutes');
 
@@ -82,26 +83,23 @@ const base = import.meta.env.BASE_URL;
   title="Browse Titles"
   description="Browse all titles of the United States Code."
 >
+  <Breadcrumbs items={[{ label: 'Browse' }]} />
+
   <h1 class="text-navy dark:text-amber">United States Code</h1>
   <p>
     The United States Code is organized into titles covering the general and
     permanent laws of the United States. Titles with available sections are
-    shown below. Select a title to view its sections.
+    shown below. Select a title to view its chapters.
   </p>
 
   <div class="not-prose mt-6">
     <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
       {sortedTitles.map(([titleNum, entries]) => {
-        // Sort entries by section number for the link to the first section
-        const sorted = entries.sort((a, b) =>
-          Number(a.data.usc_section) - Number(b.data.usc_section)
-        );
-        const firstEntry = sorted[0];
         const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
         return (
           <li>
             <a
-              href={`${base}statute/${firstEntry.id}/`}
+              href={`${base}browse/title-${titleNum}/`}
               class="flex items-baseline gap-3 px-4 py-3 font-sans text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
             >
               <span class="w-10 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">

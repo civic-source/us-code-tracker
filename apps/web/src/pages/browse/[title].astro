@@ -1,0 +1,140 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+
+const TITLE_NAMES: Record<number, string> = {
+  1: 'General Provisions',
+  2: 'The Congress',
+  3: 'The President',
+  4: 'Flag and Seal, Seat of Government, and the States',
+  5: 'Government Organization and Employees',
+  6: 'Domestic Security',
+  7: 'Agriculture',
+  8: 'Aliens and Nationality',
+  9: 'Arbitration',
+  10: 'Armed Forces',
+  11: 'Bankruptcy',
+  12: 'Banks and Banking',
+  13: 'Census',
+  14: 'Coast Guard',
+  15: 'Commerce and Trade',
+  16: 'Conservation',
+  17: 'Copyrights',
+  18: 'Crimes and Criminal Procedure',
+  19: 'Customs Duties',
+  20: 'Education',
+  21: 'Food and Drugs',
+  22: 'Foreign Relations and Intercourse',
+  23: 'Highways',
+  24: 'Hospitals and Asylums',
+  25: 'Indians',
+  26: 'Internal Revenue Code',
+  27: 'Intoxicating Liquors',
+  28: 'Judiciary and Judicial Procedure',
+  29: 'Labor',
+  30: 'Mineral Lands and Mining',
+  31: 'Money and Finance',
+  32: 'National Guard',
+  33: 'Navigation and Navigable Waters',
+  34: 'Crime Control and Law Enforcement',
+  35: 'Patents',
+  36: 'Patriotic and National Observances, Ceremonies, and Organizations',
+  37: 'Pay and Allowances of the Uniformed Services',
+  38: "Veterans' Benefits",
+  39: 'Postal Service',
+  40: 'Public Buildings, Property, and Works',
+  41: 'Public Contracts',
+  42: 'The Public Health and Welfare',
+  43: 'Public Lands',
+  44: 'Public Printing and Documents',
+  45: 'Railroads',
+  46: 'Shipping',
+  47: 'Telecommunications',
+  48: 'Territories and Insular Possessions',
+  49: 'Transportation',
+  50: 'War and National Defense',
+  51: 'National and Commercial Space Programs',
+  52: 'Voting and Elections',
+  53: 'Reserved',
+  54: 'National Park Service and Related Programs',
+};
+
+export async function getStaticPaths() {
+  const entries = await getCollection('statutes');
+
+  // Group by usc_title
+  const byTitle = new Map<number, typeof entries>();
+  for (const entry of entries) {
+    const titleNum = entry.data.usc_title;
+    if (!byTitle.has(titleNum)) {
+      byTitle.set(titleNum, []);
+    }
+    byTitle.get(titleNum)!.push(entry);
+  }
+
+  return [...byTitle.entries()].map(([titleNum, titleEntries]) => ({
+    params: { title: `title-${titleNum}` },
+    props: { titleNum, entries: titleEntries },
+  }));
+}
+
+const { titleNum, entries } = Astro.props;
+const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
+
+// Group entries by chapter
+const byChapter = new Map<number, typeof entries>();
+for (const entry of entries) {
+  const ch = entry.data.chapter;
+  if (!byChapter.has(ch)) {
+    byChapter.set(ch, []);
+  }
+  byChapter.get(ch)!.push(entry);
+}
+
+// Sort chapters numerically
+const sortedChapters = [...byChapter.entries()].sort((a, b) => a[0] - b[0]);
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout
+  title={`Title ${titleNum} — ${titleName}`}
+  description={`Chapters in Title ${titleNum} of the United States Code: ${titleName}`}
+>
+  <Breadcrumbs items={[
+    { label: 'Browse', href: `${base}browse/` },
+    { label: `Title ${titleNum} — ${titleName}` },
+  ]} />
+
+  <h1 class="text-navy dark:text-amber">
+    Title {titleNum} — {titleName}
+  </h1>
+  <p>
+    {entries.length} section{entries.length !== 1 ? 's' : ''} across {sortedChapters.length} chapter{sortedChapters.length !== 1 ? 's' : ''}.
+    Select a chapter to view its sections.
+  </p>
+
+  <div class="not-prose mt-6">
+    <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+      {sortedChapters.map(([chapterNum, chapterEntries]) => (
+        <li>
+          <a
+            href={`${base}browse/title-${titleNum}/chapter-${chapterNum}/`}
+            class="flex items-baseline gap-3 px-4 py-3 font-sans text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
+          >
+            <span class="w-10 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
+              Ch. {chapterNum}
+            </span>
+            <span class="text-navy dark:text-gray-200">
+              Chapter {chapterNum}
+            </span>
+            <span class="ml-auto text-xs text-gray-400">
+              {chapterEntries.length} section{chapterEntries.length !== 1 ? 's' : ''}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</BaseLayout>

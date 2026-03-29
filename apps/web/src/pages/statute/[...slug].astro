@@ -3,28 +3,64 @@ import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DiffViewer from '../../components/DiffViewer.svelte';
 import PrecedentDrawer from '../../components/PrecedentDrawer.svelte';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 
 export async function getStaticPaths() {
   const entries = await getCollection('statutes');
-  return entries.map((entry) => ({
-    params: { slug: entry.id },
-    props: { entry },
-  }));
+
+  // Pre-compute chapter siblings for each entry
+  const byTitleChapter = new Map<string, typeof entries>();
+  for (const entry of entries) {
+    const key = `${entry.data.usc_title}-${entry.data.chapter}`;
+    if (!byTitleChapter.has(key)) {
+      byTitleChapter.set(key, []);
+    }
+    byTitleChapter.get(key)!.push(entry);
+  }
+
+  // Sort each chapter's sections
+  for (const [, chapterEntries] of byTitleChapter) {
+    chapterEntries.sort((a, b) => {
+      const aNum = parseFloat(a.data.usc_section);
+      const bNum = parseFloat(b.data.usc_section);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return a.data.usc_section.localeCompare(b.data.usc_section, undefined, { numeric: true });
+    });
+  }
+
+  return entries.map((entry) => {
+    const key = `${entry.data.usc_title}-${entry.data.chapter}`;
+    const chapterSiblings = byTitleChapter.get(key) ?? [];
+    return {
+      params: { slug: entry.id },
+      props: { entry, chapterSiblings },
+    };
+  });
 }
 
-const { entry } = Astro.props;
+const { entry, chapterSiblings } = Astro.props;
 const { Content } = await render(entry);
 
 const { usc_title, usc_section, chapter, classification, current_through } = entry.data;
 
 // Build the file path in the us-code repo for DiffViewer
 const sectionPath = `statutes/title-${usc_title}/chapter-${chapter}/section-${usc_section}.md`;
+
+const base = import.meta.env.BASE_URL;
 ---
 
 <BaseLayout
   title={entry.data.title}
   description={`${classification} - current through ${current_through}`}
 >
+  <!-- Breadcrumbs -->
+  <Breadcrumbs items={[
+    { label: 'Browse', href: `${base}browse/` },
+    { label: `Title ${usc_title}`, href: `${base}browse/title-${usc_title}/` },
+    { label: `Chapter ${chapter}`, href: `${base}browse/title-${usc_title}/chapter-${chapter}/` },
+    { label: `\u00A7 ${usc_section}` },
+  ]} />
+
   <!-- Metadata bar -->
   <div class="not-prose mb-6 flex flex-wrap gap-3 text-xs font-sans">
     <span class="rounded bg-navy/10 px-2 py-1 text-navy dark:bg-amber/10 dark:text-amber">
@@ -41,8 +77,45 @@ const sectionPath = `statutes/title-${usc_title}/chapter-${chapter}/section-${us
     </span>
   </div>
 
-  <!-- Rendered statute content -->
-  <Content />
+  <!-- Content with chapter sidebar -->
+  <div class="not-prose flex gap-8">
+    <!-- Main statute content -->
+    <div class="prose prose-gray min-w-0 flex-1 font-serif dark:prose-invert">
+      <Content />
+    </div>
+
+    <!-- Chapter TOC sidebar -->
+    {chapterSiblings.length > 1 && (
+      <aside class="hidden w-56 shrink-0 xl:block">
+        <nav class="sticky top-6 font-sans" aria-label="Chapter sections">
+          <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate dark:text-gray-500">
+            Chapter {chapter} Sections
+          </h2>
+          <ul class="max-h-[calc(100vh-8rem)] space-y-0.5 overflow-y-auto text-xs">
+            {chapterSiblings.map((sibling) => {
+              const isCurrent = sibling.id === entry.id;
+              return (
+                <li>
+                  <a
+                    href={`${base}statute/${sibling.id}/`}
+                    class:list={[
+                      'block rounded px-2 py-1 transition-colors',
+                      isCurrent
+                        ? 'bg-navy/10 font-medium text-navy dark:bg-amber/10 dark:text-amber'
+                        : 'text-slate hover:bg-gray-100 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber',
+                    ]}
+                    aria-current={isCurrent ? 'page' : undefined}
+                  >
+                    &sect; {sibling.data.usc_section}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </aside>
+    )}
+  </div>
 
   <!-- Diff viewer for change history -->
   <div class="not-prose mt-8">
