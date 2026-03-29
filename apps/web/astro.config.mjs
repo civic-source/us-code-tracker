@@ -6,5 +6,5 @@ export default defineConfig({
   integrations: [svelte()],
   vite: { plugins: [tailwindcss()] },
   site: 'https://civic-source.github.io',
-  base: '/us-code-tracker',
+  base: '/us-code-tracker/',
 });
