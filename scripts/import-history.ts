@@ -15,9 +15,9 @@ import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { createLogger, TokenBucket } from '@civic-source/shared';
-import { XmlToMarkdownAdapter } from '@civic-source/transformer';
-import type { MarkdownFile } from '@civic-source/transformer';
+import { createLogger, TokenBucket } from '../packages/shared/src/index.js';
+import { XmlToMarkdownAdapter } from '../packages/transformer/src/index.js';
+import type { MarkdownFile } from '../packages/transformer/src/index.js';
 
 import { buildManifest, detectDelta } from './lib/delta-detector.js';
 import {

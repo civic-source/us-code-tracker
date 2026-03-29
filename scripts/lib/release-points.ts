@@ -10,7 +10,7 @@
  *   xml_usc{NN}@{congress}-{law}.zip
  */
 
-import { OLRC_BASE_URL } from '@civic-source/fetcher';
+import { OLRC_BASE_URL } from '../../packages/fetcher/src/index.js';
 
 const PRIOR_RELEASE_POINTS_URL = `${OLRC_BASE_URL}/download/releasepoints/`;
 

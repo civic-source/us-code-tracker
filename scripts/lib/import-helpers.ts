@@ -9,8 +9,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readdirSync } from 'node:fs';
 
-import type { Logger } from '@civic-source/shared';
-import type { TokenBucket } from '@civic-source/shared';
+import type { Logger } from '../../packages/shared/src/index.js';
+import type { TokenBucket } from '../../packages/shared/src/index.js';
 
 import { titleZipUrl, type ReleasePointId } from './release-points.js';
 
