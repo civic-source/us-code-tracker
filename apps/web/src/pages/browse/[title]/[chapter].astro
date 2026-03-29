@@ -64,21 +64,36 @@ const base = import.meta.env.BASE_URL;
 
   <div class="not-prose mt-6">
     <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-      {sortedSections.map((entry) => (
-        <li>
-          <a
-            href={`${base}statute/${entry.id}/`}
-            class="flex items-baseline gap-3 px-4 py-3 font-sans text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
-          >
-            <span class="w-16 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
-              &sect; {entry.data.usc_section}
-            </span>
-            <span class="text-navy dark:text-gray-200">
-              {entry.data.title}
-            </span>
-          </a>
-        </li>
-      ))}
+      {sortedSections.map((entry) => {
+        const sTitle = entry.data.title;
+        const isRepealed = sTitle.includes('Repealed');
+        const isReserved = sTitle.includes('Reserved');
+        const isOmitted = sTitle.includes('Omitted');
+        const isTransferred = sTitle.includes('Transferred') && !sTitle.includes('Transferred or reemployed');
+        const isInactive = isRepealed || isReserved || isOmitted || isTransferred;
+        return (
+          <li>
+            <a
+              href={`${base}statute/${entry.id}/`}
+              class:list={[
+                'flex items-baseline gap-3 px-4 py-3 font-sans text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900',
+                isInactive && 'opacity-60',
+              ]}
+            >
+              <span class="w-16 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
+                &sect; {entry.data.usc_section}
+              </span>
+              <span class:list={['text-navy dark:text-gray-200', isInactive && 'italic']}>
+                {sTitle}
+              </span>
+              {isRepealed && <span class="ml-auto rounded bg-amber/15 px-1.5 py-0.5 text-[10px] font-medium text-amber">Repealed</span>}
+              {isReserved && <span class="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">Reserved</span>}
+              {isOmitted && <span class="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">Omitted</span>}
+              {isTransferred && <span class="ml-auto rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-teal">Transferred</span>}
+            </a>
+          </li>
+        );
+      })}
     </ul>
   </div>
 </BaseLayout>
