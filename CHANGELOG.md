@@ -1,3 +1,12 @@
+## [0.4.4](https://github.com/civic-source/us-code-tracker/compare/v0.4.3...v0.4.4) (2026-03-29)
+
+### Features
+
+* **web:** prev/next navigation, back-to-top, responsive prose width ([94b7f91](https://github.com/civic-source/us-code-tracker/commit/94b7f917e281ccd93653d507dbef57ef82525732)), closes [#D4A843](https://github.com/civic-source/us-code-tracker/issues/D4A843)
+
+### Bug Fixes
+
+* **web:** search bar path, theme toggle, typography improvements ([3ce2cdf](https://github.com/civic-source/us-code-tracker/commit/3ce2cdf27603a21a4808ef746afa02bae316a4cc))
 ## [0.4.3](https://github.com/civic-source/us-code-tracker/compare/v0.4.2...v0.4.3) (2026-03-29)
 
 ### Features
