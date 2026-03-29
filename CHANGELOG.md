@@ -1,3 +1,8 @@
+## [0.4.3](https://github.com/civic-source/us-code-tracker/compare/v0.4.2...v0.4.3) (2026-03-29)
+
+### Features
+
+* **web:** UI polish — homepage stats, favicon, browse bars, heading styling ([68ee2c3](https://github.com/civic-source/us-code-tracker/commit/68ee2c353c1f2226af973e9d1a4caa03e8e85c57))
 ## [0.4.2](https://github.com/civic-source/us-code-tracker/compare/v0.4.1...v0.4.2) (2026-03-29)
 
 ### Features
