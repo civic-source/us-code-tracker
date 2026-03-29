@@ -1,3 +1,8 @@
+## [0.4.5](https://github.com/civic-source/us-code-tracker/compare/v0.4.4...v0.4.5) (2026-03-29)
+
+### Bug Fixes
+
+* **web:** comprehensive design review — 9 issues fixed ([6465601](https://github.com/civic-source/us-code-tracker/commit/6465601bc1cd1132215df4fb6c30b8a11b25f335)), closes [#main-content](https://github.com/civic-source/us-code-tracker/issues/main-content)
 ## [0.4.4](https://github.com/civic-source/us-code-tracker/compare/v0.4.3...v0.4.4) (2026-03-29)
 
 ### Features
