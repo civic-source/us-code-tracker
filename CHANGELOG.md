@@ -1,3 +1,8 @@
+## [0.5.0](https://github.com/civic-source/us-code-tracker/compare/v0.4.6...v0.5.0) (2026-03-29)
+
+### Features
+
+* **annotator:** Precedent Mapping Phase A — schema, rate limiting, dedup ([#40](https://github.com/civic-source/us-code-tracker/issues/40)) ([36d4d97](https://github.com/civic-source/us-code-tracker/commit/36d4d972c903087a832eb007264c9c23b4d52267))
 ## [0.4.6](https://github.com/civic-source/us-code-tracker/compare/v0.4.5...v0.4.6) (2026-03-29)
 
 ### Bug Fixes
