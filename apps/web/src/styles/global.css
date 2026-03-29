@@ -5,23 +5,48 @@
 
 @theme {
   --font-serif: "Georgia", "Times New Roman", serif;
-  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --color-navy: #1B3A5C;
   --color-teal: #0D7377;
   --color-amber: #D4A843;
   --color-slate: #4A5568;
 }
 
-/* Legal text readability */
+/* Legal text readability — 18px base for comfortable reading */
 .prose {
   --tw-prose-body-line-height: 1.85;
+  font-size: 1.125rem; /* 18px */
+  max-width: 72ch;
 }
 
-/* Section heading § styling */
+/* Paragraph spacing for legal text */
+.prose p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+
+/* Heading hierarchy — clear distinction */
 .prose h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 0.75em;
   font-variant-numeric: oldstyle-nums;
-  /* § symbol size */
   font-feature-settings: "case" 1;
+}
+
+.prose h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 1.75em;
+  margin-bottom: 0.5em;
+}
+
+.prose h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
 }
 
 /* Nested list styling improvements — visible in both light and dark mode */
@@ -31,10 +56,11 @@
 }
 
 .prose ul ul {
-  padding-left: 1.5em;
-  /* Use explicit color so it shows in both light and dark mode */
+  padding-left: 1.75em;
   border-left: 2px solid #0D7377;
   margin-left: 0.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 /* Dark mode: slightly brighter teal border for nested lists */
@@ -42,10 +68,39 @@
   border-left-color: #14a3a8;
 }
 
-/* Legal text long paragraphs */
+/* Legal text long paragraphs — list item spacing */
+.prose li {
+  margin-top: 0.35em;
+  margin-bottom: 0.35em;
+}
+
 .prose li > p {
   margin-top: 0.25em;
   margin-bottom: 0.25em;
+}
+
+/* Code/reference blocks — subtle background tint */
+.prose code {
+  background-color: #f1f5f9; /* slate-100 */
+  padding: 0.15em 0.35em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+}
+
+:where(.dark, .dark *) .prose code {
+  background-color: #1e293b; /* slate-800 */
+}
+
+.prose pre {
+  background-color: #f8fafc; /* slate-50 */
+  border: 1px solid #e2e8f0; /* slate-200 */
+  border-radius: 0.375em;
+  padding: 1em;
+}
+
+:where(.dark, .dark *) .prose pre {
+  background-color: #0f172a; /* slate-900 */
+  border-color: #334155; /* slate-700 */
 }
 
 /* Metadata badge contrast — light mode */
@@ -56,7 +111,6 @@
 
 /* Footer text — ensure readable in both modes */
 footer {
-  /* Already uses explicit color classes; this is a fallback */
   color: #4A5568;
 }
 

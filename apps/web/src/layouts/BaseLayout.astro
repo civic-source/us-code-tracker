@@ -35,6 +35,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
+    <meta name="base-url" content={base} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <title>{title === 'US Code Tracker' ? title : `${title} | US Code Tracker`}</title>
     <script is:inline>
@@ -102,7 +103,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
 
       <!-- Main content -->
       <main id="main-content" class="min-h-0 flex-1 overflow-y-auto">
-        <article class="prose prose-gray mx-auto max-w-4xl p-6 font-serif dark:prose-invert lg:p-10">
+        <article class="prose prose-lg prose-gray mx-auto max-w-3xl p-6 font-serif leading-relaxed dark:prose-invert lg:p-10">
           <slot />
         </article>
 

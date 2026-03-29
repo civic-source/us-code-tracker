@@ -42,7 +42,8 @@
     try {
       // Use string concatenation to prevent Vite/Rollup from resolving this at build time.
       // Pagefind generates its JS bundle into dist/pagefind/ during the post-build step.
-      const path = '/pagefind/' + 'pagefind.js';
+      const base = document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
+      const path = base + 'pagefind/' + 'pagefind.js';
       const mod = (await import(/* @vite-ignore */ path)) as PagefindModule;
       await mod.init();
       pagefind = mod;
