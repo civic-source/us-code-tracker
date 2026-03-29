@@ -53,9 +53,13 @@
     return `${from}_${to}`;
   }
 
+  function getBaseUrl(): string {
+    return document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
+  }
+
   async function fetchManifest(): Promise<DiffManifest | null> {
     try {
-      const res = await fetch("/diffs/manifest.json");
+      const res = await fetch(`${getBaseUrl()}diffs/manifest.json`);
       if (!res.ok) return null;
       return (await res.json()) as DiffManifest;
     } catch {
@@ -67,7 +71,7 @@
     const parts = sectionPathToParts(sectionPath);
     if (!parts) return null;
     try {
-      const url = `/diffs/${pairKey(from, to)}/${parts.title}/${parts.section}.json`;
+      const url = `${getBaseUrl()}diffs/${pairKey(from, to)}/${parts.title}/${parts.section}.json`;
       const res = await fetch(url);
       if (!res.ok) return null;
       return (await res.json()) as SectionDiff;

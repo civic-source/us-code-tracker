@@ -29,6 +29,11 @@ jobs:
         with:
           submodules: true
 
+      - name: Fetch full submodule history (needed for diff generation)
+        run: |
+          cd apps/web/content-data
+          git fetch --tags --unshallow 2>/dev/null || git fetch --tags
+
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
@@ -40,6 +45,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate static diffs
+        run: npx tsx scripts/generate-diffs.ts --repo apps/web/content-data --output apps/web/public/diffs/
 
       - name: Build site
         run: pnpm --filter @civic-source/web build
