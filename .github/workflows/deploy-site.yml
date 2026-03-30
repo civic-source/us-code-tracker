@@ -46,11 +46,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Get submodule commit for cache key
+        id: submodule-ref
+        run: echo "sha=$(git -C apps/web/content-data rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Restore diff cache
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: apps/web/public/diffs/
-          key: diffs-${{ hashFiles('apps/web/content-data/.git/refs/tags/*') }}
+          key: diffs-${{ steps.submodule-ref.outputs.sha }}
           restore-keys: |
             diffs-
 
