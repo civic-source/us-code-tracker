@@ -148,4 +148,40 @@ const activeCount = renderedSections.filter(s => !s.isInactive).length;
       &larr; Back to Title {titleNum} table of contents
     </a>
   </div>
+
+  <!-- Auto-link cross-references: "section N" → #section-N anchor on this page -->
+  <script is:inline>
+    (function () {
+      var articles = document.querySelectorAll('article .prose');
+      var pattern = /\bsection (\d+[a-z]?)\b/gi;
+      articles.forEach(function (article) {
+        var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+        var textNodes = [];
+        while (walker.nextNode()) textNodes.push(walker.currentNode);
+        textNodes.forEach(function (node) {
+          if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.tagName === 'H2') return;
+          var text = node.textContent || '';
+          if (!pattern.test(text)) return;
+          pattern.lastIndex = 0;
+          var frag = document.createDocumentFragment();
+          var lastIdx = 0;
+          var m;
+          while ((m = pattern.exec(text)) !== null) {
+            var secNum = m[1];
+            var target = document.getElementById('section-' + secNum);
+            if (!target) continue;
+            if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+            var a = document.createElement('a');
+            a.href = '#section-' + secNum;
+            a.textContent = m[0];
+            a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
+            frag.appendChild(a);
+            lastIdx = m.index + m[0].length;
+          }
+          if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+          if (lastIdx > 0) node.parentElement.replaceChild(frag, node);
+        });
+      });
+    })();
+  </script>
 </BaseLayout>
