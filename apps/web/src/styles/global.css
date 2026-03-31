@@ -16,7 +16,7 @@
 /* Legal text readability — 19px desktop, 16px mobile */
 .prose {
   font-size: 1.1875rem; /* 19px — optimal for legal text readability */
-  line-height: 1.7; /* Wikipedia research: 1.4-1.7 optimal for reading speed + comprehension */
+  line-height: 1.5; /* Gov.uk uses 1.32 (25/19px), legal docs use 1.5 — balances density + readability */
   max-width: min(72ch, 100%);
 }
 
@@ -120,15 +120,10 @@
   border-color: var(--color-gray-700, #334155);
 }
 
-/* Mobile prose — tighter width, smaller font, more spacing for thumb-scrolling */
+/* Mobile prose — tighter width, keep 19px font (Gov.uk accessibility: same size all screens) */
 @media (max-width: 768px) {
   .prose {
-    font-size: 1rem; /* 16px on mobile */
     max-width: min(90vw, 65ch);
-  }
-  .prose p {
-    margin-top: 1.5em;
-    margin-bottom: 1.5em;
   }
 }
 
