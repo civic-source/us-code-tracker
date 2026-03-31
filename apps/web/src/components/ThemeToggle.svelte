@@ -23,7 +23,7 @@
 
 <button
   onclick={toggle}
-  aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+  aria-label={isDark ? 'Dark mode active, switch to light' : 'Light mode active, switch to dark'}
   class="inline-flex items-center gap-1.5 rounded border border-gray-300 px-2.5 py-1.5 text-xs font-sans transition-colors hover:bg-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
 >
   <span aria-hidden="true">{isDark ? '🌙' : '☀️'}</span>
