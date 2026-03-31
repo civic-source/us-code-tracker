@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@civic-source/types": "workspace:*",
-    "@astrojs/svelte": "^7.2.5",
+    "@astrojs/svelte": "^8.0.4",
     "@octokit/rest": "^22.0.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
-    "astro": "^5.7.0",
+    "astro": "^6.1.2",
     "pagefind": "^1.4.0",
     "svelte": "^5.55.0",
     "tailwindcss": "^4.2.2"

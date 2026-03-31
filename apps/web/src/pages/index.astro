@@ -7,7 +7,7 @@ let releasePointCount = 0;
 try {
   const { execSync } = await import('node:child_process');
   const tags = execSync('git tag --list "pl-*"', {
-    cwd: new URL('../../../content-data', import.meta.url).pathname,
+    cwd: process.cwd() + '/apps/web/content-data',
     encoding: 'utf8',
     timeout: 5000,
   }).trim();
@@ -22,7 +22,7 @@ let recentChanges: RecentChange[] = [];
 try {
   const { readFile, readdir } = await import('node:fs/promises');
   const { join } = await import('node:path');
-  const publicDir = new URL('../../public/diffs/', import.meta.url).pathname;
+  const publicDir = process.cwd() + '/apps/web/public/diffs';
   const manifestRaw = await readFile(join(publicDir, 'manifest.json'), 'utf8');
   const manifest = JSON.parse(manifestRaw) as { pairs: { from: string; to: string; changedSections: number }[] };
   const recentPair = manifest.pairs.filter(p => p.changedSections > 0).at(-1);

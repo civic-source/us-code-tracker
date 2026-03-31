@@ -24,7 +24,7 @@ export const ReleasePointSchema = z.object({
   /** Release date in ISO 8601 datetime format (ET timezone) */
   dateET: z.string().datetime(),
   /** URL to the USLM XML download for this release */
-  uslmUrl: z.string().url(),
+  uslmUrl: z.url(),
   /** SHA-256 hex digest for integrity verification (64 hex characters) */
   sha256Hash: z.string().length(64),
 });
@@ -49,7 +49,7 @@ export const CaseAnnotationSchema = z.object({
   court: z.enum(["SCOTUS", "Appellate", "District"]),
   date: z.string(),
   holdingSummary: z.string().max(500),
-  sourceUrl: z.string().url(),
+  sourceUrl: z.url(),
   impact: PrecedentImpactSchema,
   /** Public Law the statute was current through when this case was decided */
   statuteVersionRef: z.string().optional(),
