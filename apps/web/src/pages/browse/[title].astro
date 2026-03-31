@@ -32,7 +32,7 @@ let changedSections: Record<string, string[]> = {};
 try {
   const { readFile } = await import('node:fs/promises');
   const { join } = await import('node:path');
-  const diffsDir = new URL('../../../public/diffs/', import.meta.url).pathname;
+  const diffsDir = process.cwd() + '/apps/web/public/diffs';
   const raw = await readFile(join(diffsDir, 'changed-sections.json'), 'utf8');
   changedSections = JSON.parse(raw) as Record<string, string[]>;
 } catch {

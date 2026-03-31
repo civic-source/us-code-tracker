@@ -21,7 +21,7 @@
     "@civic-source/shared": "workspace:*",
     "@civic-source/types": "workspace:*",
     "fast-xml-parser": "^5.5.9",
-    "zod": "^3.24.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.19.15",
