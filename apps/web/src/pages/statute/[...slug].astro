@@ -343,4 +343,39 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       </ul>
     </div>
   )}
+
+  <!-- Auto-link cross-references: "section N of this title" → chapter page anchor -->
+  <script is:inline define:vars={{ base, usc_title, chapter }}>
+    (function () {
+      var prose = document.querySelector('.prose');
+      if (!prose) return;
+      var pattern = /\bsection (\d+[a-z]?)\b(?:\s+of this title)?/gi;
+      var chapterUrl = base + 'browse/title-' + usc_title + '/chapter-' + chapter + '/';
+      var walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT);
+      var textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      textNodes.forEach(function (node) {
+        if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.closest('h1,h2')) return;
+        var text = node.textContent || '';
+        if (!pattern.test(text)) return;
+        pattern.lastIndex = 0;
+        var frag = document.createDocumentFragment();
+        var lastIdx = 0;
+        var m;
+        while ((m = pattern.exec(text)) !== null) {
+          var secNum = m[1];
+          if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+          var a = document.createElement('a');
+          a.href = chapterUrl + '#section-' + secNum;
+          a.textContent = m[0];
+          a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
+          a.title = 'View section ' + secNum;
+          frag.appendChild(a);
+          lastIdx = m.index + m[0].length;
+        }
+        if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        if (lastIdx > 0 && node.parentElement) node.parentElement.replaceChild(frag, node);
+      });
+    })();
+  </script>
 </BaseLayout>
