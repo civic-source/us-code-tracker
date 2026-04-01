@@ -28,23 +28,58 @@ export async function getStaticPaths() {
     });
   }
 
+  // Pre-compute sorted chapter list per title for cross-chapter nav
+  const titleChapters = new Map<number, number[]>();
+  for (const [key] of byTitleChapter) {
+    const [titleStr, chapterStr] = key.split('-');
+    const titleNum = parseInt(titleStr ?? '0', 10);
+    const chapterNum = parseInt(chapterStr ?? '0', 10);
+    if (!titleChapters.has(titleNum)) titleChapters.set(titleNum, []);
+    titleChapters.get(titleNum)!.push(chapterNum);
+  }
+  for (const [, chapters] of titleChapters) {
+    chapters.sort((a, b) => a - b);
+  }
+
   return entries.map((entry) => {
     const key = `${entry.data.usc_title}-${entry.data.chapter}`;
     const chapterSiblings = byTitleChapter.get(key) ?? [];
+    const titleNum = entry.data.usc_title;
+    const chapterNum = entry.data.chapter;
+    const chapters = titleChapters.get(titleNum) ?? [];
+    const chapterIdx = chapters.indexOf(chapterNum);
+
+    // Cross-chapter boundary links
+    let prevChapterLast: typeof entry | null = null;
+    let nextChapterFirst: typeof entry | null = null;
+
+    if (chapterIdx > 0) {
+      const prevCh = chapters[chapterIdx - 1];
+      const prevEntries = byTitleChapter.get(`${titleNum}-${prevCh}`) ?? [];
+      prevChapterLast = prevEntries.length > 0 ? prevEntries[prevEntries.length - 1] ?? null : null;
+    }
+    if (chapterIdx < chapters.length - 1) {
+      const nextCh = chapters[chapterIdx + 1];
+      const nextEntries = byTitleChapter.get(`${titleNum}-${nextCh}`) ?? [];
+      nextChapterFirst = nextEntries.length > 0 ? nextEntries[0] ?? null : null;
+    }
+
     return {
       params: { slug: entry.id },
-      props: { entry, chapterSiblings },
+      props: { entry, chapterSiblings, prevChapterLast, nextChapterFirst },
     };
   });
 }
 
-const { entry, chapterSiblings } = Astro.props;
+const { entry, chapterSiblings, prevChapterLast, nextChapterFirst } = Astro.props;
 const { Content } = await render(entry);
 
-// Compute prev/next section links
+// Compute prev/next section links (with cross-chapter fallback)
 const currentIdx = chapterSiblings.findIndex((s: typeof entry) => s.id === entry.id);
-const prevSection = currentIdx > 0 ? chapterSiblings[currentIdx - 1] : null;
-const nextSection = currentIdx < chapterSiblings.length - 1 ? chapterSiblings[currentIdx + 1] : null;
+const prevSection = currentIdx > 0 ? chapterSiblings[currentIdx - 1] : prevChapterLast;
+const nextSection = currentIdx < chapterSiblings.length - 1 ? chapterSiblings[currentIdx + 1] : nextChapterFirst;
+const prevIsCrossChapter = currentIdx === 0 && !!prevChapterLast;
+const nextIsCrossChapter = currentIdx === chapterSiblings.length - 1 && !!nextChapterFirst;
 
 const { usc_title, usc_section, chapter, classification, current_through, generated_at } = entry.data;
 
@@ -314,14 +349,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
   <nav class="not-prose mt-8 flex items-center justify-between border-t border-gray-200 pt-4 font-sans dark:border-gray-800" aria-label="Section navigation">
     {prevSection ? (
       <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-warm-gray dark:hover:bg-gray-800 max-w-[45%]">
-        <span class="text-[11px] text-gray-400">&larr; Previous</span>
+        <span class="text-[11px] text-gray-400">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>
         <span class="text-sm font-medium text-teal">&sect; {prevSection.data.usc_section}</span>
         <span class="truncate text-xs text-gray-500">{prevSection.data.title.replace(/^Section \S+ - /, '')}</span>
       </a>
     ) : <span></span>}
     {nextSection ? (
       <a href={`${base}statute/${nextSection.id}/`} class="flex flex-col items-end gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-warm-gray dark:hover:bg-gray-800 max-w-[45%] ml-auto text-right">
-        <span class="text-[11px] text-gray-400">Next &rarr;</span>
+        <span class="text-[11px] text-gray-400">Next{nextIsCrossChapter ? ` (Ch. ${nextSection.data.chapter})` : ''} &rarr;</span>
         <span class="text-sm font-medium text-teal">&sect; {nextSection.data.usc_section}</span>
         <span class="truncate text-xs text-gray-500">{nextSection.data.title.replace(/^Section \S+ - /, '')}</span>
       </a>
