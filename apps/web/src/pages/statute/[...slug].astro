@@ -441,6 +441,31 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     })();
   </script>
 
+  <!-- Subsection anchor IDs: (a) → #subsec-a, (a)(1) → #subsec-a-1 -->
+  <script is:inline>
+    (function () {
+      var prose = document.querySelector('.prose');
+      if (!prose) return;
+      var items = prose.querySelectorAll('li');
+      var currentParent = '';
+      items.forEach(function (li) {
+        var strong = li.querySelector('strong');
+        if (!strong) return;
+        var marker = strong.textContent.trim().replace(/[()]/g, '');
+        if (!marker) return;
+        // Determine nesting: top-level (a-z), numeric (1-99), upper (A-Z), roman (i-xx)
+        if (/^[a-z]$/.test(marker)) {
+          currentParent = marker;
+          li.id = 'subsec-' + marker;
+        } else if (/^\d{1,2}$/.test(marker) && currentParent) {
+          li.id = 'subsec-' + currentParent + '-' + marker;
+        } else if (/^[A-Z]$/.test(marker) && currentParent) {
+          li.id = 'subsec-' + currentParent + '-' + marker;
+        }
+      });
+    })();
+  </script>
+
   <!-- Keyboard shortcuts: j/k navigate sections -->
   <script is:inline>
     document.addEventListener('keydown', function (e) {
