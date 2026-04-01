@@ -170,6 +170,22 @@
   a[href]::after { content: none !important; }
 }
 
+/* Subsection anchor highlighting — gold flash when arriving via #subsec-a link */
+[id^="subsec-"] {
+  scroll-margin-top: 4rem;
+}
+
+[id^="subsec-"]:target {
+  background: var(--color-amber-light, #FEF0C8);
+  border-radius: 0.25rem;
+  margin: -0.25rem;
+  padding: 0.25rem;
+}
+
+:where(.dark, .dark *) [id^="subsec-"]:target {
+  background: rgba(194, 133, 12, 0.15);
+}
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
