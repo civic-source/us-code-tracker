@@ -79,32 +79,41 @@ const base = import.meta.env.BASE_URL;
   title="Home"
   description="Track changes to the United States Code with Git-based version control and diff history."
 >
-  <h1 class="text-navy dark:text-amber">US Code Tracker</h1>
-
-  <p>
-    US Code Tracker converts each release of the United States Code into a Git
-    repository, making it possible to view the precise text that changed between
-    any two releases of federal law.
-  </p>
-
-  <!-- Quick stats -->
-  <div class="not-prose my-6 flex flex-wrap gap-4">
-    <div class="rounded-lg border border-teal/30 bg-teal/5 px-5 py-3 text-center font-sans">
-      <p class="text-2xl font-bold text-teal">{titleCount}</p>
-      <p class="mt-0.5 text-xs text-slate dark:text-gray-400">Titles</p>
+  <!-- Hero -->
+  <section class="not-prose py-10 text-center">
+    <p class="mb-3 text-xs font-medium uppercase tracking-widest text-slate dark:text-gray-500">Independent civic tech project</p>
+    <h1 class="mb-4 text-5xl font-semibold tracking-tight text-navy dark:text-amber md:text-6xl" style="letter-spacing: -0.03em; line-height: 1.1">US Code Tracker</h1>
+    <p class="mx-auto mb-8 max-w-md text-lg text-slate dark:text-gray-300">
+      Every change to federal law, tracked through Git.
+    </p>
+    <div class="flex flex-wrap justify-center gap-3">
+      <a href={`${base}browse/`} class="rounded-lg bg-navy px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-navy-dark dark:bg-teal dark:hover:bg-teal/80">
+        Browse all titles
+      </a>
+      <a href="#how-it-works" class="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-medium text-slate transition-colors hover:border-navy hover:text-navy dark:border-gray-700 dark:text-gray-300 dark:hover:border-teal dark:hover:text-teal">
+        How it works
+      </a>
     </div>
-    <div class="rounded-lg border border-teal/30 bg-teal/5 px-5 py-3 text-center font-sans">
-      <p class="text-2xl font-bold text-teal">{sectionCount.toLocaleString()}</p>
-      <p class="mt-0.5 text-xs text-slate dark:text-gray-400">Sections</p>
+  </section>
+
+  <!-- Stats -->
+  <div class="not-prose flex flex-wrap justify-center gap-8 font-sans">
+    <div class="text-center">
+      <p class="text-3xl font-semibold text-navy dark:text-teal" style="font-variant-numeric: tabular-nums">{titleCount}</p>
+      <p class="mt-1 text-sm text-slate dark:text-gray-400">Titles</p>
     </div>
-    <div class="rounded-lg border border-teal/30 bg-teal/5 px-5 py-3 text-center font-sans">
-      <p class="text-2xl font-bold text-teal">PL 119-73</p>
-      <p class="mt-0.5 text-xs text-slate dark:text-gray-400">Current through</p>
+    <div class="text-center">
+      <p class="text-3xl font-semibold text-navy dark:text-teal" style="font-variant-numeric: tabular-nums">{sectionCount.toLocaleString()}</p>
+      <p class="mt-1 text-sm text-slate dark:text-gray-400">Sections</p>
+    </div>
+    <div class="text-center">
+      <p class="text-3xl font-semibold text-navy dark:text-teal">PL 119-73</p>
+      <p class="mt-1 text-sm text-slate dark:text-gray-400">Current through</p>
     </div>
     {releasePointCount > 0 && (
-      <div class="rounded-lg border border-amber/30 bg-amber/5 px-5 py-3 text-center font-sans">
-        <p class="text-2xl font-bold text-amber">{releasePointCount}</p>
-        <p class="mt-0.5 text-xs text-slate dark:text-gray-400">Historical versions</p>
+      <div class="text-center">
+        <p class="text-3xl font-semibold text-amber" style="font-variant-numeric: tabular-nums">{releasePointCount}</p>
+        <p class="mt-1 text-sm text-slate dark:text-gray-400">Historical versions</p>
       </div>
     )}
   </div>
@@ -112,7 +121,12 @@ const base = import.meta.env.BASE_URL;
     Data syncs weekly from the Office of the Law Revision Counsel.
   </p>
 
-  <h2>What this project does</h2>
+  <p class="not-prose mb-4 text-sm leading-relaxed text-slate dark:text-gray-400 font-sans">
+    US Code Tracker converts each release of the United States Code into a Git
+    repository, making it possible to view the precise text that changed between
+    any two releases of federal law.
+  </p>
+  <h2 id="how-it-works">What this project does</h2>
   <ul class="not-prose my-4 space-y-2 font-sans text-sm text-gray-700 dark:text-gray-300">
     <li class="flex items-start gap-2">
       <span class="mt-0.5 text-teal" aria-hidden="true">&#x2193;</span>
