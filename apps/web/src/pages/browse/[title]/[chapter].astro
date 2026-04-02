@@ -38,33 +38,44 @@ const sortedSections = entries.sort((a, b) => {
   return a.data.usc_section.localeCompare(b.data.usc_section, undefined, { numeric: true });
 });
 
-// Render all section content at build time
-const renderedSections = await Promise.all(
-  sortedSections.map(async (entry) => {
-    const { Content } = await render(entry);
-    const status = entry.data.status ?? 'active';
-    const isInactive = status !== 'active' ||
-      entry.data.title.includes('Repealed') || entry.data.title.includes('Reserved') ||
-      entry.data.title.includes('Omitted') || entry.data.title.includes('Transferred') ||
-      entry.data.title.includes('Renumbered');
-    const statusLabel = status !== 'active' ? status.charAt(0).toUpperCase() + status.slice(1) : (
-      entry.data.title.includes('Repealed') ? 'Repealed' :
-      entry.data.title.includes('Reserved') ? 'Reserved' :
-      entry.data.title.includes('Omitted') ? 'Omitted' :
-      entry.data.title.includes('Renumbered') ? 'Renumbered' :
-      entry.data.title.includes('Transferred') ? 'Transferred' : null
-    );
-    return { entry, Content, isInactive, statusLabel };
-  })
-);
+// Pre-compute section metadata (no rendering — that's deferred to toggle)
+const sectionMeta = sortedSections.map((entry) => {
+  const status = entry.data.status ?? 'active';
+  const isInactive = status !== 'active' ||
+    entry.data.title.includes('Repealed') || entry.data.title.includes('Reserved') ||
+    entry.data.title.includes('Omitted') || entry.data.title.includes('Transferred') ||
+    entry.data.title.includes('Renumbered');
+  const statusLabel = status !== 'active' ? status.charAt(0).toUpperCase() + status.slice(1) : (
+    entry.data.title.includes('Repealed') ? 'Repealed' :
+    entry.data.title.includes('Reserved') ? 'Reserved' :
+    entry.data.title.includes('Omitted') ? 'Omitted' :
+    entry.data.title.includes('Renumbered') ? 'Renumbered' :
+    entry.data.title.includes('Transferred') ? 'Transferred' : null
+  );
+  return { entry, isInactive, statusLabel };
+});
+
+// Only render full content at build time for small chapters (≤50 sections)
+// Large chapters render on-demand via the toggle
+const INLINE_THRESHOLD = 50;
+const isSmallChapter = sortedSections.length <= INLINE_THRESHOLD;
+
+const renderedSections = isSmallChapter
+  ? await Promise.all(
+      sectionMeta.map(async ({ entry, isInactive, statusLabel }) => {
+        const { Content } = await render(entry);
+        return { entry, Content, isInactive, statusLabel };
+      })
+    )
+  : [];
 
 const base = import.meta.env.BASE_URL;
-const activeCount = renderedSections.filter(s => !s.isInactive).length;
+const activeCount = sectionMeta.filter(s => !s.isInactive).length;
 ---
 
 <BaseLayout
   title={`Title ${titleNum}, Chapter ${chapterNum} — ${titleName}`}
-  description={`Full text of Chapter ${chapterNum} of Title ${titleNum} of the United States Code (${sortedSections.length} sections)`}
+  description={`Chapter ${chapterNum} of Title ${titleNum} of the United States Code (${sortedSections.length} sections)`}
 >
   <Breadcrumbs items={[
     { label: 'Home', href: base },
@@ -80,66 +91,90 @@ const activeCount = renderedSections.filter(s => !s.isInactive).length;
     {titleName} &mdash; {activeCount} active section{activeCount !== 1 ? 's' : ''}{sortedSections.length !== activeCount ? `, ${sortedSections.length - activeCount} inactive` : ''}
   </p>
 
-  <!-- Collapsible table of contents -->
-  <details class="not-prose my-4 rounded border border-gray-200 font-sans dark:border-gray-800">
-    <summary class="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-900 select-none">
-      Table of Contents ({sortedSections.length} sections)
-    </summary>
-    <ul class="max-h-64 divide-y divide-gray-100 overflow-y-auto border-t border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-      {sortedSections.map((entry) => {
-        const status = entry.data.status ?? 'active';
-        const isInactive = status !== 'active' || entry.data.title.includes('Repealed') || entry.data.title.includes('Reserved') || entry.data.title.includes('Omitted') || entry.data.title.includes('Transferred') || entry.data.title.includes('Renumbered');
-        return (
-          <li>
-            <a
-              href={`#section-${entry.data.usc_section}`}
-              class:list={[
-                'flex items-baseline gap-2 px-4 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-900',
-                isInactive && 'opacity-50 italic',
-              ]}
-            >
-              <span class="w-12 shrink-0 text-right font-mono text-slate dark:text-gray-500">&sect; {entry.data.usc_section}</span>
-              <span class="truncate text-gray-700 dark:text-gray-300">{entry.data.title.replace(/^Section \S+ - /, '')}</span>
-            </a>
-          </li>
-        );
-      })}
-    </ul>
-  </details>
+  <!-- Section index (default view for large chapters) -->
+  <div id="section-index" class="my-6">
+    <div class="not-prose mb-3 flex items-center justify-between font-sans">
+      <h2 class="text-base font-semibold text-gray-700 dark:text-gray-300">
+        Sections in this chapter
+      </h2>
+      {!isSmallChapter && (
+        <button
+          id="toggle-full-text"
+          class="rounded-md bg-teal/10 px-3 py-1.5 text-xs font-medium text-teal transition-colors hover:bg-teal/20 dark:text-teal-bright"
+          data-title={titleNum}
+          data-chapter={chapterNum}
+        >
+          Read full chapter
+        </button>
+      )}
+    </div>
 
-  <!-- Full chapter content — all sections rendered inline -->
-  <div class="mt-6 space-y-8">
-    {renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
-      <article
-        id={`section-${entry.data.usc_section}`}
-        class:list={['scroll-mt-4', isInactive && 'opacity-60']}
-      >
-        <!-- Section heading with link to detail page (sticky for scroll context) -->
-        <div class="sticky-section-header not-prose mb-2 flex items-start justify-between gap-3">
-          <h2 class="font-serif text-lg font-bold text-navy dark:text-amber">
-            <a href={`${base}statute/${entry.id}/`} class="hover:underline underline-offset-2">
-              &sect; {entry.data.usc_section}. {entry.data.title.replace(/^Section \S+ - /, '')}
-            </a>
-          </h2>
-          <div class="flex shrink-0 items-center gap-2">
+    <ul class="not-prose divide-y divide-gray-100 rounded-lg border border-gray-200 font-sans dark:divide-gray-800 dark:border-gray-800">
+      {sectionMeta.map(({ entry, isInactive, statusLabel }) => (
+        <li>
+          <a
+            href={`${base}statute/${entry.id}/`}
+            class:list={[
+              'flex items-baseline gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900',
+              isInactive && 'opacity-50',
+            ]}
+          >
+            <span class="w-14 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
+              &sect; {entry.data.usc_section}
+            </span>
+            <span class:list={[
+              'flex-1 text-gray-700 dark:text-gray-300',
+              isInactive && 'italic',
+            ]}>
+              {entry.data.title.replace(/^Section \S+ - /, '')}
+            </span>
             {statusLabel && (
-              <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">{statusLabel}</span>
+              <span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">
+                {statusLabel}
+              </span>
             )}
-            <a
-              href={`${base}statute/${entry.id}/`}
-              class="rounded bg-teal/10 px-2 py-0.5 font-sans text-[10px] font-medium text-teal transition-colors hover:bg-teal/20 dark:text-teal-bright"
-            >
-              History &amp; diffs &rarr;
-            </a>
-          </div>
-        </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
 
-        <!-- Rendered statute content (hide h1 — we render our own heading above) -->
-        <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
-          <Content />
-        </div>
-      </article>
-    ))}
+  <!-- Full chapter content — rendered inline for small chapters, on-demand for large -->
+  <div id="full-content" class:list={[isSmallChapter ? '' : 'hidden', 'mt-6 space-y-8']}>
+    {isSmallChapter ? (
+      renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
+        <article
+          id={`section-${entry.data.usc_section}`}
+          class:list={['scroll-mt-4', isInactive && 'opacity-60']}
+        >
+          <div class="sticky-section-header not-prose mb-2 flex items-start justify-between gap-3">
+            <h2 class="font-serif text-lg font-bold text-navy dark:text-amber">
+              <a href={`${base}statute/${entry.id}/`} class="hover:underline underline-offset-2">
+                &sect; {entry.data.usc_section}. {entry.data.title.replace(/^Section \S+ - /, '')}
+              </a>
+            </h2>
+            <div class="flex shrink-0 items-center gap-2">
+              {statusLabel && (
+                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">{statusLabel}</span>
+              )}
+              <a
+                href={`${base}statute/${entry.id}/`}
+                class="rounded bg-teal/10 px-2 py-0.5 font-sans text-[10px] font-medium text-teal transition-colors hover:bg-teal/20 dark:text-teal-bright"
+              >
+                History &amp; diffs &rarr;
+              </a>
+            </div>
+          </div>
+          <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
+            <Content />
+          </div>
+        </article>
+      ))
+    ) : (
+      <p id="loading-indicator" class="hidden py-8 text-center font-sans text-sm text-gray-500">
+        Loading full chapter text&hellip;
+      </p>
+    )}
   </div>
 
   <!-- Back to title link -->
@@ -149,39 +184,124 @@ const activeCount = renderedSections.filter(s => !s.isInactive).length;
     </a>
   </div>
 
-  <!-- Auto-link cross-references: "section N" → #section-N anchor on this page -->
-  <script is:inline>
-    (function () {
-      var articles = document.querySelectorAll('article .prose');
-      var pattern = /\bsection (\d+[a-z]?)\b/gi;
-      articles.forEach(function (article) {
-        var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
-        var textNodes = [];
-        while (walker.nextNode()) textNodes.push(walker.currentNode);
-        textNodes.forEach(function (node) {
-          if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.tagName === 'H2') return;
-          var text = node.textContent || '';
-          if (!pattern.test(text)) return;
-          pattern.lastIndex = 0;
-          var frag = document.createDocumentFragment();
-          var lastIdx = 0;
-          var m;
-          while ((m = pattern.exec(text)) !== null) {
-            var secNum = m[1];
-            var target = document.getElementById('section-' + secNum);
-            if (!target) continue;
-            if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-            var a = document.createElement('a');
-            a.href = '#section-' + secNum;
-            a.textContent = m[0];
-            a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
-            frag.appendChild(a);
-            lastIdx = m.index + m[0].length;
+  <!-- Toggle script for large chapters: reveal full text on demand -->
+  {!isSmallChapter && (
+    <script is:inline>
+      (function () {
+        var btn = document.getElementById('toggle-full-text');
+        var index = document.getElementById('section-index');
+        var content = document.getElementById('full-content');
+        var loading = document.getElementById('loading-indicator');
+        var expanded = false;
+
+        if (!btn || !index || !content) return;
+
+        btn.addEventListener('click', function () {
+          if (expanded) {
+            // Collapse back to index view
+            content.classList.add('hidden');
+            btn.textContent = 'Read full chapter';
+            expanded = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
           }
-          if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-          if (lastIdx > 0) node.parentElement.replaceChild(frag, node);
+
+          // Show loading state
+          if (loading) loading.classList.remove('hidden');
+          content.classList.remove('hidden');
+          btn.textContent = 'Show index only';
+          btn.disabled = true;
+
+          // Load section content via individual statute pages
+          var links = index.querySelectorAll('a[href*="/statute/"]');
+          var loaded = 0;
+          var total = links.length;
+
+          // Build content from section detail pages
+          links.forEach(function (link) {
+            var href = link.getAttribute('href');
+            if (!href) { loaded++; return; }
+
+            fetch(href)
+              .then(function (r) { return r.text(); })
+              .then(function (html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                // Extract the main prose content from the statute page
+                var prose = doc.querySelector('.prose');
+                var heading = doc.querySelector('h1');
+                if (prose) {
+                  var article = document.createElement('article');
+                  article.className = 'scroll-mt-4';
+                  var sectionNum = href.split('/').filter(Boolean).pop() || '';
+                  article.id = 'section-' + sectionNum;
+
+                  var h2 = document.createElement('h2');
+                  h2.className = 'font-serif text-lg font-bold text-navy dark:text-amber not-prose mb-2';
+                  var a = document.createElement('a');
+                  a.href = href;
+                  a.className = 'hover:underline underline-offset-2';
+                  a.textContent = heading ? heading.textContent : sectionNum;
+                  h2.appendChild(a);
+                  article.appendChild(h2);
+
+                  var wrapper = document.createElement('div');
+                  wrapper.className = 'prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden';
+                  wrapper.innerHTML = prose.innerHTML;
+                  article.appendChild(wrapper);
+                  content.appendChild(article);
+                }
+              })
+              .catch(function () { /* skip failed sections */ })
+              .finally(function () {
+                loaded++;
+                if (loaded >= total) {
+                  if (loading) loading.classList.add('hidden');
+                  btn.disabled = false;
+                  expanded = true;
+                }
+              });
+          });
         });
-      });
-    })();
-  </script>
+      })();
+    </script>
+  )}
+
+  <!-- Auto-link cross-references (only for inline-rendered small chapters) -->
+  {isSmallChapter && (
+    <script is:inline>
+      (function () {
+        var articles = document.querySelectorAll('article .prose');
+        var pattern = /\bsection (\d+[a-z]?)\b/gi;
+        articles.forEach(function (article) {
+          var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+          var textNodes = [];
+          while (walker.nextNode()) textNodes.push(walker.currentNode);
+          textNodes.forEach(function (node) {
+            if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.tagName === 'H2') return;
+            var text = node.textContent || '';
+            if (!pattern.test(text)) return;
+            pattern.lastIndex = 0;
+            var frag = document.createDocumentFragment();
+            var lastIdx = 0;
+            var m;
+            while ((m = pattern.exec(text)) !== null) {
+              var secNum = m[1];
+              var target = document.getElementById('section-' + secNum);
+              if (!target) continue;
+              if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+              var a = document.createElement('a');
+              a.href = '#section-' + secNum;
+              a.textContent = m[0];
+              a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
+              frag.appendChild(a);
+              lastIdx = m.index + m[0].length;
+            }
+            if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+            if (lastIdx > 0) node.parentElement.replaceChild(frag, node);
+          });
+        });
+      })();
+    </script>
+  )}
 </BaseLayout>
