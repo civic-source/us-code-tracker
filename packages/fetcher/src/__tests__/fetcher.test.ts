@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { OlrcFetcher, sha256, fetchWithRetry, parseReleasePoints } from '../fetcher.js';
+import {
+  OlrcFetcher,
+  sha256,
+  fetchWithRetry,
+  parseReleasePoints,
+  parsePriorReleasePoints,
+  parseCurrentRelease,
+} from '../fetcher.js';
 import { HashStore } from '../hash-store.js';
 import { createLogger } from '@civic-source/shared';
 import type { ReleasePoint } from '@civic-source/types';
@@ -19,18 +26,111 @@ describe('sha256', () => {
   });
 });
 
+// --- parseCurrentRelease ---
+
+describe('parseCurrentRelease', () => {
+  it('extracts public law and date from download page header', () => {
+    const html = `<h2>Public Law 119-73 (01/23/2026)</h2>`;
+    const result = parseCurrentRelease(html);
+    expect(result).toBeDefined();
+    expect(result?.publicLaw).toBe('PL 119-73');
+    expect(result?.congress).toBe('119');
+    expect(result?.law).toBe('73');
+    expect(result?.dateET).toBe('2026-01-23T00:00:00.000Z');
+  });
+
+  it('returns undefined for HTML with no release info', () => {
+    expect(parseCurrentRelease('<html><body>No info</body></html>')).toBeUndefined();
+  });
+});
+
+// --- parsePriorReleasePoints ---
+
+describe('parsePriorReleasePoints', () => {
+  const sampleHtml = `
+    <ul class="releasepoints">
+      <li class="releasepoint">
+        <a class="releasepoint" href="/download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm">
+          Public Law 119-73 (01/23/2026)</a>
+      </li>
+      <li class="releasepoint">
+        <a class="releasepoint" href="/download/releasepoints/us/pl/113/21/usc-rp@113-21.htm">
+          Public Law 113-21 (07/18/2013)</a>
+      </li>
+      <li class="releasepoint">
+        <a class="releasepoint" href="/download/releasepoints/us/pl/118/200/usc-rp@118-200.htm">
+          Public Law 118-200 (11/15/2024)</a>
+      </li>
+    </ul>
+  `;
+
+  it('extracts all prior release points', () => {
+    const points = parsePriorReleasePoints(sampleHtml);
+    expect(points).toHaveLength(3);
+  });
+
+  it('parses publicLaw correctly', () => {
+    const points = parsePriorReleasePoints(sampleHtml);
+    expect(points[0]?.publicLaw).toBe('PL 113-21');
+    expect(points[1]?.publicLaw).toBe('PL 118-200');
+    expect(points[2]?.publicLaw).toBe('PL 119-73');
+  });
+
+  it('parses congress and law numbers', () => {
+    const points = parsePriorReleasePoints(sampleHtml);
+    // Sorted chronologically — oldest first
+    expect(points[0]?.congress).toBe('113');
+    expect(points[0]?.law).toBe('21');
+  });
+
+  it('converts dates to ISO 8601', () => {
+    const points = parsePriorReleasePoints(sampleHtml);
+    expect(points[0]?.dateET).toBe('2013-07-18T00:00:00.000Z');
+    expect(points[2]?.dateET).toBe('2026-01-23T00:00:00.000Z');
+  });
+
+  it('returns chronological order (oldest first)', () => {
+    const points = parsePriorReleasePoints(sampleHtml);
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      if (prev && curr) {
+        expect(prev.dateET <= curr.dateET).toBe(true);
+      }
+    }
+  });
+
+  it('handles "not" exclusion paths', () => {
+    const html = `
+      <a class="releasepoint" href="/download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm">
+        Public Law 119-73 (01/23/2026)</a>
+    `;
+    const points = parsePriorReleasePoints(html);
+    expect(points).toHaveLength(1);
+    expect(points[0]?.law).toBe('73not60');
+    expect(points[0]?.path).toContain('73not60');
+  });
+
+  it('returns empty array for HTML with no matching links', () => {
+    expect(parsePriorReleasePoints('<html><body>Nothing</body></html>')).toEqual([]);
+  });
+});
+
 // --- parseReleasePoints ---
 
 describe('parseReleasePoints', () => {
-  it('extracts release points from HTML links', () => {
+  it('extracts release points from HTML links with real publicLaw/dateET', () => {
     const html = `
-      <a href="/download/releasepoints/us/pl/118/42/usc42@118-200.zip">Title 42</a>
-      <a href="/download/releasepoints/us/pl/118/26/usc26@118-200.zip">Title 26</a>
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc42@118-200.zip">Title 42</a>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc26@118-200.zip">Title 26</a>
     `;
     const points = parseReleasePoints(html);
     expect(points).toHaveLength(2);
     expect(points[0]?.title).toBe('42');
-    expect(points[0]?.uslmUrl).toContain('usc42@118-200.zip');
+    expect(points[0]?.publicLaw).toBe('PL 118-200');
+    expect(points[0]?.dateET).toBe('2024-11-15T00:00:00.000Z');
+    expect(points[0]?.uslmUrl).toContain('xml_usc42@118-200.zip');
     expect(points[1]?.title).toBe('26');
   });
 
@@ -39,10 +139,30 @@ describe('parseReleasePoints', () => {
   });
 
   it('handles titles with letter suffixes (e.g., 5a)', () => {
-    const html = `<a href="/download/releasepoints/us/pl/118/5a/usc5a@118-200.zip">Title 5a</a>`;
+    const html = `
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc5a@118-200.zip">Title 5a</a>
+    `;
     const points = parseReleasePoints(html);
     expect(points).toHaveLength(1);
     expect(points[0]?.title).toBe('5a');
+  });
+
+  it('deduplicates titles (only one entry per title number)', () => {
+    const html = `
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc42@118-200.zip">XML</a>
+      <a href="/download/releasepoints/us/pl/118/200/htm_usc42@118-200.zip">XHTML</a>
+    `;
+    const points = parseReleasePoints(html);
+    expect(points).toHaveLength(1);
+  });
+
+  it('falls back to empty publicLaw when header is missing', () => {
+    const html = `<a href="/download/releasepoints/us/pl/118/200/xml_usc01@118-200.zip">T1</a>`;
+    const points = parseReleasePoints(html);
+    expect(points).toHaveLength(1);
+    expect(points[0]?.publicLaw).toBe('');
   });
 });
 
@@ -154,7 +274,10 @@ describe('OlrcFetcher', () => {
   });
 
   it('listReleasePoints fetches and parses the download page', async () => {
-    const html = `<a href="/download/releasepoints/us/pl/118/42/usc42@118-200.zip">T42</a>`;
+    const html = `
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc42@118-200.zip">T42</a>
+    `;
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(html, { status: 200 }));
 
     const fetcher = new OlrcFetcher({ logger });
@@ -163,13 +286,15 @@ describe('OlrcFetcher', () => {
     if (result.ok) {
       expect(result.value).toHaveLength(1);
       expect(result.value[0]?.title).toBe('42');
+      expect(result.value[0]?.publicLaw).toBe('PL 118-200');
     }
   });
 
   it('listReleasePoints filters by title', async () => {
     const html = `
-      <a href="/download/releasepoints/us/pl/118/42/usc42@118-200.zip">T42</a>
-      <a href="/download/releasepoints/us/pl/118/26/usc26@118-200.zip">T26</a>
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc42@118-200.zip">T42</a>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc26@118-200.zip">T26</a>
     `;
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(html, { status: 200 }));
 
@@ -179,6 +304,49 @@ describe('OlrcFetcher', () => {
     if (result.ok) {
       expect(result.value).toHaveLength(1);
       expect(result.value[0]?.title).toBe('26');
+    }
+  });
+
+  it('listHistoricalReleasePoints fetches and merges prior + current', async () => {
+    const priorHtml = `
+      <a class="releasepoint" href="/download/releasepoints/us/pl/113/21/usc-rp@113-21.htm">
+        Public Law 113-21 (07/18/2013)</a>
+      <a class="releasepoint" href="/download/releasepoints/us/pl/118/200/usc-rp@118-200.htm">
+        Public Law 118-200 (11/15/2024)</a>
+    `;
+    const currentHtml = `<h2>Public Law 119-73 (01/23/2026)</h2>`;
+
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(priorHtml, { status: 200 }))
+      .mockResolvedValueOnce(new Response(currentHtml, { status: 200 }));
+
+    const fetcher = new OlrcFetcher({ logger });
+    const result = await fetcher.listHistoricalReleasePoints();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toHaveLength(3);
+      // Oldest first
+      expect(result.value[0]?.publicLaw).toBe('PL 113-21');
+      expect(result.value[2]?.publicLaw).toBe('PL 119-73');
+    }
+  });
+
+  it('listHistoricalReleasePoints deduplicates current if already in prior list', async () => {
+    const priorHtml = `
+      <a class="releasepoint" href="/download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm">
+        Public Law 119-73 (01/23/2026)</a>
+    `;
+    const currentHtml = `<h2>Public Law 119-73 (01/23/2026)</h2>`;
+
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(priorHtml, { status: 200 }))
+      .mockResolvedValueOnce(new Response(currentHtml, { status: 200 }));
+
+    const fetcher = new OlrcFetcher({ logger });
+    const result = await fetcher.listHistoricalReleasePoints();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toHaveLength(1);
     }
   });
 

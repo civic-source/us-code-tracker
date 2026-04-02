@@ -6,13 +6,15 @@
 @theme {
   --font-serif: "Georgia", "Times New Roman", serif;
   --font-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   /* USWDS-influenced civic palette */
   --color-navy: #1A4480;
   --color-navy-dark: #112F4E;
   --color-navy-light: #D9E8F6;
   --color-teal: #0F6E56;
   --color-teal-bright: #70E8B1;
-  --color-amber: #C2850C;
+  /* Darkened from #C2850C (2.82:1) to pass WCAG AA (4.5:1) on warm-white (#FAFAF8) — ratio ≈ 4.80:1 */
+  --color-amber: #8B6914;
   --color-amber-light: #FEF0C8;
   --color-crimson: #B50909;
   --color-crimson-light: #FDE0DB;
@@ -20,6 +22,30 @@
   /* Warm neutrals — evokes legal publishing */
   --color-warm-white: #FAFAF8;
   --color-warm-gray: #F0EDE8;
+}
+
+/* Semantic color tokens — light mode */
+:root {
+  --color-text-primary: #112F4E;      /* navy-dark — high contrast body text */
+  --color-text-secondary: #3D4551;    /* slate — supporting text */
+  --color-text-muted: #5a6474;        /* slate lightened — captions, metadata */
+  --color-surface: #FAFAF8;           /* warm-white — page background */
+  --color-surface-elevated: #F0EDE8;  /* warm-gray — cards, sidebars */
+  --color-border: #d1cec8;            /* warm-gray darkened — dividers */
+  --color-diff-add: #22863a;          /* GitHub-standard diff green */
+  --color-diff-remove: #cb2431;       /* GitHub-standard diff red */
+}
+
+/* Semantic color tokens — dark mode */
+:where(.dark, .dark *) {
+  --color-text-primary: #e8f0f8;      /* near-white with warm-blue tint */
+  --color-text-secondary: #a8b4c0;    /* muted blue-gray */
+  --color-text-muted: #6e7e8c;        /* dim blue-gray */
+  --color-surface: #0d1b2a;           /* deep navy — page background */
+  --color-surface-elevated: #112F4E;  /* navy-dark — cards, sidebars */
+  --color-border: #1e3a5a;            /* navy mid — dividers */
+  --color-diff-add: #3fb950;          /* GitHub dark-mode diff green */
+  --color-diff-remove: #f85149;       /* GitHub dark-mode diff red */
 }
 
 /* Legal text readability — 19px desktop, 16px mobile */
