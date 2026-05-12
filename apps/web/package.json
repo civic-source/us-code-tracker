@@ -13,13 +13,13 @@
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
-    "@astrojs/svelte": "^8.0.4",
+    "@astrojs/svelte": "^8.1.0",
     "@civic-source/types": "workspace:*",
     "@fontsource/public-sans": "^5.2.7",
     "@octokit/rest": "^22.0.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "4.1.18",
-    "astro": "^6.1.6",
+    "astro": "^6.3.1",
     "pagefind": "^1.5.2",
     "svelte": "^5.55.5",
     "tailwindcss": "4.1.18"
