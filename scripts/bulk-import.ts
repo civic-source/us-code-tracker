@@ -9,11 +9,12 @@
  * Requires: packages to be built first (`pnpm build`).
  */
 
-import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, rm, mkdtemp } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,8 +51,10 @@ interface TitleResult {
 async function importTitle(paddedTitle: string): Promise<TitleResult> {
   const displayTitle = parseInt(paddedTitle, 10).toString();
   const url = buildUrl(paddedTitle);
-  const tmpZip = `/tmp/usc-title-${paddedTitle}.zip`;
-  const tmpDir = `/tmp/usc-title-${paddedTitle}`;
+  // Random per-invocation temp dir — no predictable path, no symlink race.
+  const workDir = await mkdtemp(join(tmpdir(), 'usc-title-'));
+  const tmpZip = join(workDir, 'download.zip');
+  const tmpDir = join(workDir, 'extract');
 
   console.log(`\n=== Title ${displayTitle} ===`);
   console.log(`Downloading: ${url}`);
@@ -59,18 +62,16 @@ async function importTitle(paddedTitle: string): Promise<TitleResult> {
   try {
     // Download
     await execFileAsync('curl', ['-sL', '-o', tmpZip, url], { timeout: 60000 });
-    const zipStat = statSync(tmpZip);
-    console.log(`  Downloaded ${(zipStat.size / 1024 / 1024).toFixed(2)} MB`);
 
-    // Check if it's a valid ZIP (non-empty, starts with PK)
+    // Validate as ZIP via the buffer we'll need anyway — derives size without a separate stat call.
     const header = await readFile(tmpZip);
+    console.log(`  Downloaded ${(header.length / 1024 / 1024).toFixed(2)} MB`);
     if (header.length < 100 || header[0] !== 0x50 || header[1] !== 0x4b) {
       console.error('  FAILED: Downloaded file is not a valid ZIP');
       return { title: displayTitle, sections: 0, error: 'Invalid ZIP' };
     }
 
     // Extract
-    await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
     await execFileAsync('unzip', ['-o', '-q', tmpZip, '-d', tmpDir], { timeout: 60000 });
 
@@ -107,18 +108,13 @@ async function importTitle(paddedTitle: string): Promise<TitleResult> {
 
     console.log(`  Written to ${OUTPUT_ROOT}/statutes/title-${displayTitle}/`);
 
-    // Cleanup
-    await rm(tmpZip, { force: true });
-    await rm(tmpDir, { recursive: true, force: true });
-
     return { title: displayTitle, sections: files.length };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`  FAILED: ${msg}`);
-    // Cleanup on failure too
-    await rm(tmpZip, { force: true }).catch(() => {});
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     return { title: displayTitle, sections: 0, error: msg };
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 

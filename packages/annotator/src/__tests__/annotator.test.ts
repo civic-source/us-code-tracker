@@ -353,6 +353,26 @@ describe('annotationToYaml', () => {
     expect(yaml).toContain('caseName: "Case with \\"quotes\\""');
     expect(yaml).toContain('holdingSummary: "Summary with \\"quotes\\""');
   });
+
+  it('escapes backslashes before double quotes (CWE-116)', () => {
+    // Backslashes must be escaped first so an input like `\"X\"` survives
+    // round-tripping as YAML — otherwise the output is unbalanced.
+    const yaml = annotationToYaml({
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [{
+        caseName: 'X \\ Y',
+        citation: '',
+        court: 'District',
+        date: '2024-01-01',
+        holdingSummary: 'path: C:\\Users\\test',
+        sourceUrl: 'https://example.com',
+        impact: 'historical',
+      }],
+    });
+    expect(yaml).toContain('caseName: "X \\\\ Y"');
+    expect(yaml).toContain('holdingSummary: "path: C:\\\\Users\\\\test"');
+  });
 });
 
 describe('getApiToken', () => {

@@ -118,7 +118,9 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
   const currentRelease = parseCurrentRelease(html);
 
   // Match links like: /download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
-  const linkPattern = /href="([^"]*\/releasepoints\/us\/pl\/(\d+)\/([^/]+)\/[^"]*\.zip)"/g;
+  // Anchor segments to non-slash/non-quote chars so we don't get polynomial
+  // backtracking on malformed input (CodeQL js/polynomial-redos).
+  const linkPattern = /href="((?:https?:\/\/[^"/]+)?\/download\/releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip)"/g;
   let match: RegExpExecArray | null;
 
   // Extract unique title numbers from XML download links

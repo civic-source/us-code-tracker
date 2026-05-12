@@ -157,7 +157,7 @@ export function sanitizeExcerpt(html: string): string {
 /** Format a pl-* tag name into a human-readable label */
 export function formatTagName(tag: string): string {
   // "pl-113-100" → "PL 113-100"
-  return tag.replace(/^pl-/, "PL ").replace(/-/g, "-");
+  return tag.replace(/^pl-/, "PL ");
 }
 
 /** Extract year from a tag name (congress number) or fall back to ISO date string */
