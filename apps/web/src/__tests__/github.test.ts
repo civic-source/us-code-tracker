@@ -24,8 +24,12 @@ describe('sanitizeContent', () => {
     expect(sanitizeContent('before<!-- hidden instruction -->after')).toBe('beforeafter');
   });
 
-  it('decodes HTML entities and re-strips', () => {
-    expect(sanitizeContent('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe('alert(1)');
+  it('keeps encoded entities encoded (cannot bypass the parser)', () => {
+    // sanitize-html parses as HTML and preserves `&lt;` etc. as entities — so
+    // the rendered output is literal text, never a re-parsed <script> element.
+    const out = sanitizeContent('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(out).not.toContain('<');
+    expect(out).not.toContain('>');
   });
 
   it('handles nested/malformed tags', () => {

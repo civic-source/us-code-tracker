@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import sanitizeHtml from "sanitize-html";
 
 export interface CommitInfo {
   sha: string;
@@ -123,35 +124,28 @@ export async function getFileAtRef(
 }
 
 /**
- * Strip HTML tags and dangerous content to prevent XSS.
- * Handles: tags, encoded entities, script/style blocks, event handlers.
- * For untrusted content only — trusted Astro/Svelte output doesn't need this.
+ * Strip all HTML tags to plain text.
+ * Uses sanitize-html (a real HTML parser), not regex, so encoded entities and
+ * malformed/nested tags can't bypass it. For displaying untrusted content as text.
  */
 export function sanitizeContent(raw: string): string {
-  return raw
-    // Remove script/style blocks entirely (including content)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    // Remove HTML comments (can contain instructions/hidden content)
-    .replace(/<!--[\s\S]*?-->/g, "")
-    // Remove all HTML tags
-    .replace(/<[^>]*>/g, "")
-    // Decode common HTML entities
-    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&").replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'").replace(/&#x2F;/g, "/")
-    // Re-strip any tags that were hiding inside encoded entities
-    .replace(/<[^>]*>/g, "");
+  return sanitizeHtml(raw, {
+    allowedTags: [],
+    allowedAttributes: {},
+    disallowedTagsMode: "discard",
+  });
 }
 
-/** Sanitize Pagefind excerpt HTML — allow only <mark> highlight tags */
+/**
+ * Sanitize Pagefind excerpt HTML, preserving only <mark> highlight tags.
+ * Used in client-side search results rendered via {@html ...}.
+ */
 export function sanitizeExcerpt(html: string): string {
-  // Pagefind wraps matches in <mark> tags — preserve those, strip everything else
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(?!\/?mark[ >])[^>]*>/gi, "");
+  return sanitizeHtml(html, {
+    allowedTags: ["mark"],
+    allowedAttributes: {},
+    disallowedTagsMode: "discard",
+  });
 }
 
 /** Format a pl-* tag name into a human-readable label */
