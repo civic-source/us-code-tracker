@@ -164,6 +164,17 @@ describe('parseReleasePoints', () => {
     expect(points).toHaveLength(1);
     expect(points[0]?.publicLaw).toBe('');
   });
+
+  it('does not catastrophically backtrack on malformed input (CodeQL js/polynomial-redos)', () => {
+    // Long string of repeated non-quote chars that look like an unclosed href.
+    // The old [^"]* prefix would let the engine try every cut point.
+    const evil = `href="${'a'.repeat(40000)}/releasepoints/us/pl/118/200/xml_usc42@118-200X`;
+    const start = performance.now();
+    const points = parseReleasePoints(evil);
+    const elapsedMs = performance.now() - start;
+    expect(points).toEqual([]);
+    expect(elapsedMs).toBeLessThan(100);
+  });
 });
 
 // --- fetchWithRetry ---

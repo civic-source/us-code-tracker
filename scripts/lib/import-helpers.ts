@@ -3,8 +3,9 @@
  * state persistence, git operations, and ZIP download/extraction.
  */
 
-import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, rm, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readdirSync } from 'node:fs';
@@ -154,8 +155,11 @@ export async function downloadAndExtractXml(
   log: Logger
 ): Promise<string | null> {
   const url = titleZipUrl(rp, paddedTitle);
-  const tmpZip = `/tmp/usc-hist-${paddedTitle}-${rp.congress}-${rp.law}.zip`;
-  const tmpDir = `/tmp/usc-hist-${paddedTitle}-${rp.congress}-${rp.law}`;
+  // Random per-invocation temp dir under the OS temp root — no predictable
+  // path, no symlink race.
+  const workDir = await mkdtemp(join(tmpdir(), 'usc-hist-'));
+  const tmpZip = join(workDir, 'download.zip');
+  const tmpDir = join(workDir, 'extract');
 
   await rateLimiter.waitAndConsume();
 
@@ -176,7 +180,6 @@ export async function downloadAndExtractXml(
     }
 
     await writeFile(tmpZip, buf);
-    await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
     await execFileAsync('unzip', ['-o', '-q', tmpZip, '-d', tmpDir], { timeout: 60_000 });
 
@@ -185,7 +188,6 @@ export async function downloadAndExtractXml(
 
     return await readFile(xmlPath, 'utf-8');
   } finally {
-    await rm(tmpZip, { force: true }).catch(() => {});
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }

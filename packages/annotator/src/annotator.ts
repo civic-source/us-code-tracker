@@ -54,6 +54,11 @@ export function buildAnnotationPath(section: string): string {
   return `annotations/title-${titleNum}/section-${sectionNum}.yaml`;
 }
 
+/** Escape backslashes and double quotes for YAML double-quoted scalar. */
+function yamlEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 /** Serialize a PrecedentAnnotation to simple YAML (no external deps) */
 export function annotationToYaml(annotation: PrecedentAnnotation): string {
   const lines: string[] = [];
@@ -61,11 +66,11 @@ export function annotationToYaml(annotation: PrecedentAnnotation): string {
   lines.push(`lastSyncedET: "${annotation.lastSyncedET}"`);
   lines.push('cases:');
   for (const c of annotation.cases) {
-    lines.push(`  - caseName: "${c.caseName.replace(/"/g, '\\"')}"`);
-    lines.push(`    citation: "${c.citation.replace(/"/g, '\\"')}"`);
+    lines.push(`  - caseName: "${yamlEscape(c.caseName)}"`);
+    lines.push(`    citation: "${yamlEscape(c.citation)}"`);
     lines.push(`    court: "${c.court}"`);
     lines.push(`    date: "${c.date}"`);
-    lines.push(`    holdingSummary: "${c.holdingSummary.replace(/"/g, '\\"')}"`);
+    lines.push(`    holdingSummary: "${yamlEscape(c.holdingSummary)}"`);
     lines.push(`    sourceUrl: "${c.sourceUrl}"`);
     lines.push(`    impact: "${c.impact}"`);
   }
