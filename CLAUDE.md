@@ -64,16 +64,10 @@ Enforced by commitlint in CI (on PRs) via `commitlint.config.ts`.
 
 **Semver policy:** 0.x = pre-release (breaking changes allowed in minor bumps). 1.0 = first stable release.
 
-**Cutting a release:**
+**Release flow:** Automated by [release-please](https://github.com/googleapis/release-please). On every push to `main`, `release-please.yml` reads conventional commits since the last release and opens/updates a long-lived "Release PR" that bumps `package.json` + `.release-please-manifest.json` and updates `CHANGELOG.md`. Merging that PR creates the git tag (`v0.x.y`) and the GitHub Release.
 
-```bash
-# 1. Bump version + regenerate changelog
-pnpm version:patch   # or version:minor / version:major
+Config: `release-please-config.json` + `.release-please-manifest.json`.
 
-# 2. Commit, tag, and push
-pnpm release
-```
+To trigger a release: merge the Release PR. To force a re-evaluation: `gh workflow run release-please.yml --ref main`.
 
-This creates a git tag (`v0.1.0`, etc.) which triggers the `release.yml` workflow to build, test, and publish a GitHub Release with auto-generated changelog notes.
-
-**Changelog:** Generated from conventional commits via `conventional-changelog`. The full history lives in `CHANGELOG.md`.
+**Changelog:** Maintained by release-please from conventional commits. The full history lives in `CHANGELOG.md`.

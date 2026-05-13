@@ -8,12 +8,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -s -r 0",
-    "version:patch": "npm version patch --no-git-tag-version && pnpm changelog",
-    "version:minor": "npm version minor --no-git-tag-version && pnpm changelog",
-    "version:major": "npm version major --no-git-tag-version && pnpm changelog",
-    "release": "git add -A && git commit -m \"chore(release): v$(node -p 'require(\"./package.json\").version')\" && git tag v$(node -p 'require(\"./package.json\").version') && git push && git push --tags"
+    "typecheck": "turbo run typecheck"
   },
   "pnpm": {
     "overrides": {
@@ -31,7 +26,6 @@
     "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
-    "conventional-changelog": "^7.2.0",
     "eslint": "^10.3.0",
     "turbo": "^2.9.12",
     "typescript": "^6.0.0",
