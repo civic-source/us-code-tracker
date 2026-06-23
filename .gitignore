@@ -7,3 +7,5 @@ coverage/
 .env.*
 .astro/
 apps/web/public/diffs/
+.nexus-agents/
+runs/
