@@ -42,12 +42,12 @@ Automated pipeline that fetches U.S. Code XML releases from the Office of the La
 ```bash
 pnpm install
 pnpm build
-pnpm test          # 267 tests across 8 packages
+pnpm test          # run all workspace tests
 pnpm lint
 pnpm typecheck
 ```
 
-Requires Node.js 22.x LTS and pnpm 9.x.
+Requires Node.js 24.x LTS and pnpm 11.x.
 
 ## Architecture
 
