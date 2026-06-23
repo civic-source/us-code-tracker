@@ -156,7 +156,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     "url": `https://civic-source.github.io${base}statute/${entry.id}/`,
     "dateModified": generated_at?.split('T')[0] ?? "2026-03-30",
     "publisher": { "@type": "Organization", "name": "Office of the Law Revision Counsel", "url": "https://uscode.house.gov/" }
-  })} />
+  }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
 
   <!-- Breadcrumbs -->
   <Breadcrumbs items={[
