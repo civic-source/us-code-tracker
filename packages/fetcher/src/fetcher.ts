@@ -1,13 +1,35 @@
 import { createHash } from 'node:crypto';
 import { type IUsCodeFetcher, type ReleasePoint, type Result, ok, err } from '@civic-source/types';
 import { type Logger, createLogger, fetchWithRetry as sharedFetchWithRetry } from '@civic-source/shared';
-import { OLRC_DOWNLOAD_PAGE, OLRC_PRIOR_RELEASE_POINTS_PAGE } from './constants.js';
+import {
+  OLRC_BASE_URL,
+  OLRC_DOWNLOAD_PAGE,
+  OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  MAX_DOWNLOAD_BYTES,
+} from './constants.js';
 import { HashStore } from './hash-store.js';
 import { FetcherMetrics } from './metrics.js';
 
 /** Compute SHA-256 hex digest of a buffer */
 export function sha256(data: Buffer): string {
   return createHash('sha256').update(data).digest('hex');
+}
+
+/**
+ * Inspect a response's Content-Length header and reject up-front if it
+ * advertises a body larger than MAX_DOWNLOAD_BYTES. This is the primary guard
+ * against runner OOM: it avoids ever reading an oversized body into memory.
+ *
+ * Returns true when the response is over the cap (caller should error).
+ * A missing or unparseable Content-Length returns false — the post-read
+ * length check provides defense-in-depth for those cases.
+ */
+export function exceedsContentLengthLimit(response: Response): boolean {
+  const header = response.headers.get('content-length');
+  if (header === null) return false;
+  const declared = Number(header);
+  if (!Number.isFinite(declared)) return false;
+  return declared > MAX_DOWNLOAD_BYTES;
 }
 
 /**
@@ -118,9 +140,16 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
   const currentRelease = parseCurrentRelease(html);
 
   // Match links like: /download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
+  //
+  // SSRF hardening: only accept OLRC server-relative hrefs (the form the OLRC
+  // pages actually emit). We deliberately do NOT accept an absolute-URL prefix
+  // here: allowing one would let an href to an arbitrary host become a
+  // uslmUrl that fetchXml then fetches verbatim. Because every match is a bare
+  // path, fullUrl below is always anchored to the OLRC host.
+  //
   // Anchor segments to non-slash/non-quote chars so we don't get polynomial
   // backtracking on malformed input (CodeQL js/polynomial-redos).
-  const linkPattern = /href="((?:https?:\/\/[^"/]+)?\/download\/releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip)"/g;
+  const linkPattern = /href="(\/download\/releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip)"/g;
   let match: RegExpExecArray | null;
 
   // Extract unique title numbers from XML download links
@@ -138,9 +167,10 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
     if (!title || seen.has(title)) continue;
     seen.add(title);
 
-    const fullUrl = path.startsWith('http')
-      ? path
-      : `https://uscode.house.gov${path}`;
+    // path is always an OLRC server-relative path (the regex no longer
+    // accepts an absolute-URL prefix), so this is always anchored to the
+    // OLRC host — a foreign host can never become a uslmUrl.
+    const fullUrl = `${OLRC_BASE_URL}${path}`;
 
     results.push({
       title,
@@ -180,6 +210,11 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return result;
     }
 
+    if (exceedsContentLengthLimit(result.value)) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
+
     const html = await result.value.text();
     let points = parseReleasePoints(html);
     this.metrics.recordDiscovered(points.length);
@@ -209,13 +244,18 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return priorResult;
     }
 
+    if (exceedsContentLengthLimit(priorResult.value)) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
+
     const priorHtml = await priorResult.value.text();
     const historicalPoints = parsePriorReleasePoints(priorHtml);
     this.metrics.recordDiscovered(historicalPoints.length);
 
     // Also fetch current release point to include it
     const currentResult = await fetchWithRetry(OLRC_DOWNLOAD_PAGE, this.logger);
-    if (currentResult.ok) {
+    if (currentResult.ok && !exceedsContentLengthLimit(currentResult.value)) {
       const currentHtml = await currentResult.value.text();
       const current = parseCurrentRelease(currentHtml);
       if (current) {
@@ -257,7 +297,28 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return result;
     }
 
+    // Size cap (primary guard): reject before reading the body if the server
+    // advertises a Content-Length over the limit, avoiding runner OOM.
+    if (exceedsContentLengthLimit(result.value)) {
+      const durationMs = performance.now() - startMs;
+      this.metrics.recordDuration(durationMs);
+      this.metrics.recordError('network');
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
+
     const buffer = Buffer.from(await result.value.arrayBuffer());
+
+    // Defense-in-depth: catch oversized bodies that lacked a (truthful)
+    // Content-Length header.
+    if (buffer.length > MAX_DOWNLOAD_BYTES) {
+      const durationMs = performance.now() - startMs;
+      this.metrics.recordDuration(durationMs);
+      this.metrics.recordError('network');
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
+
     const hash = sha256(buffer);
     const hashKey = `xml:${releasePoint.title}:${releasePoint.uslmUrl}`;
 

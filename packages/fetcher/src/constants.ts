@@ -22,6 +22,16 @@ export function allTitlesXmlUrl(congress: string, law: string): string {
   return `${OLRC_RELEASE_POINTS_URL}us/pl/${congress}/${law}/xml_uscAll@${congress}-${law}.zip`;
 }
 
+/**
+ * Maximum number of bytes to accept from a single download.
+ *
+ * Guards CI runners against OOM from a maliciously or accidentally huge
+ * response. The bound is deliberately generous: the all-titles USC archive
+ * can be ~100-150 MB, so 300 MiB leaves ample headroom for legitimate
+ * downloads while still capping runaway responses.
+ */
+export const MAX_DOWNLOAD_BYTES = 314572800; // 300 MiB
+
 /** Path for hash storage relative to working directory */
 export const HASH_STORE_DIR = '.openlaw-git';
 export const HASH_STORE_FILE = 'hashes.json';
