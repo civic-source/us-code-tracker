@@ -27,7 +27,14 @@ const annotations = defineCollection({
       court: z.string(),
       date: z.string(),
       holdingSummary: z.string().optional(),
-      sourceUrl: z.string().optional(),
+      // Constrain to http(s) (or empty) so a malformed annotation can't inject
+      // a `javascript:`/`data:` URL that the precedent UI renders as an href (#210).
+      sourceUrl: z
+        .string()
+        .refine((u) => u === '' || /^https?:\/\//i.test(u), {
+          message: 'sourceUrl must use the http(s) scheme',
+        })
+        .optional(),
       impact: z.string().optional(),
     })).default([]),
   }),

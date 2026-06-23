@@ -43,6 +43,11 @@ describe('ReleasePointSchema', () => {
     expect(() => ReleasePointSchema.parse({ ...valid, uslmUrl: 'not-a-url' })).toThrow();
   });
 
+  it('rejects non-http(s) uslmUrl schemes', () => {
+    expect(() => ReleasePointSchema.parse({ ...valid, uslmUrl: 'javascript:alert(1)' })).toThrow();
+    expect(() => ReleasePointSchema.parse({ ...valid, uslmUrl: 'ftp://uscode.house.gov/x.zip' })).toThrow();
+  });
+
   it('rejects wrong-length sha256Hash', () => {
     expect(() => ReleasePointSchema.parse({ ...valid, sha256Hash: 'abc' })).toThrow();
   });
@@ -90,6 +95,10 @@ describe('CaseAnnotationSchema', () => {
 
   it('rejects invalid court', () => {
     expect(() => CaseAnnotationSchema.parse({ ...valid, court: 'State' })).toThrow();
+  });
+
+  it('rejects a javascript: sourceUrl (would render as an href)', () => {
+    expect(() => CaseAnnotationSchema.parse({ ...valid, sourceUrl: 'javascript:alert(document.cookie)' })).toThrow();
   });
 
   it('rejects holdingSummary over 500 chars', () => {
