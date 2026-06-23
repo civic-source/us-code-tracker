@@ -192,4 +192,47 @@ describe('fetchWithRetry', () => {
       })
     );
   });
+
+  it('retries on 429 Too Many Requests', async () => {
+    let callCount = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      callCount++;
+      if (callCount === 1) {
+        return new Response('Rate limited', { status: 429, statusText: 'Too Many Requests' });
+      }
+      return new Response('OK', { status: 200 });
+    }));
+
+    const result = await fetchWithRetry('https://example.com', { baseDelayMs: 1 });
+    expect(result.ok).toBe(true);
+    expect(callCount).toBe(2);
+  });
+
+  it('does not retry on AbortError and returns it immediately', async () => {
+    let callCount = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      callCount++;
+      const e = new Error('The operation was aborted');
+      e.name = 'AbortError';
+      throw e;
+    }));
+
+    const result = await fetchWithRetry('https://example.com', { baseDelayMs: 1, maxRetries: 3 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.name).toBe('AbortError');
+    expect(callCount).toBe(1);
+  });
+
+  it('preserves the underlying error as cause after exhausting retries', async () => {
+    const underlying = new Error('ECONNRESET');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw underlying;
+    }));
+
+    const result = await fetchWithRetry('https://example.com', { baseDelayMs: 1, maxRetries: 2 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.cause).toBe(underlying);
+  });
 });
