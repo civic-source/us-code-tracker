@@ -88,7 +88,7 @@ jobs:
         run: |
           mkdir -p workspace/statutes
           node --input-type=module <<'SCRIPT'
-          import { OlrcFetcher, HashStore } from '@civic-source/fetcher';
+          import { OlrcFetcher, HashStore, extractXmlFromZip } from '@civic-source/fetcher';
           import { XmlToMarkdownAdapter } from '@civic-source/transformer';
           import { writeFile, mkdir } from 'node:fs/promises';
           import { join, dirname } from 'node:path';
@@ -114,8 +114,15 @@ jobs:
                 continue;
               }
 
+              const xml = extractXmlFromZip(Buffer.from(xmlResult.value, 'base64'));
+              if (xml === null) {
+                console.error(`Title ${rp.title}: no XML in archive`);
+                failedTitles++;
+                continue;
+              }
+
               const transformer = new XmlToMarkdownAdapter(rp.publicLaw);
-              const transformResult = transformer.transformToFiles(xmlResult.value);
+              const transformResult = transformer.transformToFiles(xml);
               if (!transformResult.ok) {
                 console.error(`Title ${rp.title}: transform failed — ${transformResult.error.message}`);
                 failedTitles++;

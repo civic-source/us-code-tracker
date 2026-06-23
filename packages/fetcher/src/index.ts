@@ -20,6 +20,7 @@ export {
   parseCurrentRelease,
   type CurrentReleaseInfo,
 } from './fetcher.js';
+export { extractXmlFromZip } from './zip.js';
 export { HashStore } from './hash-store.js';
 export { FetcherMetrics, type FetcherMetricsSnapshot, type DownloadErrorType } from './metrics.js';
 export { createLogger, type Logger, type LogLevel } from '@civic-source/shared';
