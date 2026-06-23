@@ -100,4 +100,49 @@ describe('deduplicateCases', () => {
     const result = deduplicateCases(cases);
     expect(result).toHaveLength(1);
   });
+
+  it('retains distinct cases that both have empty citations', () => {
+    const cases = [
+      makeCase({
+        caseName: 'Alpha v. United States',
+        citation: '',
+        date: '2024-01-15',
+        sourceUrl: 'https://www.courtlistener.com/opinion/111/',
+      }),
+      makeCase({
+        caseName: 'Beta v. United States',
+        citation: '',
+        date: '2023-06-30',
+        sourceUrl: 'https://www.courtlistener.com/opinion/222/',
+      }),
+    ];
+    const result = deduplicateCases(cases);
+    expect(result).toHaveLength(2);
+    expect(result.map((c) => c.caseName)).toEqual([
+      'Alpha v. United States',
+      'Beta v. United States',
+    ]);
+  });
+
+  it('still collapses truly identical uncited cases', () => {
+    const cases = [
+      makeCase({ caseName: 'Same', citation: '', date: '2024-01-15', sourceUrl: 'https://www.courtlistener.com/opinion/999/' }),
+      makeCase({ caseName: 'Same', citation: '', date: '2024-01-15', sourceUrl: 'https://www.courtlistener.com/opinion/999/' }),
+    ];
+    const result = deduplicateCases(cases);
+    expect(result).toHaveLength(1);
+  });
+
+  it('collapses cases with the same non-empty citation while retaining distinct uncited ones', () => {
+    const cases = [
+      makeCase({ caseName: 'CitedFirst', citation: '18 USC 111' }),
+      makeCase({ caseName: 'CitedSecond', citation: '18 U.S.C. 111' }),
+      makeCase({ caseName: 'UncitedA', citation: '', sourceUrl: 'https://www.courtlistener.com/opinion/aaa/' }),
+      makeCase({ caseName: 'UncitedB', citation: '', sourceUrl: 'https://www.courtlistener.com/opinion/bbb/' }),
+    ];
+    const result = deduplicateCases(cases);
+    // One collapsed cited case + two distinct uncited cases = 3
+    expect(result).toHaveLength(3);
+    expect(result.map((c) => c.caseName)).toEqual(['CitedFirst', 'UncitedA', 'UncitedB']);
+  });
 });
