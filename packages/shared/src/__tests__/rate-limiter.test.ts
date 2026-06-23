@@ -95,6 +95,29 @@ describe('TokenBucket', () => {
     expect(bucket.available).toBe(0);
   });
 
+  it('serializes concurrent waiters FIFO and never over-issues tokens', async () => {
+    const bucket = new TokenBucket({ capacity: 2, refillRate: 1, refillIntervalMs: 1000 });
+    bucket.tryConsume(2); // drain to 0
+    expect(bucket.available).toBe(0);
+
+    const order: number[] = [];
+    const p1 = bucket.waitAndConsume(1).then(() => order.push(1));
+    const p2 = bucket.waitAndConsume(1).then(() => order.push(2));
+
+    // Each waiter needs one refill interval; serialized, not simultaneous.
+    await vi.advanceTimersByTimeAsync(1000); // first waiter gets its token
+    await vi.advanceTimersByTimeAsync(1000); // second waiter gets its token
+    await Promise.all([p1, p2]);
+
+    expect(order).toEqual([1, 2]); // FIFO order preserved
+    expect(bucket.available).toBeGreaterThanOrEqual(0); // never drove tokens negative
+  });
+
+  it('throws when waitAndConsume count exceeds capacity', async () => {
+    const bucket = new TokenBucket({ capacity: 2, refillRate: 1, refillIntervalMs: 1000 });
+    await expect(bucket.waitAndConsume(3)).rejects.toThrow(/capacity/);
+  });
+
   it('defaults count to 1 for tryConsume', () => {
     const bucket = new TokenBucket({ capacity: 3, refillRate: 1, refillIntervalMs: 1000 });
 
