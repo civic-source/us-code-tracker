@@ -165,6 +165,21 @@ describe('parseReleasePoints', () => {
     expect(points[0]?.publicLaw).toBe('');
   });
 
+  it('does not produce an off-host uslmUrl for an absolute foreign-host href (SSRF)', () => {
+    // An attacker-controlled page that points a release-point link at a
+    // foreign host must never yield a uslmUrl that fetchXml would fetch.
+    const html = `
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="https://evil.example/download/releasepoints/us/pl/1/1/xml_usc18@1-1.zip">Evil</a>
+    `;
+    const points = parseReleasePoints(html);
+    // The link is either skipped or rewritten to the OLRC host — never evil.example.
+    for (const p of points) {
+      expect(p.uslmUrl).not.toContain('evil.example');
+      expect(p.uslmUrl.startsWith('https://uscode.house.gov/')).toBe(true);
+    }
+  });
+
   it('does not catastrophically backtrack on malformed input (CodeQL js/polynomial-redos)', () => {
     // Long string of repeated non-quote chars that look like an unclosed href.
     // The old [^"]* prefix would let the engine try every cut point.
@@ -373,6 +388,22 @@ describe('OlrcFetcher', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.message).toContain('not a valid ZIP');
+    }
+  });
+
+  it('fetchXml rejects a response whose Content-Length exceeds the size cap', async () => {
+    // Advertise a body far larger than MAX_DOWNLOAD_BYTES (300 MiB).
+    const oversized = String(314572800 + 1);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('PK', { status: 200, headers: { 'content-length': oversized } })
+    );
+
+    const rp: ReleasePoint = { title: '42', publicLaw: 'PL 118-200', dateET: '2024-01-01T00:00:00Z', uslmUrl: 'https://example.com/t42.zip', sha256Hash: '0'.repeat(64) };
+    const fetcher = new OlrcFetcher({ logger });
+    const result = await fetcher.fetchXml(rp);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('size limit');
     }
   });
 
