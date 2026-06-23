@@ -3,11 +3,11 @@
 ## Tech Stack
 
 - **Monorepo:** Turborepo + pnpm workspaces
-- **Language:** TypeScript 5.8+ (strict mode, NodeNext)
+- **Language:** TypeScript 6.0+ (strict mode, NodeNext)
 - **Validation:** Zod v3
 - **Testing:** Vitest
 - **Web:** Astro v5
-- **CI:** GitHub Actions (ubuntu-latest, Node 22)
+- **CI:** GitHub Actions (ubuntu-latest, Node 24)
 
 ## Quick Commands
 
