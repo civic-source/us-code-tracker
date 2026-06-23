@@ -17,7 +17,7 @@ OLRC Website (uscode.house.gov)
                             |
                             v
                      +-----------+
-                     | Pipeline  |  (orchestration)
+                     | Workflow  |  (orchestration)
                      +-----------+
                             |
                             v
@@ -37,7 +37,6 @@ OLRC Website (uscode.house.gov)
 | `@civic-source/fetcher` | `packages/fetcher` | Downloads release point listings and ZIP archives from the OLRC. Includes SHA-256 hash-based caching (`HashStore`) to skip unchanged content, exponential backoff retry, and a structured logger. |
 | `@civic-source/transformer` | `packages/transformer` | Parses USLM XML using `fast-xml-parser` in `preserveOrder` mode and generates per-section Markdown files with YAML frontmatter. Handles namespace-aware element traversal. |
 | `@civic-source/annotator` | `packages/annotator` | Queries CourtListener's full-text search API to find cases citing a given statute section. Maps results to the `PrecedentAnnotation` schema. Rate-limited. |
-| `@civic-source/pipeline` | `packages/pipeline` | Orchestrates the end-to-end flow: fetch release points, transform each title's XML to Markdown, write files, and optionally annotate with case law. Per-title failures do not block other titles. |
 | `@civic-source/web` | `apps/web` | Astro v5 static site that renders statute Markdown with Tailwind CSS styling, Pagefind search, and Svelte interactive components. |
 
 ## Dual-Repo Strategy
