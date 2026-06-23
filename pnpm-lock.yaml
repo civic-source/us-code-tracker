@@ -8,6 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@civic-source/annotator':
+        specifier: workspace:*
+        version: link:packages/annotator
+      '@civic-source/fetcher':
+        specifier: workspace:*
+        version: link:packages/fetcher
+      '@civic-source/transformer':
+        specifier: workspace:*
+        version: link:packages/transformer
       '@commitlint/cli':
         specifier: ^21.0.1
         version: 21.0.1(@types/node@25.5.0)(conventional-commits-parser@6.3.0)(typescript@6.0.3)
