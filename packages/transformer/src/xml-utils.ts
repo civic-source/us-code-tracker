@@ -22,6 +22,16 @@ export type PreserveOrderNode = PreserveOrderTextNode | PreserveOrderElementNode
 /**
  * Recursively walk nodes and concatenate all #text values in document order.
  * Joins segments with a single space and collapses whitespace.
+ *
+ * Security: the parser decodes XML entities, so `&lt;img&gt;` in the source
+ * arrives here as the literal characters `<img>`. This text is later written
+ * into Markdown that the web app renders without HTML sanitization, so any raw
+ * `<`/`>` would be interpreted as live HTML (stored-XSS surface — see #200/H2).
+ * We escape `<` and `>` to their entities here, at the single choke point all
+ * rendered statute text flows through, so the generated Markdown is provably
+ * HTML-free regardless of the upstream USLM content. Markers, headings and
+ * title numbers are alphanumeric and unaffected; section paths derive from
+ * element identifiers, not this text.
  */
 export function extractTextFromNodes(nodes: unknown[]): string {
   const segments: string[] = [];
@@ -43,7 +53,9 @@ export function extractTextFromNodes(nodes: unknown[]): string {
     .filter((s) => s.length > 0)
     .join(' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /**
