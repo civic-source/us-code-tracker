@@ -34,8 +34,6 @@ Automated pipeline that fetches U.S. Code XML releases from the Office of the La
 | `@civic-source/fetcher` | OLRC release point fetcher with retry and idempotency |
 | `@civic-source/transformer` | USLM XML to Markdown converter with status detection |
 | `@civic-source/annotator` | CourtListener precedent annotation generator |
-| `@civic-source/pipeline` | Orchestration pipeline for bulk conversion |
-| `@civic-source/observability` | Pipeline metrics collector and reporting |
 | `@civic-source/shared` | Shared utilities (logger, retry, token bucket) |
 | `@civic-source/web` | Astro 6 static site with Svelte components |
 
@@ -44,12 +42,12 @@ Automated pipeline that fetches U.S. Code XML releases from the Office of the La
 ```bash
 pnpm install
 pnpm build
-pnpm test          # 267 tests across 8 packages
+pnpm test          # run all workspace tests
 pnpm lint
 pnpm typecheck
 ```
 
-Requires Node.js 22.x LTS and pnpm 9.x.
+Requires Node.js 24.x LTS and pnpm 11.x.
 
 ## Architecture
 
