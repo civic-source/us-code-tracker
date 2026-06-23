@@ -381,6 +381,41 @@ describe('XmlToMarkdownAdapter', () => {
     expect(s111?.path).toBe('statutes/title-10/chapter-2/section-111.md');
   });
 
+  it('extracts appendix title number "18a" from identifier (no collision with title 18)', () => {
+    const xml = `
+<lawDoc>
+  <title identifier="/us/usc/t18a">
+    <num>Title 18 Appendix</num>
+    <chapter identifier="/us/usc/t18a/ch1">
+      <num>Chapter 1</num>
+      <section identifier="/us/usc/t18a/s1">
+        <num>1</num>
+        <heading>Appendix Rule</heading>
+        <content>Some appendix content.</content>
+      </section>
+    </chapter>
+  </title>
+</lawDoc>`;
+    const parsed = parseUslmXml(xml);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.titleNumber).toBe('18a');
+
+    const adapter = new XmlToMarkdownAdapter('PL 119-1');
+    const result = adapter.transformToFiles(xml);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const section = result.value.find((f) => f.path.includes('section-1'));
+    expect(section).toBeDefined();
+    // Appendix sections live under title-18a, distinct from main title-18
+    expect(section?.path).toBe('statutes/title-18a/chapter-1/section-1.md');
+    expect(section?.path).not.toContain('title-18/');
+    // usc_title frontmatter remains numeric (18) despite the "18a" path
+    expect(section?.content).toContain('usc_title: 18');
+    expect(section?.content).not.toContain('usc_title: 18a');
+  });
+
   it('preserves inline element text in mixed content (cross-references)', () => {
     const xml = `
 <lawDoc>

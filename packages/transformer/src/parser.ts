@@ -74,15 +74,19 @@ function findTitleNumber(root: unknown[]): string | undefined {
   const titleAttrs = firstTitle.attrs;
   const identifier = titleAttrs['@_identifier'];
   if (identifier) {
-    const match = /\/t(\d+)$/.exec(identifier);
+    // Capture an optional appendix suffix letter so e.g. "/us/usc/t18a"
+    // yields "18a" and does NOT collide with main Title 18 ("18").
+    const match = /\/t(\d+[a-zA-Z]?)$/.exec(identifier);
     if (match?.[1]) return match[1];
   }
 
-  // Fallback: look for num element
+  // Fallback: look for num element (e.g. "Title 18 Appendix")
   const firstNum = findElements(firstTitle.children, USLM_ELEMENTS.num)[0];
   if (firstNum) {
     const text = extractTextFromNodes(firstNum.children);
-    const numMatch = /\d+/.exec(text);
+    // Match a number with an optional appendix letter (e.g. "18a"), then fall
+    // back to a bare number.
+    const numMatch = /\d+[a-zA-Z]?/.exec(text) ?? /\d+/.exec(text);
     return numMatch?.[0];
   }
 
