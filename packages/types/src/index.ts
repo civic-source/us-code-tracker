@@ -14,6 +14,18 @@ export function err<E>(error: E): Result<never, E> {
   return { ok: false, error };
 }
 
+// --- Shared field schemas ---
+
+/**
+ * A URL constrained to the http(s) scheme. Plain `z.url()` accepts dangerous
+ * schemes such as `javascript:` and `data:`; several of these values are later
+ * rendered as `href`s or used to download content, so we reject anything that
+ * is not http/https at the validation boundary (defense-in-depth — see #210).
+ */
+export const HttpUrlSchema = z
+  .url()
+  .refine((u) => /^https?:\/\//i.test(u), { message: 'URL must use the http(s) scheme' });
+
 // --- Release Point schema ---
 
 export const ReleasePointSchema = z.object({
@@ -24,7 +36,7 @@ export const ReleasePointSchema = z.object({
   /** Release date in ISO 8601 datetime format (ET timezone) */
   dateET: z.string().datetime(),
   /** URL to the USLM XML download for this release */
-  uslmUrl: z.url(),
+  uslmUrl: HttpUrlSchema,
   /** SHA-256 hex digest for integrity verification (64 hex characters) */
   sha256Hash: z.string().length(64),
 });
@@ -49,7 +61,7 @@ export const CaseAnnotationSchema = z.object({
   court: z.enum(["SCOTUS", "Appellate", "District"]),
   date: z.string(),
   holdingSummary: z.string().max(500),
-  sourceUrl: z.url(),
+  sourceUrl: HttpUrlSchema,
   impact: PrecedentImpactSchema,
   /** Public Law the statute was current through when this case was decided */
   statuteVersionRef: z.string().optional(),
