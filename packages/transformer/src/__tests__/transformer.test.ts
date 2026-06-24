@@ -235,6 +235,21 @@ describe('generateFrontmatter', () => {
     expect(readScalar(fm, 'title')).toBe(title);
   });
 
+  it('escapes raw control characters so the scalar stays parseable', () => {
+    const title = ['Section 5', String.fromCharCode(0), 'NUL', String.fromCharCode(0x1b), 'ESC'].join(' ');
+    const fm = generateFrontmatter({
+      title,
+      usc_title: 5,
+      usc_section: '5',
+      chapter: 1,
+      current_through: 'PL 119-73',
+      classification: '5 U.S.C. § 5',
+      generated_at: '2026-03-28T14:00:00-04:00',
+      status: 'active',
+    });
+    expect(readScalar(fm, 'title')).toBe(title);
+  });
+
   it('escapes quotes/backslashes across all string fields', () => {
     const fm = generateFrontmatter({
       title: 'has "quote"',

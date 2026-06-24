@@ -161,7 +161,13 @@ function yamlQuote(value: string): string {
     .replace(/"/g, '\\"')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
+    .replace(/\t/g, '\\t')
+    // Remaining C0/DEL control chars are invalid raw inside a YAML
+    // double-quoted scalar; emit \uXXXX so the scalar stays parseable.
+    // eslint-disable-next-line no-control-regex -- intentionally matching control chars to escape them
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, (c) =>
+      `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+    );
   return `"${escaped}"`;
 }
 
