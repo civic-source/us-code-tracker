@@ -33,6 +33,22 @@ export function exceedsContentLengthLimit(response: Response): boolean {
 }
 
 /**
+ * Read an HTML response body, enforcing MAX_DOWNLOAD_BYTES as a post-read guard.
+ *
+ * `exceedsContentLengthLimit` is the primary defense, but it returns false for
+ * a response with no (or untruthful) Content-Length — e.g. a chunked body. This
+ * mirrors the post-read check `fetchXml` applies to ZIP downloads so the HTML
+ * enumeration paths share the same defense-in-depth.
+ *
+ * @returns The decoded body, or `null` if it exceeds the size cap.
+ */
+async function readBodyCapped(response: Response): Promise<string | null> {
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MAX_DOWNLOAD_BYTES) return null;
+  return buffer.toString('utf-8');
+}
+
+/**
  * Fetch with exponential backoff retry.
  * Delegates to the shared fetchWithRetry utility.
  */
@@ -227,7 +243,11 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    const html = await result.value.text();
+    const html = await readBodyCapped(result.value);
+    if (html === null) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
     let points = parseReleasePoints(html);
     this.metrics.recordDiscovered(points.length);
 
@@ -261,15 +281,19 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    const priorHtml = await priorResult.value.text();
+    const priorHtml = await readBodyCapped(priorResult.value);
+    if (priorHtml === null) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
     const historicalPoints = parsePriorReleasePoints(priorHtml);
     this.metrics.recordDiscovered(historicalPoints.length);
 
     // Also fetch current release point to include it
     const currentResult = await fetchWithRetry(OLRC_DOWNLOAD_PAGE, this.logger);
     if (currentResult.ok && !exceedsContentLengthLimit(currentResult.value)) {
-      const currentHtml = await currentResult.value.text();
-      const current = parseCurrentRelease(currentHtml);
+      const currentHtml = await readBodyCapped(currentResult.value);
+      const current = currentHtml === null ? null : parseCurrentRelease(currentHtml);
       if (current) {
         // Add current release if not already in the list
         const alreadyIncluded = historicalPoints.some(

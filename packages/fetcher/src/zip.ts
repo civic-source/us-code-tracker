@@ -32,7 +32,17 @@ export function extractXmlFromZip(zip: Buffer): string | null {
       if (compressionMethod === 0) {
         return zip.toString('utf-8', dataStart, dataStart + compressedSize);
       } else if (compressionMethod === 8) {
-        return inflateRawSync(zip.subarray(dataStart, dataStart + compressedSize)).toString('utf-8');
+        // Honor the documented null contract: a corrupt/truncated deflate
+        // stream (or a zero-length data-descriptor entry, bit 3, whose
+        // compressedSize is 0 in the local header) makes inflateRawSync throw.
+        // Treat that as "no usable XML" rather than propagating the throw.
+        try {
+          return inflateRawSync(
+            zip.subarray(dataStart, dataStart + compressedSize)
+          ).toString('utf-8');
+        } catch {
+          return null;
+        }
       }
     }
 
