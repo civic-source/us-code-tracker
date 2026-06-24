@@ -4,9 +4,9 @@
 
 - **Monorepo:** Turborepo + pnpm workspaces
 - **Language:** TypeScript 6.0+ (strict mode, NodeNext)
-- **Validation:** Zod v3
+- **Validation:** Zod v4
 - **Testing:** Vitest
-- **Web:** Astro v5
+- **Web:** Astro v7
 - **CI:** GitHub Actions (ubuntu-latest, Node 24)
 
 ## Quick Commands

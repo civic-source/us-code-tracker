@@ -37,7 +37,7 @@ OLRC Website (uscode.house.gov)
 | `@civic-source/fetcher` | `packages/fetcher` | Downloads release point listings and ZIP archives from the OLRC. Includes SHA-256 hash-based caching (`HashStore`) to skip unchanged content, exponential backoff retry, and a structured logger. |
 | `@civic-source/transformer` | `packages/transformer` | Parses USLM XML using `fast-xml-parser` in `preserveOrder` mode and generates per-section Markdown files with YAML frontmatter. Handles namespace-aware element traversal. |
 | `@civic-source/annotator` | `packages/annotator` | Queries CourtListener's full-text search API to find cases citing a given statute section. Maps results to the `PrecedentAnnotation` schema. Rate-limited. |
-| `@civic-source/web` | `apps/web` | Astro v5 static site that renders statute Markdown with Tailwind CSS styling, Pagefind search, and Svelte interactive components. |
+| `@civic-source/web` | `apps/web` | Astro v7 static site that renders statute Markdown with Tailwind CSS styling, Pagefind search, and Svelte interactive components. |
 
 ## Dual-Repo Strategy
 
@@ -88,7 +88,7 @@ This pattern was chosen because:
 |--------|----------------------|-----------|
 | **fast-xml-parser** | Cheerio | Namespace-aware parsing required for USLM XML. Built-in XXE prevention. See `docs/SPEC_DEVIATIONS.md`. |
 | **Zod** | io-ts, manual validation | Runtime schema validation with TypeScript type inference. Single schema definition serves both validation and type generation. |
-| **Astro v5** | Next.js, plain HTML | Static-first with zero JS by default. Content-heavy site does not need a SPA framework. Svelte islands for interactive components. |
+| **Astro v7** | Next.js, plain HTML | Static-first with zero JS by default. Content-heavy site does not need a SPA framework. Svelte islands for interactive components. |
 | **Tailwind CSS v4** | v3, plain CSS | Greenfield project; v4 is actively developed while v3 is in maintenance. Vite-native plugin simplifies build. |
 | **Turborepo** | Nx, Lerna | Lightweight build orchestration for pnpm workspaces. Task caching and topological dependency ordering out of the box. |
 | **Result\<T,E\>** | Exceptions | Explicit error handling via discriminated unions. Callers must handle both success and failure paths. No uncaught exception surprises. |

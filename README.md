@@ -35,7 +35,7 @@ Automated pipeline that fetches U.S. Code XML releases from the Office of the La
 | `@civic-source/transformer` | USLM XML to Markdown converter with status detection |
 | `@civic-source/annotator` | CourtListener precedent annotation generator |
 | `@civic-source/shared` | Shared utilities (logger, retry, token bucket) |
-| `@civic-source/web` | Astro 6 static site with Svelte components |
+| `@civic-source/web` | Astro 7 static site with Svelte components |
 
 ## Development
 
@@ -80,7 +80,7 @@ npx tsx scripts/generate-diffs.ts --repo /path/to/us-code --output apps/web/publ
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| Astro | 6.x | Static site generator |
+| Astro | 7.x | Static site generator |
 | Svelte | 5.x | Interactive components |
 | Zod | 4.x | Schema validation |
 | Tailwind CSS | 4.x | Styling |
