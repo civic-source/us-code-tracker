@@ -138,6 +138,49 @@ describe('parseReleasePoints', () => {
     expect(parseReleasePoints('<html><body>Nothing here</body></html>')).toEqual([]);
   });
 
+  it('parses the redesigned OLRC page with relative releasepoints hrefs', () => {
+    // Trimmed fixture extracted verbatim from the live OLRC download.shtml
+    // (Public Law 119-99). Links are now RELATIVE: no leading slash and no
+    // `/download/` prefix. The xml_uscAll link must be skipped.
+    const html = `
+      <h2>Current Release Point</h2>
+      <h3 class="releasepointinformation">Public Law 119-99 (06/12/2026)</h3>
+      <div class="itemdownloadlinks">
+        <a href="releasepoints/us/pl/119/99/xml_uscAll@119-99.zip" title="All USC Titles in XML">[XML]</a>
+      </div>
+      <div class="itemdownloadlinks">
+        <a href="releasepoints/us/pl/119/99/xml_usc01@119-99.zip" title="Title 1 XML">[XML]</a>
+      </div>
+      <div class="itemdownloadlinks">
+        <a href="releasepoints/us/pl/119/99/xml_usc05a@119-99.zip" title="Title 5 App. XML">[XML]</a>
+      </div>
+      <div class="itemdownloadlinks">
+        <a href="releasepoints/us/pl/119/99/xml_usc18@119-99.zip" title="Title 18 XML">[XML]</a>
+      </div>
+      <div class="itemdownloadlinks">
+        <a href="releasepoints/us/pl/119/99/xml_usc42@119-99.zip" title="Title 42 XML">[XML]</a>
+      </div>
+    `;
+    const points = parseReleasePoints(html);
+
+    // One entry per title; xml_uscAll skipped.
+    // The live page emits zero-padded title tokens (xml_usc01, xml_usc05a),
+    // so the captured title preserves that padding.
+    expect(points).toHaveLength(4);
+    expect(points.map((p) => p.title)).toEqual(['01', '05a', '18', '42']);
+
+    for (const p of points) {
+      expect(p.publicLaw).toBe('PL 119-99');
+      expect(p.uslmUrl.startsWith('https://uscode.house.gov/download/releasepoints/')).toBe(true);
+    }
+
+    const byTitle = new Map(points.map((p) => [p.title, p]));
+    expect(byTitle.get('01')?.uslmUrl).toContain('xml_usc01@119-99.zip');
+    expect(byTitle.get('05a')?.uslmUrl).toContain('xml_usc05a@119-99.zip');
+    expect(byTitle.get('18')?.uslmUrl).toContain('xml_usc18@119-99.zip');
+    expect(byTitle.get('42')?.uslmUrl).toContain('xml_usc42@119-99.zip');
+  });
+
   it('handles titles with letter suffixes (e.g., 5a)', () => {
     const html = `
       <h2>Public Law 118-200 (11/15/2024)</h2>
