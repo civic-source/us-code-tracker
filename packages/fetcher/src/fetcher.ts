@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import { type IUsCodeFetcher, type ReleasePoint, type Result, ok, err } from '@civic-source/types';
 import { type Logger, createLogger, fetchWithRetry as sharedFetchWithRetry } from '@civic-source/shared';
 import {
-  OLRC_BASE_URL,
   OLRC_DOWNLOAD_PAGE,
   OLRC_PRIOR_RELEASE_POINTS_PAGE,
   MAX_DOWNLOAD_BYTES,
+  titleXmlUrl,
 } from './constants.js';
 import { HashStore } from './hash-store.js';
 import { FetcherMetrics } from './metrics.js';
@@ -139,17 +139,28 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
   const results: ReleasePoint[] = [];
   const currentRelease = parseCurrentRelease(html);
 
-  // Match links like: /download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
+  // Match links like:
+  //   releasepoints/us/pl/119/99/xml_usc01@119-99.zip        (relative — live OLRC)
+  //   download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
+  //   /download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
   //
-  // SSRF hardening: only accept OLRC server-relative hrefs (the form the OLRC
-  // pages actually emit). We deliberately do NOT accept an absolute-URL prefix
-  // here: allowing one would let an href to an arbitrary host become a
-  // uslmUrl that fetchXml then fetches verbatim. Because every match is a bare
-  // path, fullUrl below is always anchored to the OLRC host.
+  // The `/download/` (and leading slash) prefix is OPTIONAL: the redesigned
+  // OLRC download page emits bare relative hrefs (no leading slash, no
+  // `/download/`). We capture the congress and law path segments and
+  // reconstruct the uslmUrl canonically via titleXmlUrl below.
+  //
+  // SSRF hardening (#205): we never echo the matched href into the uslmUrl.
+  // The regex anchors on `href="` immediately followed by an optional
+  // `download/` and then `releasepoints/us/pl/...`, so an absolute foreign
+  // href such as `href="https://evil.example/download/releasepoints/..."`
+  // never matches (the `https:` between `href="` and `download/` breaks it).
+  // Every uslmUrl is rebuilt from titleXmlUrl, so it is always OLRC-anchored.
   //
   // Anchor segments to non-slash/non-quote chars so we don't get polynomial
-  // backtracking on malformed input (CodeQL js/polynomial-redos).
-  const linkPattern = /href="(\/download\/releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip)"/g;
+  // backtracking on malformed input (CodeQL js/polynomial-redos). The optional
+  // prefix is a fixed alternation, not an unbounded `[^"]*` run.
+  const linkPattern =
+    /href="(?:\/?download\/)?releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip"/g;
   let match: RegExpExecArray | null;
 
   // Extract unique title numbers from XML download links
@@ -157,20 +168,21 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
   const seen = new Set<string>();
 
   while ((match = linkPattern.exec(html)) !== null) {
-    const path = match[1];
-    if (!path) continue;
+    const congress = match[1];
+    const law = match[2];
+    if (!congress || !law) continue;
 
-    const titleMatch = titlePattern.exec(path);
+    const titleMatch = titlePattern.exec(match[0]);
     if (!titleMatch) continue;
 
     const title = titleMatch[1];
     if (!title || seen.has(title)) continue;
     seen.add(title);
 
-    // path is always an OLRC server-relative path (the regex no longer
-    // accepts an absolute-URL prefix), so this is always anchored to the
-    // OLRC host — a foreign host can never become a uslmUrl.
-    const fullUrl = `${OLRC_BASE_URL}${path}`;
+    // Reconstruct the URL canonically so it is always anchored to the OLRC
+    // host regardless of whether the href was relative or absolute — a
+    // foreign host can never become a uslmUrl (#205 SSRF protection).
+    const fullUrl = titleXmlUrl(congress, law, title);
 
     results.push({
       title,
