@@ -80,7 +80,7 @@ npx tsx scripts/generate-diffs.ts --repo /path/to/us-code --output apps/web/publ
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| Astro | 6.x | Static site generator |
+| Astro | 7.x | Static site generator |
 | Svelte | 5.x | Interactive components |
 | Zod | 4.x | Schema validation |
 | Tailwind CSS | 4.x | Styling |
