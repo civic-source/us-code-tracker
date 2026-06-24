@@ -33,19 +33,50 @@ export function exceedsContentLengthLimit(response: Response): boolean {
 }
 
 /**
- * Read an HTML response body, enforcing MAX_DOWNLOAD_BYTES as a post-read guard.
+ * Read an HTML response body, enforcing a hard byte cap.
  *
  * `exceedsContentLengthLimit` is the primary defense, but it returns false for
- * a response with no (or untruthful) Content-Length — e.g. a chunked body. This
- * mirrors the post-read check `fetchXml` applies to ZIP downloads so the HTML
- * enumeration paths share the same defense-in-depth.
+ * a response with no (or untruthful) Content-Length — e.g. a chunked body. To
+ * actually bound memory (rather than buffer-then-check), this streams the body
+ * and aborts the read as soon as the running total exceeds `maxBytes`, so an
+ * oversized or unbounded response is never fully materialized.
  *
  * @returns The decoded body, or `null` if it exceeds the size cap.
  */
-async function readBodyCapped(response: Response): Promise<string | null> {
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length > MAX_DOWNLOAD_BYTES) return null;
-  return buffer.toString('utf-8');
+export async function readBodyCapped(
+  response: Response,
+  maxBytes: number = MAX_DOWNLOAD_BYTES
+): Promise<string | null> {
+  const body = response.body;
+  if (body === null) {
+    // No readable stream (e.g. an empty body); fall back to a buffered read.
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length > maxBytes ? null : buffer.toString('utf-8');
+  }
+
+  const reader = body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        // Stop reading immediately and release the connection rather than
+        // continuing to buffer an oversized body.
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  // Concatenate first, then decode, so multi-byte UTF-8 sequences split across
+  // chunk boundaries are not corrupted.
+  return Buffer.concat(chunks).toString('utf-8');
 }
 
 /**
