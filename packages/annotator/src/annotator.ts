@@ -55,7 +55,18 @@ const COURTLISTENER_ORIGIN = new URL(COURTLISTENER_BASE_URL).origin;
 export function courtListenerSourceUrl(absoluteUrl: string): string {
   try {
     const resolved = new URL(absoluteUrl, `${COURTLISTENER_ORIGIN}/`);
-    return resolved.origin === COURTLISTENER_ORIGIN ? resolved.toString() : '';
+    // Pin the origin AND reject userinfo: a same-origin URL can still carry an
+    // attacker-controlled `user@` prefix (e.g.
+    // `https://evil.example@www.courtlistener.com/...`) whose origin matches but
+    // whose rendered href is misleading. Legitimate opinion paths never have it.
+    if (
+      resolved.origin !== COURTLISTENER_ORIGIN ||
+      resolved.username !== '' ||
+      resolved.password !== ''
+    ) {
+      return '';
+    }
+    return resolved.toString();
   } catch {
     return '';
   }

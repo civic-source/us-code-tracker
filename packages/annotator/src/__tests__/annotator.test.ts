@@ -423,6 +423,13 @@ describe('courtListenerSourceUrl', () => {
     expect(new URL(out).origin).toBe('https://www.courtlistener.com');
   });
 
+  it('rejects a same-origin URL carrying attacker-controlled userinfo', () => {
+    // origin is www.courtlistener.com, but the rendered href embeds `evil.example@`.
+    expect(
+      courtListenerSourceUrl('https://evil.example@www.courtlistener.com/opinion/123/')
+    ).toBe('');
+  });
+
   it('returns empty string for an unparseable value', () => {
     expect(courtListenerSourceUrl('http://[::bad')).toBe('');
   });
