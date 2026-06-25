@@ -1,7 +1,7 @@
 import { type PrecedentAnnotation, PrecedentAnnotationSchema, type Result, ok, err } from '@civic-source/types';
 import { type Logger, createLogger, TokenBucket } from '@civic-source/shared';
 import { type CourtListenerResult, CourtListenerClient } from './client.js';
-import { COURT_PRIORITY, MAX_HOLDING_SUMMARY_LENGTH, RATE_LIMIT_PER_HOUR, getApiToken } from './constants.js';
+import { COURTLISTENER_BASE_URL, COURT_PRIORITY, MAX_HOLDING_SUMMARY_LENGTH, RATE_LIMIT_PER_HOUR, getApiToken } from './constants.js';
 import { deduplicateCases } from './citation-utils.js';
 
 /** Result of annotating a section, including the output path */
@@ -36,6 +36,29 @@ function sortByCourtPriority(results: CourtListenerResult[]): CourtListenerResul
 function truncateSnippet(snippet: string): string {
   if (snippet.length <= MAX_HOLDING_SUMMARY_LENGTH) return snippet;
   return snippet.slice(0, MAX_HOLDING_SUMMARY_LENGTH - 3) + '...';
+}
+
+/** Origin of the CourtListener site — a sourceUrl must resolve to this host. */
+const COURTLISTENER_ORIGIN = new URL(COURTLISTENER_BASE_URL).origin;
+
+/**
+ * Resolve an untrusted CourtListener `absolute_url` into a same-origin source URL.
+ *
+ * `absolute_url` is API data; string-concatenating it onto the base host lets a
+ * poisoned value point the link off-site — `@evil.com/x` →
+ * `https://www.courtlistener.com@evil.com/x` (authority `evil.com`),
+ * `//evil.com/x`, or an outright `https://evil.com/x`. Resolving it as a
+ * relative reference and pinning the origin neutralizes all three: anything
+ * that does not resolve to the CourtListener origin collapses to `''` (an
+ * empty, schema-valid sourceUrl that renders no off-site href).
+ */
+export function courtListenerSourceUrl(absoluteUrl: string): string {
+  try {
+    const resolved = new URL(absoluteUrl, `${COURTLISTENER_ORIGIN}/`);
+    return resolved.origin === COURTLISTENER_ORIGIN ? resolved.toString() : '';
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -128,7 +151,7 @@ export class Annotator {
       court: mapCourt(result.court),
       date: result.dateFiled,
       holdingSummary: truncateSnippet(result.snippet),
-      sourceUrl: `https://www.courtlistener.com${result.absolute_url}`,
+      sourceUrl: courtListenerSourceUrl(result.absolute_url),
       impact: 'interpretation' as const,
     }));
 

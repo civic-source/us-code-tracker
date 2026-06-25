@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PrecedentAnnotationSchema } from '@civic-source/types';
 import { createLogger } from '@civic-source/shared';
-import { Annotator, mapCourt, buildAnnotationPath, annotationToYaml } from '../annotator.js';
+import { Annotator, mapCourt, buildAnnotationPath, annotationToYaml, courtListenerSourceUrl } from '../annotator.js';
 import { CourtListenerClient, type CourtListenerResult } from '../client.js';
 
 /** Build a fake CourtListener result */
@@ -396,5 +396,34 @@ describe('getApiToken', () => {
     delete process.env['COURTLISTENER_API_TOKEN'];
     const { getApiToken } = await import('../constants.js');
     expect(() => getApiToken()).toThrow();
+  });
+});
+
+describe('courtListenerSourceUrl', () => {
+  it('returns the resolved URL for a normal relative path', () => {
+    expect(courtListenerSourceUrl('/opinion/12345/doe-v-us/')).toBe(
+      'https://www.courtlistener.com/opinion/12345/doe-v-us/'
+    );
+  });
+
+  it('rejects an off-origin absolute URL', () => {
+    expect(courtListenerSourceUrl('https://evil.com/x')).toBe('');
+  });
+
+  it('rejects a protocol-relative URL that points off-site', () => {
+    expect(courtListenerSourceUrl('//evil.com/x')).toBe('');
+  });
+
+  it('does not let an @-authority trick redirect off-origin', () => {
+    // String concat would have made `https://www.courtlistener.com@evil.com/x`
+    // (authority evil.com); resolving as a relative ref keeps it same-origin.
+    const out = courtListenerSourceUrl('@evil.com/x');
+    expect(out.startsWith('https://www.courtlistener.com/')).toBe(true);
+    expect(out).not.toContain('evil.com/x"');
+    expect(new URL(out).origin).toBe('https://www.courtlistener.com');
+  });
+
+  it('returns empty string for an unparseable value', () => {
+    expect(courtListenerSourceUrl('http://[::bad')).toBe('');
   });
 });
