@@ -33,6 +33,53 @@ export function exceedsContentLengthLimit(response: Response): boolean {
 }
 
 /**
+ * Read an HTML response body, enforcing a hard byte cap.
+ *
+ * `exceedsContentLengthLimit` is the primary defense, but it returns false for
+ * a response with no (or untruthful) Content-Length — e.g. a chunked body. To
+ * actually bound memory (rather than buffer-then-check), this streams the body
+ * and aborts the read as soon as the running total exceeds `maxBytes`, so an
+ * oversized or unbounded response is never fully materialized.
+ *
+ * @returns The decoded body, or `null` if it exceeds the size cap.
+ */
+export async function readBodyCapped(
+  response: Response,
+  maxBytes: number = MAX_DOWNLOAD_BYTES
+): Promise<string | null> {
+  const body = response.body;
+  if (body === null) {
+    // No readable stream (e.g. an empty body); fall back to a buffered read.
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length > maxBytes ? null : buffer.toString('utf-8');
+  }
+
+  const reader = body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        // Stop reading immediately and release the connection rather than
+        // continuing to buffer an oversized body.
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  // Concatenate first, then decode, so multi-byte UTF-8 sequences split across
+  // chunk boundaries are not corrupted.
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
+/**
  * Fetch with exponential backoff retry.
  * Delegates to the shared fetchWithRetry utility.
  */
@@ -227,7 +274,11 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    const html = await result.value.text();
+    const html = await readBodyCapped(result.value);
+    if (html === null) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
     let points = parseReleasePoints(html);
     this.metrics.recordDiscovered(points.length);
 
@@ -261,15 +312,19 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    const priorHtml = await priorResult.value.text();
+    const priorHtml = await readBodyCapped(priorResult.value);
+    if (priorHtml === null) {
+      timer();
+      return err(new Error('Download exceeds size limit'));
+    }
     const historicalPoints = parsePriorReleasePoints(priorHtml);
     this.metrics.recordDiscovered(historicalPoints.length);
 
     // Also fetch current release point to include it
     const currentResult = await fetchWithRetry(OLRC_DOWNLOAD_PAGE, this.logger);
     if (currentResult.ok && !exceedsContentLengthLimit(currentResult.value)) {
-      const currentHtml = await currentResult.value.text();
-      const current = parseCurrentRelease(currentHtml);
+      const currentHtml = await readBodyCapped(currentResult.value);
+      const current = currentHtml === null ? null : parseCurrentRelease(currentHtml);
       if (current) {
         // Add current release if not already in the list
         const alreadyIncluded = historicalPoints.some(

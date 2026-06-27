@@ -37,4 +37,37 @@ describe('extractXmlFromZip', () => {
     const zip = makeZip('readme.txt', 0, Buffer.from('not xml', 'utf-8'));
     expect(extractXmlFromZip(zip)).toBeNull();
   });
+
+  it('returns null (does not throw) when a .xml entry has a corrupt deflate stream', () => {
+    // A method-8 entry whose data is not a valid raw-deflate stream. The
+    // documented contract is "returns null"; inflateRawSync would otherwise
+    // throw "unexpected end of file" and break the null contract.
+    const zip = makeZip('doc.xml', 8, Buffer.from('not a valid deflate stream', 'utf-8'));
+    expect(extractXmlFromZip(zip)).toBeNull();
+  });
+
+  it('returns null (does not throw) for a data-descriptor entry with zero compressed size', () => {
+    // General-purpose bit 3 (data descriptor) zips report compressedSize=0 in
+    // the local header, so the parser slices an empty buffer; inflateRawSync on
+    // empty input throws rather than yielding content.
+    const zip = makeZip('doc.xml', 8, Buffer.alloc(0));
+    expect(extractXmlFromZip(zip)).toBeNull();
+  });
+
+  it('returns null for a decompression bomb that inflates past the cap', () => {
+    // 256 KiB of zeros compresses to a few hundred bytes (a tiny entry, well
+    // under any download cap) but inflates far beyond a small decompressed cap.
+    // maxOutputLength must abort the inflate and return null rather than
+    // materializing the full payload.
+    const bomb = deflateRawSync(Buffer.alloc(256 * 1024, 0));
+    const zip = makeZip('doc.xml', 8, bomb);
+    expect(extractXmlFromZip(zip, 1024)).toBeNull();
+  });
+
+  it('still inflates a normal entry that stays under the decompressed cap', () => {
+    // The cap must not reject legitimate content below the limit.
+    const xml = '<uscDoc>under the cap</uscDoc>';
+    const zip = makeZip('doc.xml', 8, deflateRawSync(Buffer.from(xml, 'utf-8')));
+    expect(extractXmlFromZip(zip, 1024)).toBe(xml);
+  });
 });

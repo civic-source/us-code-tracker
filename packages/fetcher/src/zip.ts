@@ -1,5 +1,7 @@
 import { inflateRawSync } from 'node:zlib';
 
+import { MAX_DOWNLOAD_BYTES } from './constants.js';
+
 /**
  * Extract the first `.xml` entry from a ZIP archive buffer.
  *
@@ -12,9 +14,17 @@ import { inflateRawSync } from 'node:zlib';
  * The caller is responsible for decoding any base64 before passing the buffer.
  *
  * @param zip Raw ZIP archive bytes.
- * @returns The XML string, or `null` if the archive contains no `.xml` entry.
+ * @param maxDecompressedBytes Hard cap on inflated output. The download-side
+ *   cap bounds *compressed* bytes, but a small deflate entry can expand far
+ *   beyond that (a decompression bomb), so `inflateRawSync` is given a
+ *   `maxOutputLength`; exceeding it throws and is treated as "no usable XML".
+ * @returns The XML string, or `null` if the archive contains no `.xml` entry
+ *   (or the entry is corrupt or exceeds `maxDecompressedBytes`).
  */
-export function extractXmlFromZip(zip: Buffer): string | null {
+export function extractXmlFromZip(
+  zip: Buffer,
+  maxDecompressedBytes: number = MAX_DOWNLOAD_BYTES
+): string | null {
   let offset = 0;
   while (offset < zip.length - 30) {
     const sig = zip.readUInt32LE(offset);
@@ -32,7 +42,19 @@ export function extractXmlFromZip(zip: Buffer): string | null {
       if (compressionMethod === 0) {
         return zip.toString('utf-8', dataStart, dataStart + compressedSize);
       } else if (compressionMethod === 8) {
-        return inflateRawSync(zip.subarray(dataStart, dataStart + compressedSize)).toString('utf-8');
+        // Honor the documented null contract: a corrupt/truncated deflate
+        // stream (or a zero-length data-descriptor entry, bit 3, whose
+        // compressedSize is 0 in the local header) makes inflateRawSync throw.
+        // `maxOutputLength` additionally bounds the *decompressed* size so a
+        // small deflate entry cannot expand past the cap (decompression bomb);
+        // exceeding it throws too. Treat any throw as "no usable XML".
+        try {
+          return inflateRawSync(zip.subarray(dataStart, dataStart + compressedSize), {
+            maxOutputLength: maxDecompressedBytes,
+          }).toString('utf-8');
+        } catch {
+          return null;
+        }
       }
     }
 

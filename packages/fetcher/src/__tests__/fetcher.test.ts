@@ -7,6 +7,7 @@ import {
   parseReleasePoints,
   parsePriorReleasePoints,
   parseCurrentRelease,
+  readBodyCapped,
 } from '../fetcher.js';
 import { HashStore } from '../hash-store.js';
 import { createLogger } from '@civic-source/shared';
@@ -552,5 +553,55 @@ describe('createLogger', () => {
     } finally {
       process.stdout.write = origWrite;
     }
+  });
+});
+
+// --- readBodyCapped (streaming size guard) ---
+
+describe('readBodyCapped', () => {
+  /** Build a streamed Response (no Content-Length) from string chunks. */
+  function streamedResponse(chunks: string[], onCancel?: () => void): Response {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(encoder.encode(c));
+        controller.close();
+      },
+      cancel() {
+        onCancel?.();
+      },
+    });
+    return new Response(stream);
+  }
+
+  it('returns the full decoded body when under the cap', async () => {
+    const res = streamedResponse(['<html>', 'body', '</html>']);
+    expect(await readBodyCapped(res, 1000)).toBe('<html>body</html>');
+  });
+
+  it('returns null and cancels the stream once the running total exceeds the cap', async () => {
+    let cancelled = false;
+    // Three 4-byte chunks (12 bytes) against a 5-byte cap: must abort, not buffer all.
+    const res = streamedResponse(['aaaa', 'bbbb', 'cccc'], () => {
+      cancelled = true;
+    });
+    expect(await readBodyCapped(res, 5)).toBeNull();
+    expect(cancelled).toBe(true);
+  });
+
+  it('does not corrupt multi-byte UTF-8 split across chunk boundaries', async () => {
+    // "é" is two UTF-8 bytes (0xC3 0xA9); split them across two chunks.
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode('café');
+    const split1 = bytes.slice(0, 3); // "ca" + first byte of "é"
+    const split2 = bytes.slice(3); // second byte of "é"
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(split1);
+        controller.enqueue(split2);
+        controller.close();
+      },
+    });
+    expect(await readBodyCapped(new Response(stream), 1000)).toBe('café');
   });
 });

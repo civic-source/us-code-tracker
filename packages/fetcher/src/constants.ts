@@ -10,7 +10,10 @@ export const OLRC_RELEASE_POINTS_URL = `${OLRC_BASE_URL}/download/releasepoints/
  * Pattern: https://uscode.house.gov/download/releasepoints/us/pl/{congress}/{law}/xml_usc{title}@{congress}-{law}.zip
  */
 export function titleXmlUrl(congress: string, law: string, title: string): string {
-  const paddedTitle = title.padStart(2, '0');
+  // OLRC zero-pads the *numeric run* to two digits, keeping any letter suffix
+  // (e.g. title "5a" -> "xml_usc05a"). `title.padStart(2, '0')` pads to a total
+  // length of two, so it is a no-op on "5a" and would wrongly yield "xml_usc5a".
+  const paddedTitle = title.replace(/^(\d+)/, (digits) => digits.padStart(2, '0'));
   return `${OLRC_RELEASE_POINTS_URL}us/pl/${congress}/${law}/xml_usc${paddedTitle}@${congress}-${law}.zip`;
 }
 
