@@ -1,6 +1,6 @@
 import { inflateRawSync } from 'node:zlib';
 
-import { MAX_DOWNLOAD_BYTES } from './constants.js';
+import { MAX_DECOMPRESSED_BYTES } from './constants.js';
 
 /**
  * Extract the first `.xml` entry from a ZIP archive buffer.
@@ -14,16 +14,19 @@ import { MAX_DOWNLOAD_BYTES } from './constants.js';
  * The caller is responsible for decoding any base64 before passing the buffer.
  *
  * @param zip Raw ZIP archive bytes.
- * @param maxDecompressedBytes Hard cap on inflated output. The download-side
- *   cap bounds *compressed* bytes, but a small deflate entry can expand far
- *   beyond that (a decompression bomb), so `inflateRawSync` is given a
- *   `maxOutputLength`; exceeding it throws and is treated as "no usable XML".
+ * @param maxDecompressedBytes Hard cap on inflated output, defaulting to
+ *   {@link MAX_DECOMPRESSED_BYTES}. This is intentionally larger than the
+ *   compressed-download cap: a small deflate entry can expand far beyond its
+ *   compressed size — either legitimately (XML inflates ~10-20x) or
+ *   maliciously (a decompression bomb). `inflateRawSync` is given this as
+ *   `maxOutputLength`; exceeding it throws and is treated as "no usable XML",
+ *   so the bound stops bombs without false-dropping large real titles (#226).
  * @returns The XML string, or `null` if the archive contains no `.xml` entry
  *   (or the entry is corrupt or exceeds `maxDecompressedBytes`).
  */
 export function extractXmlFromZip(
   zip: Buffer,
-  maxDecompressedBytes: number = MAX_DOWNLOAD_BYTES
+  maxDecompressedBytes: number = MAX_DECOMPRESSED_BYTES
 ): string | null {
   let offset = 0;
   while (offset < zip.length - 30) {
