@@ -14,13 +14,13 @@ import { MAX_DECOMPRESSED_BYTES } from './constants.js';
  * The caller is responsible for decoding any base64 before passing the buffer.
  *
  * @param zip Raw ZIP archive bytes.
- * @param maxDecompressedBytes Hard cap on inflated output, defaulting to
- *   {@link MAX_DECOMPRESSED_BYTES}. This is intentionally larger than the
- *   compressed-download cap: a small deflate entry can expand far beyond its
- *   compressed size — either legitimately (XML inflates ~10-20x) or
+ * @param maxDecompressedBytes Hard cap on the inflated output of the single
+ *   `.xml` entry this returns, defaulting to {@link MAX_DECOMPRESSED_BYTES}.
+ *   It is larger than the compressed-download cap because one entry can inflate
+ *   far beyond its compressed size — legitimately (XML inflates ~10-20x) or
  *   maliciously (a decompression bomb). `inflateRawSync` is given this as
  *   `maxOutputLength`; exceeding it throws and is treated as "no usable XML",
- *   so the bound stops bombs without false-dropping large real titles (#226).
+ *   so the bound stops bombs without false-dropping a large real title (#226).
  * @returns The XML string, or `null` if the archive contains no `.xml` entry
  *   (or the entry is corrupt or exceeds `maxDecompressedBytes`).
  */

@@ -36,14 +36,17 @@ export function allTitlesXmlUrl(congress: string, law: string): string {
 export const MAX_DOWNLOAD_BYTES = 314572800; // 300 MiB
 
 /**
- * Maximum number of bytes to accept from a single *decompressed* ZIP entry.
+ * Maximum number of bytes to accept from a single *decompressed* `.xml` entry.
  *
- * This is deliberately decoupled from {@link MAX_DOWNLOAD_BYTES}, which bounds
- * the *compressed* download. XML inflates roughly 10-20x, so the all-titles
- * archive (~100-150 MB compressed) can decompress well past 300 MiB —
- * reusing the compressed cap as the inflate cap would false-drop legitimate
- * large titles (#226). 1 GiB still bounds a decompression bomb (the inflate is
- * aborted via `maxOutputLength`) while leaving ample headroom for real data.
+ * `extractXmlFromZip` returns the first `.xml` entry of a single-title ZIP, so
+ * this bounds *one title's* inflated XML — not a whole archive. It is decoupled
+ * from {@link MAX_DOWNLOAD_BYTES} (which bounds the *compressed* download)
+ * because XML inflates roughly 10-20x: a title whose compressed entry sits well
+ * under the download cap can still inflate past 300 MiB, and reusing the
+ * compressed cap as the inflate cap would false-drop it (#226). The largest
+ * single USC title decompresses to well under 1 GiB, so this leaves ample
+ * headroom for real data while still aborting a decompression bomb (the inflate
+ * exceeds `maxOutputLength` and throws).
  */
 export const MAX_DECOMPRESSED_BYTES = 1073741824; // 1 GiB
 
