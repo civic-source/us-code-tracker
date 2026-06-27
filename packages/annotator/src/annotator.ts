@@ -54,25 +54,42 @@ export function buildAnnotationPath(section: string): string {
   return `annotations/title-${titleNum}/section-${sectionNum}.yaml`;
 }
 
-/** Escape backslashes and double quotes for YAML double-quoted scalar. */
+/**
+ * Escape a string for a YAML double-quoted scalar.
+ *
+ * Case fields (caseName, snippet/holdingSummary, dateFiled, absolute_url ->
+ * sourceUrl) are untrusted CourtListener API data. Escape backslash first,
+ * then the quote, then the whitespace/control chars that would otherwise
+ * terminate or inject into the scalar — a `"` or newline in any field must not
+ * be able to forge or corrupt sidecar keys.
+ */
 function yamlEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    // eslint-disable-next-line no-control-regex -- intentionally matching control chars to escape them
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, (c) =>
+      `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+    );
 }
 
 /** Serialize a PrecedentAnnotation to simple YAML (no external deps) */
 export function annotationToYaml(annotation: PrecedentAnnotation): string {
   const lines: string[] = [];
-  lines.push(`targetSection: "${annotation.targetSection}"`);
-  lines.push(`lastSyncedET: "${annotation.lastSyncedET}"`);
+  lines.push(`targetSection: "${yamlEscape(annotation.targetSection)}"`);
+  lines.push(`lastSyncedET: "${yamlEscape(annotation.lastSyncedET)}"`);
   lines.push('cases:');
   for (const c of annotation.cases) {
     lines.push(`  - caseName: "${yamlEscape(c.caseName)}"`);
     lines.push(`    citation: "${yamlEscape(c.citation)}"`);
-    lines.push(`    court: "${c.court}"`);
-    lines.push(`    date: "${c.date}"`);
+    lines.push(`    court: "${yamlEscape(c.court)}"`);
+    lines.push(`    date: "${yamlEscape(c.date)}"`);
     lines.push(`    holdingSummary: "${yamlEscape(c.holdingSummary)}"`);
-    lines.push(`    sourceUrl: "${c.sourceUrl}"`);
-    lines.push(`    impact: "${c.impact}"`);
+    lines.push(`    sourceUrl: "${yamlEscape(c.sourceUrl)}"`);
+    lines.push(`    impact: "${yamlEscape(c.impact)}"`);
   }
   return lines.join('\n') + '\n';
 }

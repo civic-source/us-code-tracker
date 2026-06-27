@@ -373,6 +373,70 @@ describe('annotationToYaml', () => {
     expect(yaml).toContain('caseName: "X \\\\ Y"');
     expect(yaml).toContain('holdingSummary: "path: C:\\\\Users\\\\test"');
   });
+
+  /**
+   * Extract the double-quoted scalar after `key: ` (allowing leading indent)
+   * and decode it. YAML double-quoted escaping for `"`, `\`, `\n/\r/\t`, and
+   * `\uXXXX` is a subset of JSON string syntax, so JSON.parse round-trips the
+   * value and fails loudly on a malformed (unescaped) scalar.
+   */
+  function readScalar(yaml: string, key: string): string {
+    const line = yaml.split('\n').find((l) => l.trimStart().startsWith(`${key}: "`));
+    if (line === undefined) throw new Error(`no quoted scalar for ${key}`);
+    const trimmed = line.trimStart();
+    return JSON.parse(trimmed.slice(key.length + 2)) as string;
+  }
+
+  it('escapes a sourceUrl that injects a quote+newline (forged key)', () => {
+    // absolute_url is untrusted CourtListener data; a crafted value must not be
+    // able to close the scalar and inject a sibling key into the sidecar.
+    const sourceUrl = 'https://www.courtlistener.com/op/1/"\n    impact: "unconstitutional';
+    const yaml = annotationToYaml({
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [{
+        caseName: 'A v. B',
+        citation: '',
+        court: 'District',
+        date: '2024-01-01',
+        holdingSummary: '',
+        sourceUrl,
+        impact: 'interpretation',
+      }],
+    });
+    expect(readScalar(yaml, 'sourceUrl')).toBe(sourceUrl);
+    // The injected line must NOT appear as a real YAML key.
+    expect(yaml).not.toMatch(/^ {4}impact: "unconstitutional/m);
+  });
+
+  it('escapes an untrusted date field containing a quote', () => {
+    // result.dateFiled is only z.string()-validated — it accepts quotes.
+    const date = '2024-01-01" forged: "x';
+    const yaml = annotationToYaml({
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [{
+        caseName: 'A v. B',
+        citation: '',
+        court: 'District',
+        date,
+        holdingSummary: '',
+        sourceUrl: 'https://example.com',
+        impact: 'interpretation',
+      }],
+    });
+    expect(readScalar(yaml, 'date')).toBe(date);
+  });
+
+  it('escapes an untrusted targetSection containing a quote', () => {
+    const targetSection = '18 U.S.C. 111" forged: "x';
+    const yaml = annotationToYaml({
+      targetSection,
+      lastSyncedET: '2025-06-15T12:00:00.000Z',
+      cases: [],
+    });
+    expect(readScalar(yaml, 'targetSection')).toBe(targetSection);
+  });
 });
 
 describe('getApiToken', () => {
