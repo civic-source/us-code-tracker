@@ -191,6 +191,81 @@ describe('generateFrontmatter', () => {
     expect(fm).toContain('classification: "26 U.S.C.');
     expect(fm).toContain('status: "active"');
   });
+
+  /**
+   * Extract the double-quoted scalar that follows `key: ` and decode it. YAML
+   * double-quoted escaping for `"`, `\`, and the `\n`/`\r`/`\t` control escapes
+   * is a subset of JSON string syntax, so JSON.parse round-trips the value and
+   * also fails loudly if the scalar is malformed (i.e. unescaped).
+   */
+  function readScalar(fm: string, key: string): string {
+    const line = fm.split('\n').find((l) => l.startsWith(`${key}: "`));
+    if (line === undefined) throw new Error(`no quoted scalar for ${key}`);
+    return JSON.parse(line.slice(key.length + 2)) as string;
+  }
+
+  it('escapes double quotes in the title so the frontmatter stays valid', () => {
+    // Real U.S. Code content: defined terms are quoted in headings.
+    const title = 'Section 5 - Definition of "employee" rules';
+    const fm = generateFrontmatter({
+      title,
+      usc_title: 5,
+      usc_section: '5',
+      chapter: 1,
+      current_through: 'PL 119-73',
+      classification: '5 U.S.C. § 5',
+      generated_at: '2026-03-28T14:00:00-04:00',
+      status: 'active',
+    });
+    expect(readScalar(fm, 'title')).toBe(title);
+  });
+
+  it('escapes a trailing backslash so it does not escape the closing quote', () => {
+    const title = 'Section 5 - path C:\\';
+    const fm = generateFrontmatter({
+      title,
+      usc_title: 5,
+      usc_section: '5',
+      chapter: 1,
+      current_through: 'PL 119-73',
+      classification: '5 U.S.C. § 5',
+      generated_at: '2026-03-28T14:00:00-04:00',
+      status: 'active',
+    });
+    expect(readScalar(fm, 'title')).toBe(title);
+  });
+
+  it('escapes raw control characters so the scalar stays parseable', () => {
+    const title = ['Section 5', String.fromCharCode(0), 'NUL', String.fromCharCode(0x1b), 'ESC'].join(' ');
+    const fm = generateFrontmatter({
+      title,
+      usc_title: 5,
+      usc_section: '5',
+      chapter: 1,
+      current_through: 'PL 119-73',
+      classification: '5 U.S.C. § 5',
+      generated_at: '2026-03-28T14:00:00-04:00',
+      status: 'active',
+    });
+    expect(readScalar(fm, 'title')).toBe(title);
+  });
+
+  it('escapes quotes/backslashes across all string fields', () => {
+    const fm = generateFrontmatter({
+      title: 'has "quote"',
+      usc_title: 5,
+      usc_section: '5"a',
+      chapter: 1,
+      current_through: 'PL "119"-73',
+      classification: 'C:\\ "x"',
+      generated_at: '2026-03-28T14:00:00-04:00',
+      status: 'active',
+    });
+    expect(readScalar(fm, 'title')).toBe('has "quote"');
+    expect(readScalar(fm, 'usc_section')).toBe('5"a');
+    expect(readScalar(fm, 'current_through')).toBe('PL "119"-73');
+    expect(readScalar(fm, 'classification')).toBe('C:\\ "x"');
+  });
 });
 
 describe('FrontmatterSchema', () => {

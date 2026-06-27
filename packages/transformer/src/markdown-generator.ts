@@ -146,18 +146,43 @@ export function buildSectionPath(titleNum: string, chapterNum: string, sectionNu
   return `statutes/title-${titleNum}/chapter-${chapterNum}/section-${sectionNum}.md`;
 }
 
+/**
+ * Serialize a string as a YAML double-quoted scalar.
+ *
+ * Statute headings carry untrusted OLRC content (e.g. defined terms quoted as
+ * `"employee"`); interpolating them raw into `title: "..."` produces invalid
+ * YAML and is a frontmatter-injection vector. Escape per the YAML double-quoted
+ * rules: backslash first, then the quote, then the whitespace control chars
+ * that `extractTextFromNodes` collapses but public callers may still pass.
+ */
+function yamlQuote(value: string): string {
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    // Remaining C0/DEL control chars are invalid raw inside a YAML
+    // double-quoted scalar; emit \uXXXX so the scalar stays parseable.
+    // eslint-disable-next-line no-control-regex -- intentionally matching control chars to escape them
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, (c) =>
+      `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+    );
+  return `"${escaped}"`;
+}
+
 /** Generate YAML frontmatter string from validated data */
 export function generateFrontmatter(data: Frontmatter): string {
   const lines = [
     '---',
-    `title: "${data.title}"`,
+    `title: ${yamlQuote(data.title)}`,
     `usc_title: ${data.usc_title}`,
-    `usc_section: "${data.usc_section}"`,
+    `usc_section: ${yamlQuote(data.usc_section)}`,
     `chapter: ${data.chapter}`,
-    `current_through: "${data.current_through}"`,
-    `classification: "${data.classification}"`,
-    `generated_at: "${data.generated_at}"`,
-    `status: "${data.status}"`,
+    `current_through: ${yamlQuote(data.current_through)}`,
+    `classification: ${yamlQuote(data.classification)}`,
+    `generated_at: ${yamlQuote(data.generated_at)}`,
+    `status: ${yamlQuote(data.status)}`,
     '---',
     '',
   ];
