@@ -1,6 +1,7 @@
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 
+import { MAX_DECOMPRESSED_BYTES, MAX_DOWNLOAD_BYTES } from '../constants.js';
 import { extractXmlFromZip } from '../zip.js';
 
 /**
@@ -69,5 +70,13 @@ describe('extractXmlFromZip', () => {
     const xml = '<uscDoc>under the cap</uscDoc>';
     const zip = makeZip('doc.xml', 8, deflateRawSync(Buffer.from(xml, 'utf-8')));
     expect(extractXmlFromZip(zip, 1024)).toBe(xml);
+  });
+
+  it('defaults the decompressed cap above the compressed-download cap (#226)', () => {
+    // Regression guard for #226: the inflate cap (one decompressed .xml entry)
+    // must NOT be tied to the compressed-download cap. XML inflates ~10-20x, so
+    // a single title's entry can decompress past 300 MiB; collapsing these two
+    // bounds back together would false-drop legitimate large titles.
+    expect(MAX_DECOMPRESSED_BYTES).toBeGreaterThan(MAX_DOWNLOAD_BYTES);
   });
 });

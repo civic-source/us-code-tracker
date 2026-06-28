@@ -35,6 +35,21 @@ export function allTitlesXmlUrl(congress: string, law: string): string {
  */
 export const MAX_DOWNLOAD_BYTES = 314572800; // 300 MiB
 
+/**
+ * Maximum number of bytes to accept from a single *decompressed* `.xml` entry.
+ *
+ * `extractXmlFromZip` returns the first `.xml` entry of a single-title ZIP, so
+ * this bounds *one title's* inflated XML — not a whole archive. It is decoupled
+ * from {@link MAX_DOWNLOAD_BYTES} (which bounds the *compressed* download)
+ * because XML inflates roughly 10-20x: a title whose compressed entry sits well
+ * under the download cap can still inflate past 300 MiB, and reusing the
+ * compressed cap as the inflate cap would false-drop it (#226). The largest
+ * single USC title decompresses to well under 1 GiB, so this leaves ample
+ * headroom for real data while still aborting a decompression bomb (the inflate
+ * exceeds `maxOutputLength` and throws).
+ */
+export const MAX_DECOMPRESSED_BYTES = 1073741824; // 1 GiB
+
 /** Path for hash storage relative to working directory */
 export const HASH_STORE_DIR = '.openlaw-git';
 export const HASH_STORE_FILE = 'hashes.json';
