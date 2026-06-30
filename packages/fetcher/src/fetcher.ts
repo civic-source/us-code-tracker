@@ -33,25 +33,25 @@ export function exceedsContentLengthLimit(response: Response): boolean {
 }
 
 /**
- * Read an HTML response body, enforcing a hard byte cap.
+ * Read a response body into a Buffer, enforcing a hard byte cap.
  *
  * `exceedsContentLengthLimit` is the primary defense, but it returns false for
  * a response with no (or untruthful) Content-Length — e.g. a chunked body. To
- * actually bound memory (rather than buffer-then-check), this streams the body
- * and aborts the read as soon as the running total exceeds `maxBytes`, so an
- * oversized or unbounded response is never fully materialized.
+ * actually bound memory (rather than buffer-then-check via arrayBuffer()), this
+ * streams the body and aborts the read as soon as the running total exceeds
+ * `maxBytes`, so an oversized or unbounded response is never fully materialized.
  *
- * @returns The decoded body, or `null` if it exceeds the size cap.
+ * @returns The body bytes, or `null` if it exceeds the size cap.
  */
-export async function readBodyCapped(
+export async function readBytesCapped(
   response: Response,
   maxBytes: number = MAX_DOWNLOAD_BYTES
-): Promise<string | null> {
+): Promise<Buffer | null> {
   const body = response.body;
   if (body === null) {
     // No readable stream (e.g. an empty body); fall back to a buffered read.
     const buffer = Buffer.from(await response.arrayBuffer());
-    return buffer.length > maxBytes ? null : buffer.toString('utf-8');
+    return buffer.length > maxBytes ? null : buffer;
   }
 
   const reader = body.getReader();
@@ -74,9 +74,23 @@ export async function readBodyCapped(
   } finally {
     reader.releaseLock();
   }
-  // Concatenate first, then decode, so multi-byte UTF-8 sequences split across
-  // chunk boundaries are not corrupted.
-  return Buffer.concat(chunks).toString('utf-8');
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Read an HTML response body as a UTF-8 string, enforcing a hard byte cap.
+ *
+ * Thin wrapper over {@link readBytesCapped}: concatenate first, then decode, so
+ * multi-byte UTF-8 sequences split across chunk boundaries are not corrupted.
+ *
+ * @returns The decoded body, or `null` if it exceeds the size cap.
+ */
+export async function readBodyCapped(
+  response: Response,
+  maxBytes: number = MAX_DOWNLOAD_BYTES
+): Promise<string | null> {
+  const bytes = await readBytesCapped(response, maxBytes);
+  return bytes === null ? null : bytes.toString('utf-8');
 }
 
 /**
@@ -374,11 +388,11 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    const buffer = Buffer.from(await result.value.arrayBuffer());
-
-    // Defense-in-depth: catch oversized bodies that lacked a (truthful)
-    // Content-Length header.
-    if (buffer.length > MAX_DOWNLOAD_BYTES) {
+    // Memory-bounded read: stream the body and abort once the cap is exceeded,
+    // so a chunked or untruthful-Content-Length response (which the pre-check
+    // above cannot catch) is never fully buffered into memory.
+    const buffer = await readBytesCapped(result.value);
+    if (buffer === null) {
       const durationMs = performance.now() - startMs;
       this.metrics.recordDuration(durationMs);
       this.metrics.recordError('network');
