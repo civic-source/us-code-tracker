@@ -11,10 +11,12 @@
  *   npx tsx scripts/generate-diffs.ts --repo /path/to/us-code --output apps/web/public/diffs/ --full
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+
+import { parsePlTag, sortPlTags } from './lib/pl-tags.js';
 
 interface DiffLine {
   type: 'add' | 'del' | 'context';
@@ -35,25 +37,21 @@ interface DiffManifest {
 /** Frontmatter fields that change on every regeneration — not meaningful diffs */
 const FRONTMATTER_NOISE = ['current_through', 'generated_at', 'classification'];
 
-function parseTag(name: string): [number, number] {
-  const m = /pl-(\d+)-(\d+)/.exec(name);
-  return m && m[1] && m[2] ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [0, 0];
-}
-
 function getTags(repo: string): string[] {
-  return execSync('git tag', { cwd: repo, encoding: 'utf8' })
-    .trim().split('\n')
-    .filter((t) => t.startsWith('pl-'))
-    .sort((a, b) => {
-      const [ac, al] = parseTag(a);
-      const [bc, bl] = parseTag(b);
-      return ac !== bc ? ac - bc : al - bl;
-    });
+  // execFileSync (no shell) + sortPlTags (anchored validation) ensure a tag
+  // name carrying shell metacharacters can neither be executed nor flow into a
+  // diff range (#235).
+  const out = execFileSync('git', ['tag'], { cwd: repo, encoding: 'utf8' });
+  const raw = out.trim() ? out.trim().split('\n') : [];
+  return sortPlTags(raw);
 }
 
 function getRawDiff(repo: string, from: string, to: string): string {
   try {
-    return execSync(`git diff --unified=3 "${from}".."${to}" -- statutes/`, {
+    // No shell: arguments are passed directly to git, so `from`/`to` cannot be
+    // interpreted as shell syntax (#235). They are already constrained to
+    // `pl-<digits>-<digits>` by getTags/sortPlTags.
+    return execFileSync('git', ['diff', '--unified=3', `${from}..${to}`, '--', 'statutes/'], {
       cwd: repo, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024,
     });
   } catch (e) {
@@ -193,8 +191,8 @@ for (let i = 0; i < tags.length - 1; i++) {
 
 // Re-sort manifest pairs by tag order
 manifest.pairs.sort((a, b) => {
-  const [ac, al] = parseTag(a.from);
-  const [bc, bl] = parseTag(b.from);
+  const [ac, al] = parsePlTag(a.from);
+  const [bc, bl] = parsePlTag(b.from);
   return ac !== bc ? ac - bc : al - bl;
 });
 
