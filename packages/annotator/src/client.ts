@@ -3,7 +3,7 @@ import { type Logger, MAX_RETRIES, BASE_BACKOFF_MS, TokenBucket } from '@civic-s
 import {
   COURTLISTENER_BASE_URL,
   SEARCH_ENDPOINT,
-  RATE_LIMIT_PER_HOUR,
+  COURTLISTENER_RATE_LIMITER,
   DEFAULT_PAGE_SIZE,
 } from './constants.js';
 
@@ -67,11 +67,7 @@ export class CourtListenerClient {
     this.token = options.token;
     this.logger = options.logger;
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
-    this.rateLimiter = options.rateLimiter ?? new TokenBucket({
-      capacity: RATE_LIMIT_PER_HOUR,
-      refillRate: Math.ceil(RATE_LIMIT_PER_HOUR / 3600),
-      refillIntervalMs: 1000,
-    });
+    this.rateLimiter = options.rateLimiter ?? new TokenBucket(COURTLISTENER_RATE_LIMITER);
   }
 
   /**

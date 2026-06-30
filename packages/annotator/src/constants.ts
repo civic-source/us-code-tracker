@@ -9,6 +9,21 @@ export const SEARCH_ENDPOINT = 'search/';
 /** CourtListener rate limit: 5000 requests per hour */
 export const RATE_LIMIT_PER_HOUR = 5000;
 
+/**
+ * Token-bucket config for the CourtListener client.
+ *
+ * The bucket refills `refillRate` tokens every `refillIntervalMs`, so its
+ * sustained rate is `refillRate / refillIntervalMs`. To honour exactly
+ * RATE_LIMIT_PER_HOUR/hour we refill one token every (3,600,000 / limit) ms.
+ * The previous config (`refillRate: ceil(limit/3600)=2` per 1000 ms) issued
+ * ~7200/hour — 44% over the documented cap (#230).
+ */
+export const COURTLISTENER_RATE_LIMITER = {
+  capacity: RATE_LIMIT_PER_HOUR,
+  refillRate: 1,
+  refillIntervalMs: Math.floor(3_600_000 / RATE_LIMIT_PER_HOUR),
+} as const;
+
 /** Environment variable name for the API token */
 export const API_TOKEN_ENV_VAR = 'COURTLISTENER_API_TOKEN';
 
