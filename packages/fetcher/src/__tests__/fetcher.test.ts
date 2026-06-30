@@ -8,6 +8,7 @@ import {
   parsePriorReleasePoints,
   parseCurrentRelease,
   readBodyCapped,
+  readBytesCapped,
 } from '../fetcher.js';
 import { HashStore } from '../hash-store.js';
 import { createLogger } from '@civic-source/shared';
@@ -603,5 +604,50 @@ describe('readBodyCapped', () => {
       },
     });
     expect(await readBodyCapped(new Response(stream), 1000)).toBe('café');
+  });
+});
+
+// --- readBytesCapped (binary streaming size guard used by fetchXml) ---
+
+describe('readBytesCapped (#231)', () => {
+  function streamedResponse(chunks: Uint8Array[], onCancel?: () => void): Response {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(c);
+        controller.close();
+      },
+      cancel() {
+        onCancel?.();
+      },
+    });
+    return new Response(stream);
+  }
+
+  it('returns the full buffer when under the cap', async () => {
+    const res = streamedResponse([Uint8Array.from([0x50, 0x4b]), Uint8Array.from([1, 2, 3])]);
+    const buf = await readBytesCapped(res, 1000);
+    expect(buf).not.toBeNull();
+    expect(buf && Array.from(buf)).toEqual([0x50, 0x4b, 1, 2, 3]);
+  });
+
+  it('returns null and cancels the stream once the cap is exceeded (no full buffering)', async () => {
+    // A body with NO Content-Length (chunked) — the case the pre-check cannot
+    // catch and the old arrayBuffer() path would have fully buffered.
+    let cancelled = false;
+    const res = streamedResponse(
+      [new Uint8Array(4), new Uint8Array(4), new Uint8Array(4)], // 12 bytes
+      () => {
+        cancelled = true;
+      }
+    );
+    expect(await readBytesCapped(res, 5)).toBeNull();
+    expect(cancelled).toBe(true);
+  });
+
+  it('falls back to a buffered read when there is no body stream', async () => {
+    const res = new Response(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+    Object.defineProperty(res, 'body', { value: null });
+    const buf = await readBytesCapped(res, 1000);
+    expect(buf && Array.from(buf)).toEqual([0x50, 0x4b, 0x03, 0x04]);
   });
 });
