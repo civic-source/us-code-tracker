@@ -170,6 +170,10 @@ jobs:
         if: steps.fetch.outputs.has_changes == 'true'
         id: commit_statutes
         working-directory: us-code
+        # OLRC-derived values are passed via env (never interpolated into the
+        # shell) so a malicious public-law string cannot inject commands (#229).
+        env:
+          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -178,7 +182,7 @@ jobs:
             echo "committed=false" >> "$GITHUB_OUTPUT"
             echo "No statute changes to commit"
           else
-            git commit -m "chore(law): Update to ${{ steps.fetch.outputs.public_law }}"
+            git commit -m "chore(law): Update to $PUBLIC_LAW"
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -248,13 +252,16 @@ jobs:
         if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true'
         id: commit_annotations
         working-directory: us-code
+        # OLRC-derived public-law passed via env, not interpolated (#229).
+        env:
+          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
         run: |
           git add 'annotations/'
           if git diff --cached --quiet; then
             echo "committed=false" >> "$GITHUB_OUTPUT"
             echo "No annotation changes to commit"
           else
-            git commit -m "chore(annotations): Sync precedent for ${{ steps.fetch.outputs.public_law }}"
+            git commit -m "chore(annotations): Sync precedent for $PUBLIC_LAW"
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -267,22 +274,35 @@ jobs:
       # Step 13: Write job summary
       - name: Write job summary
         if: always()
+        # All step outputs (several OLRC-derived) are passed via env and
+        # referenced as shell vars; their expanded values are not re-scanned
+        # for command substitution, so they cannot inject commands (#229).
+        env:
+          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
+          TITLE_COUNT: ${{ steps.fetch.outputs.title_count }}
+          SECTIONS: ${{ steps.transform.outputs.sections }}
+          FAILED_TITLES: ${{ steps.transform.outputs.failed_titles }}
+          ANNOTATED: ${{ steps.annotate.outputs.annotated }}
+          ANNOTATION_FAILURES: ${{ steps.annotate.outputs.annotation_failures }}
+          STATUTES_COMMITTED: ${{ steps.commit_statutes.outputs.committed }}
+          ANNOTATIONS_COMMITTED: ${{ steps.commit_annotations.outputs.committed }}
+          TITLES: ${{ steps.fetch.outputs.titles }}
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## US Code Sync Summary
 
           | Metric | Value |
           |--------|-------|
-          | Public Law | ${{ steps.fetch.outputs.public_law || 'N/A' }} |
-          | Titles found | ${{ steps.fetch.outputs.title_count || '0' }} |
-          | Sections transformed | ${{ steps.transform.outputs.sections || '0' }} |
-          | Transform failures | ${{ steps.transform.outputs.failed_titles || '0' }} |
-          | Sections annotated | ${{ steps.annotate.outputs.annotated || '0' }} |
-          | Annotation failures | ${{ steps.annotate.outputs.annotation_failures || '0' }} |
-          | Statutes committed | ${{ steps.commit_statutes.outputs.committed || 'false' }} |
-          | Annotations committed | ${{ steps.commit_annotations.outputs.committed || 'false' }} |
+          | Public Law | ${PUBLIC_LAW:-N/A} |
+          | Titles found | ${TITLE_COUNT:-0} |
+          | Sections transformed | ${SECTIONS:-0} |
+          | Transform failures | ${FAILED_TITLES:-0} |
+          | Sections annotated | ${ANNOTATED:-0} |
+          | Annotation failures | ${ANNOTATION_FAILURES:-0} |
+          | Statutes committed | ${STATUTES_COMMITTED:-false} |
+          | Annotations committed | ${ANNOTATIONS_COMMITTED:-false} |
 
-          **Titles:** ${{ steps.fetch.outputs.titles || 'none' }}
+          **Titles:** ${TITLES:-none}
 
           Run completed at: $(TZ='America/New_York' date)
           EOF
