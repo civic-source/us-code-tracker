@@ -2,6 +2,20 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createLogger } from '@civic-source/shared';
 
 import { CourtListenerClient, isCourtListenerResult } from '../client.js';
+import { COURTLISTENER_RATE_LIMITER, RATE_LIMIT_PER_HOUR } from '../constants.js';
+
+describe('COURTLISTENER_RATE_LIMITER (#230)', () => {
+  it('sustains exactly RATE_LIMIT_PER_HOUR tokens per hour (not the old ~7200)', () => {
+    const perHour =
+      (3_600_000 / COURTLISTENER_RATE_LIMITER.refillIntervalMs) * COURTLISTENER_RATE_LIMITER.refillRate;
+    expect(perHour).toBeLessThanOrEqual(RATE_LIMIT_PER_HOUR);
+    expect(perHour).toBe(RATE_LIMIT_PER_HOUR);
+  });
+
+  it('caps burst capacity at the hourly limit', () => {
+    expect(COURTLISTENER_RATE_LIMITER.capacity).toBe(RATE_LIMIT_PER_HOUR);
+  });
+});
 
 const VALID = {
   caseName: 'Doe v. United States',

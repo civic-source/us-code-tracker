@@ -1,5 +1,5 @@
 import { type PrecedentAnnotation, PrecedentAnnotationSchema, type Result, ok, err } from '@civic-source/types';
-import { type Logger, createLogger, TokenBucket } from '@civic-source/shared';
+import { type Logger, createLogger } from '@civic-source/shared';
 import { type CourtListenerResult, CourtListenerClient } from './client.js';
 import {
   COURTLISTENER_BASE_URL,
@@ -7,7 +7,6 @@ import {
   MAX_HOLDING_SUMMARY_LENGTH,
   MAX_CASE_NAME_LENGTH,
   MAX_CITATION_LENGTH,
-  RATE_LIMIT_PER_HOUR,
   getApiToken,
 } from './constants.js';
 import { deduplicateCases } from './citation-utils.js';
@@ -155,18 +154,12 @@ export function annotationToYaml(annotation: PrecedentAnnotation): string {
 export class Annotator {
   private readonly client: CourtListenerClient;
   private readonly logger: Logger;
-  private readonly rateLimiter: TokenBucket;
 
-  constructor(options?: { client?: CourtListenerClient; logger?: Logger; rateLimiter?: TokenBucket }) {
+  constructor(options?: { client?: CourtListenerClient; logger?: Logger }) {
     this.logger = options?.logger ?? createLogger('Annotator');
     this.client = options?.client ?? new CourtListenerClient({
       token: getApiToken(),
       logger: this.logger,
-    });
-    this.rateLimiter = options?.rateLimiter ?? new TokenBucket({
-      capacity: RATE_LIMIT_PER_HOUR,
-      refillRate: Math.ceil(RATE_LIMIT_PER_HOUR / 3600),
-      refillIntervalMs: 1000,
     });
   }
 
@@ -175,12 +168,8 @@ export class Annotator {
     const timer = this.logger.startTimer('annotateSection');
     this.logger.info('Annotating section', { section });
 
-    // Rate limit check
-    if (!this.rateLimiter.tryConsume()) {
-      this.logger.warn('Rate limited, waiting for token', { section });
-      await this.rateLimiter.waitAndConsume();
-    }
-
+    // Rate limiting is enforced by the CourtListener client (the sole HTTP
+    // choke point); a second bucket here was redundant double-limiting (#230).
     const searchResult = await this.client.searchByStatute(section);
     if (!searchResult.ok) {
       timer();
