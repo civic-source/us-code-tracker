@@ -86,16 +86,14 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      # Informational audit only — the report is uploaded to temporary public
+      # storage (link in the action logs). No budget is enforced: an empty
+      # `budgetPath` was a no-op, and a real budget would be a flaky,
+      # baseline-less gate, so neither is configured (#234).
       - name: Lighthouse audit
         uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12.6.2
         with:
           urls: |
             https://civic-source.github.io/us-code-tracker/
             https://civic-source.github.io/us-code-tracker/browse/title-18/
-          budgetPath: ''
           temporaryPublicStorage: true
-      - name: Report scores
-        if: always()
-        run: |
-          echo "## Lighthouse Scores" >> "$GITHUB_STEP_SUMMARY"
-          echo "Audit completed after deploy. Check artifacts for full report." >> "$GITHUB_STEP_SUMMARY"

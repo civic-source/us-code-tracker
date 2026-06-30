@@ -7,3 +7,15 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  # npm dependencies across the pnpm workspace. Grouped to keep PR volume low;
+  # a modest open-PR limit avoids a flood. Dependabot reads pnpm-lock.yaml and
+  # honours pnpm.overrides, so pinned transitive versions are respected (#234).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
