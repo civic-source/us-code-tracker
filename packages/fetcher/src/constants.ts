@@ -18,14 +18,6 @@ export function titleXmlUrl(congress: string, law: string, title: string): strin
 }
 
 /**
- * Build a URL for the all-titles XML ZIP download for a release point.
- * Pattern: https://uscode.house.gov/download/releasepoints/us/pl/{congress}/{law}/xml_uscAll@{congress}-{law}.zip
- */
-export function allTitlesXmlUrl(congress: string, law: string): string {
-  return `${OLRC_RELEASE_POINTS_URL}us/pl/${congress}/${law}/xml_uscAll@${congress}-${law}.zip`;
-}
-
-/**
  * Maximum number of bytes to accept from a single download.
  *
  * Guards CI runners against OOM from a maliciously or accidentally huge

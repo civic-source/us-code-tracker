@@ -6,19 +6,6 @@
  * Attributes live in a ":@" sibling key on the same object.
  */
 
-/** A text node in preserveOrder output */
-export interface PreserveOrderTextNode {
-  '#text': string;
-}
-
-/** An element node in preserveOrder output */
-export interface PreserveOrderElementNode {
-  [tag: string]: unknown[];
-}
-
-/** A single node in the preserveOrder output */
-export type PreserveOrderNode = PreserveOrderTextNode | PreserveOrderElementNode;
-
 /**
  * Recursively walk nodes and concatenate all #text values in document order.
  * Joins segments with a single space and collapses whitespace.

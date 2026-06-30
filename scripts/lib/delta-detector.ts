@@ -5,12 +5,6 @@ export function hashContent(content: string): string {
   return createHash('sha256').update(content, 'utf-8').digest('hex');
 }
 
-/** A file with its path and content hash */
-export interface HashedFile {
-  path: string;
-  hash: string;
-}
-
 /** Result of comparing two sets of files */
 export interface DeltaResult {
   /** Files that are new or have changed content */
