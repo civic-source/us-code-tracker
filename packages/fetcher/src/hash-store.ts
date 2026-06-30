@@ -39,7 +39,15 @@ export class HashStore {
   private async load(): Promise<HashRecord> {
     try {
       const raw = await readFile(this.filePath, 'utf-8');
-      return JSON.parse(raw) as HashRecord;
+      const parsed: unknown = JSON.parse(raw);
+      // Guard the shape: a corrupt store that parses to null, an array, or a
+      // primitive would otherwise make getHash/setHash throw (null[key]) or
+      // silently drop writes (array property lost by JSON.stringify). Treat any
+      // non-plain-object as an empty store (#238).
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return {};
+      }
+      return parsed as HashRecord;
     } catch {
       return {};
     }
