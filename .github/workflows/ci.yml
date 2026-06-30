@@ -35,9 +35,13 @@ jobs:
 
       - run: pnpm test
 
-      - name: Validate commit messages
+      # The repo squash-merges, so the PR title becomes the commit subject that
+      # release-please parses. Lint that title (not the individual WIP commits)
+      # and enforce it — a malformed title now fails CI rather than silently
+      # warning (#234). The title is untrusted input, so it is passed via env and
+      # never interpolated into the shell (#229 class).
+      - name: Validate PR title (squash-merge subject)
         if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: |
-          git fetch --depth=1 origin ${{ github.event.pull_request.base.sha }} 2>/dev/null || true
-          npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$PR_TITLE" | npx commitlint
