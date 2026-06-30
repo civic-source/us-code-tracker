@@ -109,6 +109,26 @@ describe('CaseAnnotationSchema', () => {
     const atLimit = { ...valid, holdingSummary: 'x'.repeat(500) };
     expect(CaseAnnotationSchema.parse(atLimit).holdingSummary).toHaveLength(500);
   });
+
+  // Length caps on untrusted strings that flow into the hand-rolled YAML
+  // sidecar — fail-closed so nothing over-cap is ever serialized (#232).
+  it('rejects caseName over 500 chars but accepts it at the cap', () => {
+    expect(() => CaseAnnotationSchema.parse({ ...valid, caseName: 'x'.repeat(501) })).toThrow();
+    expect(CaseAnnotationSchema.parse({ ...valid, caseName: 'x'.repeat(500) }).caseName).toHaveLength(500);
+  });
+
+  it('rejects citation over 200 chars but accepts it at the cap', () => {
+    expect(() => CaseAnnotationSchema.parse({ ...valid, citation: 'x'.repeat(201) })).toThrow();
+    expect(CaseAnnotationSchema.parse({ ...valid, citation: 'x'.repeat(200) }).citation).toHaveLength(200);
+  });
+
+  it('rejects statuteVersionRef over 100 chars', () => {
+    expect(() => CaseAnnotationSchema.parse({ ...valid, statuteVersionRef: 'x'.repeat(101) })).toThrow();
+  });
+
+  it('rejects statuteVersionNote over 500 chars', () => {
+    expect(() => CaseAnnotationSchema.parse({ ...valid, statuteVersionNote: 'x'.repeat(501) })).toThrow();
+  });
 });
 
 describe('PrecedentAnnotationSchema', () => {
