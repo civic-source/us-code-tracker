@@ -1,7 +1,15 @@
 import { type PrecedentAnnotation, PrecedentAnnotationSchema, type Result, ok, err } from '@civic-source/types';
 import { type Logger, createLogger, TokenBucket } from '@civic-source/shared';
 import { type CourtListenerResult, CourtListenerClient } from './client.js';
-import { COURTLISTENER_BASE_URL, COURT_PRIORITY, MAX_HOLDING_SUMMARY_LENGTH, RATE_LIMIT_PER_HOUR, getApiToken } from './constants.js';
+import {
+  COURTLISTENER_BASE_URL,
+  COURT_PRIORITY,
+  MAX_HOLDING_SUMMARY_LENGTH,
+  MAX_CASE_NAME_LENGTH,
+  MAX_CITATION_LENGTH,
+  RATE_LIMIT_PER_HOUR,
+  getApiToken,
+} from './constants.js';
 import { deduplicateCases } from './citation-utils.js';
 
 /** Result of annotating a section, including the output path */
@@ -32,10 +40,19 @@ function sortByCourtPriority(results: CourtListenerResult[]): CourtListenerResul
   });
 }
 
-/** Truncate snippet to a maximum length for holding summary */
-function truncateSnippet(snippet: string): string {
-  if (snippet.length <= MAX_HOLDING_SUMMARY_LENGTH) return snippet;
-  return snippet.slice(0, MAX_HOLDING_SUMMARY_LENGTH - 3) + '...';
+/**
+ * Truncate an untrusted string to at most `max` UTF-16 code units, bounding the
+ * values that flow into the hand-rolled YAML sidecar (#232). `max` is measured
+ * in code units (matching the schema's `.max()` checks). When truncation splits
+ * a surrogate pair, the trailing lone high surrogate is dropped so the result
+ * never ends in a broken character.
+ */
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value;
+  let end = max - 3; // reserve room for the ellipsis
+  const lastKept = value.charCodeAt(end - 1);
+  if (lastKept >= 0xd800 && lastKept <= 0xdbff) end -= 1; // don't split a surrogate pair
+  return value.slice(0, end) + '...';
 }
 
 /** Origin of the CourtListener site — a sourceUrl must resolve to this host. */
@@ -174,11 +191,14 @@ export class Annotator {
     const isoNow = new Date().toISOString();
 
     const rawCases = sorted.map((result) => ({
-      caseName: result.caseName,
-      citation: result.citation[0] ?? '',
+      // Bound untrusted CourtListener strings to their schema caps so a long
+      // value is clamped (not dropped by schema validation) and never bloats
+      // the YAML sidecar (#232).
+      caseName: truncate(result.caseName, MAX_CASE_NAME_LENGTH),
+      citation: truncate(result.citation[0] ?? '', MAX_CITATION_LENGTH),
       court: mapCourt(result.court),
       date: result.dateFiled,
-      holdingSummary: truncateSnippet(result.snippet),
+      holdingSummary: truncate(result.snippet, MAX_HOLDING_SUMMARY_LENGTH),
       sourceUrl: courtListenerSourceUrl(result.absolute_url),
       impact: 'interpretation' as const,
     }));

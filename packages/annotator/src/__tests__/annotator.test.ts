@@ -103,6 +103,48 @@ describe('Annotator', () => {
     expect(result.value.path).toBe('annotations/title-99/section-9999.yaml');
   });
 
+  it('clamps over-cap untrusted strings so the annotation still validates (#232)', async () => {
+    const client = makeClient([
+      fakeResult({
+        caseName: 'A'.repeat(900),
+        citation: ['C'.repeat(400)],
+        snippet: 'S'.repeat(900),
+      }),
+    ]);
+    const annotator = new Annotator({ client, logger });
+
+    const result = await annotator.annotateSection('18 U.S.C. 111');
+
+    // Without bounding, schema validation would reject the over-cap fields and
+    // annotateSection would return err. Bounding clamps them so it succeeds.
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const c = result.value.annotation.cases[0];
+    expect(c?.caseName.length).toBeLessThanOrEqual(500);
+    expect(c?.citation.length).toBeLessThanOrEqual(200);
+    expect(c?.holdingSummary.length).toBeLessThanOrEqual(500);
+    expect(c?.caseName.endsWith('...')).toBe(true);
+  });
+
+  it('does not leave a lone high surrogate when truncation splits a pair (#232)', async () => {
+    // Position 496 is the high surrogate of an emoji; truncation reserves room
+    // for the ellipsis at 497, so a naive cut would land mid-pair.
+    const snippet = 'a'.repeat(496) + '\u{1F600}' + 'b'.repeat(20);
+    const client = makeClient([fakeResult({ snippet })]);
+    const annotator = new Annotator({ client, logger });
+
+    const result = await annotator.annotateSection('18 U.S.C. 111');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const summary = result.value.annotation.cases[0]?.holdingSummary ?? '';
+    expect(summary.length).toBeLessThanOrEqual(500);
+    // The character just before the ellipsis must not be a lone high surrogate.
+    const beforeEllipsis = summary.slice(0, summary.length - 3);
+    const lastCode = beforeEllipsis.charCodeAt(beforeEllipsis.length - 1);
+    expect(lastCode >= 0xd800 && lastCode <= 0xdbff).toBe(false);
+  });
+
   it('sorts results by court priority: SCOTUS > Appellate > District', async () => {
     const results = [
       fakeResult({ court: 'paed', caseName: 'District Case', citation: ['300 F.Supp. 100'] }),

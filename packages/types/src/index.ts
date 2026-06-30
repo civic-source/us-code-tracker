@@ -56,17 +56,20 @@ export const PrecedentImpactSchema = z.enum([
 export type PrecedentImpact = z.infer<typeof PrecedentImpactSchema>;
 
 export const CaseAnnotationSchema = z.object({
-  caseName: z.string(),
-  citation: z.string(),
+  // Length caps bound untrusted CourtListener-derived strings that flow into
+  // the hand-rolled YAML sidecar serialization, so a hostile or accidentally
+  // huge value cannot bloat output or widen the injection surface (#232).
+  caseName: z.string().max(500),
+  citation: z.string().max(200),
   court: z.enum(["SCOTUS", "Appellate", "District"]),
   date: z.string(),
   holdingSummary: z.string().max(500),
   sourceUrl: HttpUrlSchema,
   impact: PrecedentImpactSchema,
   /** Public Law the statute was current through when this case was decided */
-  statuteVersionRef: z.string().optional(),
+  statuteVersionRef: z.string().max(100).optional(),
   /** Human-readable note about version alignment */
-  statuteVersionNote: z.string().optional(),
+  statuteVersionNote: z.string().max(500).optional(),
 });
 
 export const PrecedentAnnotationSchema = z.object({

@@ -18,6 +18,12 @@ export const DEFAULT_PAGE_SIZE = 20;
 /** Maximum characters for holding summary (truncated from snippet) */
 export const MAX_HOLDING_SUMMARY_LENGTH = 500;
 
+/** Maximum characters for a case name (matches CaseAnnotationSchema.caseName) */
+export const MAX_CASE_NAME_LENGTH = 500;
+
+/** Maximum characters for a citation (matches CaseAnnotationSchema.citation) */
+export const MAX_CITATION_LENGTH = 200;
+
 /**
  * Default court priority for result ordering.
  * SCOTUS opinions are most authoritative, followed by Appellate, then District.
