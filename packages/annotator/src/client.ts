@@ -17,14 +17,31 @@ export interface CourtListenerResult {
   absolute_url: string;
 }
 
-/** CourtListener search API response envelope */
-interface SearchResponse {
-  count: number;
-  results: CourtListenerResult[];
+/**
+ * Validate that an unknown value is a well-formed CourtListener result.
+ *
+ * The search API is untrusted: a result object missing or mistyping a field
+ * (e.g. no `snippet`, a non-array `citation`, a numeric `court`) would later
+ * make `annotateSection` throw on `result.citation[0]` / `mapCourt(...)` /
+ * truncation, escaping its `Result<>` contract as a rejected promise. Checking
+ * every field up front lets the client drop malformed elements instead (#237).
+ */
+export function isCourtListenerResult(value: unknown): value is CourtListenerResult {
+  if (typeof value !== 'object' || value === null) return false;
+  const o = value as Record<string, unknown>;
+  return (
+    typeof o['caseName'] === 'string' &&
+    Array.isArray(o['citation']) &&
+    o['citation'].every((c) => typeof c === 'string') &&
+    typeof o['court'] === 'string' &&
+    typeof o['dateFiled'] === 'string' &&
+    typeof o['snippet'] === 'string' &&
+    typeof o['absolute_url'] === 'string'
+  );
 }
 
-/** Validate that an unknown value has the expected SearchResponse shape */
-function isSearchResponse(data: unknown): data is SearchResponse {
+/** Validate that an unknown value has the expected search-response envelope */
+function hasResultsArray(data: unknown): data is { results: unknown[] } {
   if (typeof data !== 'object' || data === null) return false;
   const obj = data as Record<string, unknown>;
   return Array.isArray(obj['results']);
@@ -79,10 +96,17 @@ export class CourtListenerClient {
     if (!result.ok) return result;
 
     const data = result.value;
-    if (!isSearchResponse(data)) {
+    if (!hasResultsArray(data)) {
       return ok([]);
     }
-    return ok(data.results);
+    // Drop any malformed result element so callers only ever receive
+    // well-formed CourtListenerResult objects (#237).
+    const valid = data.results.filter(isCourtListenerResult);
+    const dropped = data.results.length - valid.length;
+    if (dropped > 0) {
+      this.logger.warn('Dropped malformed CourtListener results', { section, dropped });
+    }
+    return ok(valid);
   }
 
   /** Fetch with exponential backoff retry, including 429 handling */
