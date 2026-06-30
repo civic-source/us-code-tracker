@@ -115,26 +115,35 @@ async function processBatch(
   rp: ReleasePointId,
   state: ImportState,
   rateLimiter: TokenBucket
-): Promise<{ titlesChanged: number; sectionsChanged: number }> {
+): Promise<{ titlesChanged: number; sectionsChanged: number; failedTitles: number }> {
   let titlesChanged = 0;
   let sectionsChanged = 0;
+  let failedTitles = 0;
 
   const results = await Promise.all(
     batch.map(async (paddedTitle) => {
-      const xml = await downloadAndExtractXml(rp, paddedTitle, rateLimiter, log);
-      if (!xml) return { paddedTitle, files: [] as MarkdownFile[] };
+      const fetched = await downloadAndExtractXml(rp, paddedTitle, rateLimiter, log);
+      // A transient failure (or a present-but-corrupt archive) must be counted
+      // so the caller does not advance the resume cursor past it (#236).
+      if (fetched.kind === 'failed') {
+        return { paddedTitle, files: [] as MarkdownFile[], failed: true };
+      }
+      if (fetched.kind === 'absent') {
+        return { paddedTitle, files: [] as MarkdownFile[], failed: false };
+      }
 
       const transformer = new XmlToMarkdownAdapter(rp.label);
-      const result = transformer.transformToFiles(xml);
+      const result = transformer.transformToFiles(fetched.xml);
       if (!result.ok) {
         log.warn('Transform failed', { title: paddedTitle, error: result.error.message });
-        return { paddedTitle, files: [] as MarkdownFile[] };
+        return { paddedTitle, files: [] as MarkdownFile[], failed: true };
       }
-      return { paddedTitle, files: result.value };
+      return { paddedTitle, files: result.value, failed: false };
     })
   );
 
-  for (const { paddedTitle, files } of results) {
+  for (const { paddedTitle, files, failed } of results) {
+    if (failed) failedTitles++;
     if (files.length === 0) continue;
 
     const currentManifest = buildManifest(files);
@@ -177,7 +186,7 @@ async function processBatch(
     });
   }
 
-  return { titlesChanged, sectionsChanged };
+  return { titlesChanged, sectionsChanged, failedTitles };
 }
 
 async function processReleasePoint(
@@ -186,16 +195,18 @@ async function processReleasePoint(
   rateLimiter: TokenBucket,
   metrics: ImportMetrics,
   totalPoints: number
-): Promise<void> {
+): Promise<{ failedTitles: number }> {
   log.info('Processing release point', { label: rp.label });
   let totalChanged = 0;
   let totalTitlesChanged = 0;
+  let failedTitles = 0;
 
   for (let i = 0; i < titlesToProcess.length; i += MAX_CONCURRENT) {
     const batch = titlesToProcess.slice(i, i + MAX_CONCURRENT);
     const result = await processBatch(batch, rp, state, rateLimiter);
     totalChanged += result.sectionsChanged;
     totalTitlesChanged += result.titlesChanged;
+    failedTitles += result.failedTitles;
 
     if (i + MAX_CONCURRENT < titlesToProcess.length) {
       await new Promise<void>((r) => setTimeout(r, INTER_TITLE_DELAY_MS));
@@ -216,9 +227,24 @@ async function processReleasePoint(
     log.info('No changes for release point', { label: rp.label });
   }
 
-  state.lastCompletedReleasePoint = `${rp.congress}-${rp.law}`;
-  if (!dryRun) {
-    await saveState(repoPath, state);
+  // Only advance the resume cursor when every title at this release point was
+  // accounted for (imported or legitimately absent). If any title hit a
+  // transient failure, leave the cursor where it was so --resume reprocesses
+  // this release point and retries the failed title — saved manifests make the
+  // already-imported titles no-ops, so the retry is cheap and idempotent (#236).
+  if (failedTitles > 0) {
+    log.error('Release point had failed titles; NOT advancing resume cursor', {
+      label: rp.label,
+      failedTitles,
+    });
+    if (!dryRun) {
+      await saveState(repoPath, state); // persist manifests, but not the cursor
+    }
+  } else {
+    state.lastCompletedReleasePoint = `${rp.congress}-${rp.law}`;
+    if (!dryRun) {
+      await saveState(repoPath, state);
+    }
   }
 
   metrics.releasePointsProcessed++;
@@ -245,6 +271,8 @@ async function processReleasePoint(
         : null,
     });
   }
+
+  return { failedTitles };
 }
 
 // --- Main ---
@@ -303,15 +331,21 @@ async function main(): Promise<void> {
     titleFilter: titleFilter ? parseInt(titleFilter, 10) : 'all',
   });
 
+  let releasePointsWithFailures = 0;
   for (const rp of points) {
     try {
-      await processReleasePoint(rp, state, rateLimiter, metrics, points.length);
+      const { failedTitles } = await processReleasePoint(rp, state, rateLimiter, metrics, points.length);
+      if (failedTitles > 0) releasePointsWithFailures++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      log.error('Release point failed, continuing to next', { label: rp.label, error: msg });
-      // Save state so we don't retry this one
-      state.lastCompletedReleasePoint = `${rp.congress}-${rp.law}`;
-      if (!dryRun) await saveState(repoPath, state);
+      // Do NOT advance the resume cursor here: a thrown release point is an
+      // unrecovered failure, so leaving the cursor lets --resume retry it on a
+      // later run rather than permanently skipping it (#236).
+      log.error('Release point failed, continuing to next (cursor not advanced)', {
+        label: rp.label,
+        error: msg,
+      });
+      releasePointsWithFailures++;
     }
   }
 
@@ -320,9 +354,19 @@ async function main(): Promise<void> {
     releasePointsProcessed: metrics.releasePointsProcessed,
     titlesChanged: metrics.titlesChanged,
     sectionsChanged: metrics.sectionsChanged,
+    releasePointsWithFailures,
     elapsedSeconds: Math.round(elapsed),
     dryRun,
   });
+
+  // Exit non-zero when any release point had unrecovered failures, so CI and
+  // operators notice silent gaps rather than treating the run as fully successful.
+  if (releasePointsWithFailures > 0) {
+    log.error('Import finished with unrecovered failures; rerun with --resume to retry', {
+      releasePointsWithFailures,
+    });
+    process.exit(1);
+  }
 }
 
 main().catch((error: unknown) => {

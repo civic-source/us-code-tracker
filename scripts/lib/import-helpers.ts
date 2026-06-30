@@ -105,18 +105,38 @@ async function isDocNotFound(response: Response): Promise<boolean> {
   return false;
 }
 
+/**
+ * Outcome of a single title fetch+extract, distinguishing a title that is
+ * legitimately *absent* at a release point from a *transient failure* (#236).
+ * The two were previously collapsed to `null`, so a network blip looked
+ * identical to "not published yet" and the resume cursor advanced past it,
+ * permanently dropping the title's update from the historical record.
+ */
+export type TitleFetch =
+  | { kind: 'ok'; xml: string }
+  | { kind: 'absent' }
+  | { kind: 'failed'; reason: string };
+
+/** Internal outcome of the HTTP fetch, before ZIP extraction. */
+type FetchOutcome =
+  | { kind: 'response'; response: Response }
+  | { kind: 'absent' }
+  | { kind: 'failed'; reason: string };
+
 async function fetchWithRateRetry(
   url: string,
   log: Logger,
   maxRetries = 3
-): Promise<Response | null> {
+): Promise<FetchOutcome> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, { redirect: 'follow' });
+      // 301/302 and 404 mean the title genuinely is not at this release point
+      // (OLRC redirects unavailable titles); the doc-not-found HTML page too.
       if (response.status === 302 || response.status === 301) {
-        return null;
+        return { kind: 'absent' };
       }
-      if (response.status === 404) return null;
+      if (response.status === 404) return { kind: 'absent' };
       if (response.status === 429) {
         log.warn('Rate limited, waiting 30s', { url, attempt });
         await new Promise<void>((r) => setTimeout(r, RATE_LIMIT_BACKOFF_MS));
@@ -128,12 +148,12 @@ async function fetchWithRateRetry(
           await new Promise<void>((r) => setTimeout(r, 5000 * attempt));
           continue;
         }
-        return null;
+        return { kind: 'failed', reason: `HTTP ${response.status} after ${maxRetries} attempts` };
       }
       if (await isDocNotFound(response)) {
-        return null;
+        return { kind: 'absent' };
       }
-      return response;
+      return { kind: 'response', response };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
       log.warn('Network error, retrying', { url, attempt, error: msg });
@@ -142,10 +162,11 @@ async function fetchWithRateRetry(
         continue;
       }
       log.error('Network error after all retries', { url, attempts: maxRetries });
-      return null;
+      return { kind: 'failed', reason: `network error after ${maxRetries} attempts: ${msg}` };
     }
   }
-  return null;
+  // Loop fell through (e.g. 429 never cleared within maxRetries) — transient.
+  return { kind: 'failed', reason: `rate-limited past ${maxRetries} attempts` };
 }
 
 export async function downloadAndExtractXml(
@@ -153,7 +174,7 @@ export async function downloadAndExtractXml(
   paddedTitle: string,
   rateLimiter: TokenBucket,
   log: Logger
-): Promise<string | null> {
+): Promise<TitleFetch> {
   const url = titleZipUrl(rp, paddedTitle);
   // Random per-invocation temp dir under the OS temp root — no predictable
   // path, no symlink race.
@@ -164,19 +185,29 @@ export async function downloadAndExtractXml(
   await rateLimiter.waitAndConsume();
 
   try {
-    const response = await fetchWithRateRetry(url, log);
-    if (!response) {
+    const outcome = await fetchWithRateRetry(url, log);
+    if (outcome.kind === 'absent') {
       log.info('Title not available at release point', {
         title: parseInt(paddedTitle, 10),
         releasePoint: `PL ${rp.congress}-${rp.law}`,
       });
-      return null;
+      return { kind: 'absent' };
+    }
+    if (outcome.kind === 'failed') {
+      log.warn('Title fetch failed (transient)', {
+        title: parseInt(paddedTitle, 10),
+        releasePoint: `PL ${rp.congress}-${rp.law}`,
+        reason: outcome.reason,
+      });
+      return { kind: 'failed', reason: outcome.reason };
     }
 
-    const buf = Buffer.from(await response.arrayBuffer());
+    const buf = Buffer.from(await outcome.response.arrayBuffer());
+    // A present-but-corrupt archive is a failure (worth retrying / surfacing),
+    // not a legitimate absence.
     if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
       log.warn('Invalid ZIP', { url });
-      return null;
+      return { kind: 'failed', reason: 'invalid ZIP (no PK signature)' };
     }
 
     await writeFile(tmpZip, buf);
@@ -184,10 +215,13 @@ export async function downloadAndExtractXml(
     await execFileAsync('unzip', ['-o', '-q', tmpZip, '-d', tmpDir], { timeout: 60_000 });
 
     const xmlPath = findXmlFile(tmpDir);
-    if (!xmlPath) return null;
+    if (!xmlPath) return { kind: 'failed', reason: 'no XML entry in archive' };
 
-    return await readFile(xmlPath, 'utf-8');
+    return { kind: 'ok', xml: await readFile(xmlPath, 'utf-8') };
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+// Exported for unit testing the absent-vs-failed classification.
+export { fetchWithRateRetry as _fetchWithRateRetry };
