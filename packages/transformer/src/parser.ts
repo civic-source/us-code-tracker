@@ -34,26 +34,6 @@ function createUslmParser(): XMLParser {
   return parser;
 }
 
-/**
- * Extract text from a preserveOrder node array or a plain value.
- * For backward compatibility with markdown-generator and transformer.
- */
-export function extractText(node: unknown): string {
-  if (typeof node === 'string') return node;
-  if (typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return extractTextFromNodes(node);
-  if (node !== null && typeof node === 'object') {
-    const obj = node as Record<string, unknown>;
-    if ('#text' in obj && typeof obj['#text'] === 'string') return obj['#text'];
-    if ('#text' in obj && typeof obj['#text'] === 'number') return String(obj['#text']);
-  }
-  return '';
-}
-
-/**
- * Find the title number from a parsed USLM document (preserveOrder format).
- * Looks for the identifier attribute on the title element.
- */
 /** Find the document root element — either lawDoc (USLM 2.0) or uscDoc (USLM 1.0) */
 function findDocRoot(root: unknown[]): { children: unknown[]; attrs: Record<string, string> } | undefined {
   return findElements(root, USLM_ELEMENTS.lawDoc)[0]

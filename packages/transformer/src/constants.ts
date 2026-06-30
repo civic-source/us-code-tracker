@@ -1,13 +1,5 @@
 /** USLM XML element names and transformer configuration */
 
-/**
- * USLM namespace URI.
- * Note: OLRC publishes USLM 1.0 (http://xml.house.gov/schemas/uslm/1.0)
- * which uses `<uscDoc>` as root, while the USLM 2.0 spec uses `<lawDoc>`.
- * The namespace URI is the same; only the schema version and root element differ.
- */
-export const USLM_NAMESPACE = 'https://xml.house.gov/schemas/uslm/1.0';
-
 /** Structural USLM element names (hierarchy order) */
 export const USLM_ELEMENTS = {
   /** Top-level document wrapper (USLM 2.0) */
@@ -58,24 +50,8 @@ export const USLM_ELEMENTS = {
   table: 'table',
 } as const;
 
-/**
- * Legal list markers by nesting depth.
- * (a) → (1) → (A) → (i) → (I) → (aa)
- */
-export const LEGAL_LIST_MARKERS = [
-  { prefix: '(', style: 'lower-alpha' },  // (a), (b), (c)
-  { prefix: '(', style: 'decimal' },       // (1), (2), (3)
-  { prefix: '(', style: 'upper-alpha' },   // (A), (B), (C)
-  { prefix: '(', style: 'lower-roman' },   // (i), (ii), (iii)
-  { prefix: '(', style: 'upper-roman' },   // (I), (II), (III)
-  { prefix: '(', style: 'double-lower' },  // (aa), (bb), (cc)
-] as const;
-
 /** Indentation per nesting level (in spaces) */
 export const INDENT_PER_LEVEL = 2;
 
 /** Maximum nesting depth for safety (prevent runaway recursion) */
 export const MAX_NESTING_DEPTH = 20;
-
-/** Output directory structure pattern */
-export const OUTPUT_PATH_PATTERN = 'statutes/title-{title}/chapter-{chapter}/section-{section}.md';

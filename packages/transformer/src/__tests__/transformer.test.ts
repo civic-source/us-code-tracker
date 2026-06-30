@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseUslmXml,
-  extractText,
   generateFrontmatter,
   buildSectionPath,
   formatListItem,
@@ -141,32 +140,6 @@ describe('parseUslmXml', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.titleNumber).toBe('1');
-  });
-});
-
-describe('extractText', () => {
-  it('returns string values directly', () => {
-    expect(extractText('hello')).toBe('hello');
-  });
-
-  it('extracts #text from objects', () => {
-    expect(extractText({ '#text': 'nested' })).toBe('nested');
-  });
-
-  it('returns empty string for null/undefined/unrecognized', () => {
-    expect(extractText(null)).toBe('');
-    expect(extractText(undefined)).toBe('');
-    expect(extractText({ foo: 'bar' })).toBe('');
-  });
-
-  it('handles numeric values', () => {
-    expect(extractText(42)).toBe('42');
-    expect(extractText({ '#text': 101 })).toBe('101');
-  });
-
-  it('handles preserveOrder arrays', () => {
-    const nodes = [{ '#text': 'hello' }, { '#text': 'world' }];
-    expect(extractText(nodes)).toBe('hello world');
   });
 });
 

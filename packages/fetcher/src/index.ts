@@ -4,7 +4,6 @@ export {
   OLRC_PRIOR_RELEASE_POINTS_PAGE,
   OLRC_RELEASE_POINTS_URL,
   titleXmlUrl,
-  allTitlesXmlUrl,
   HASH_STORE_DIR,
   HASH_STORE_FILE,
 } from './constants.js';
