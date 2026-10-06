@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.js';
-import { extractTextFromNodes, findElements } from './xml-utils.js';
+import { extractTextFromNodes, findElements, getAttributes } from './xml-utils.js';
 
 /** Section status — derived from heading text during transformation */
 export const SectionStatusSchema = z.enum([
@@ -271,6 +271,53 @@ function walkListElements(
   }
 }
 
+/** Format source credit nodes into markdown with GovInfo statutory citations */
+export function formatSourceCredit(children: unknown[]): string {
+  const parts: string[] = [];
+  function walk(nodes: unknown[]): void {
+    for (const node of nodes) {
+      if (!node || typeof node !== 'object') continue;
+      const obj = node as Record<string, unknown>;
+      if ('#text' in obj) {
+        parts.push(String(obj['#text']));
+      } else if (USLM_ELEMENTS.ref in obj && Array.isArray(obj[USLM_ELEMENTS.ref])) {
+        const attrs = getAttributes(node);
+        const href = attrs['@_href'] || attrs['href'] || '';
+        const refText = extractTextFromNodes(obj[USLM_ELEMENTS.ref] as unknown[]).trim();
+        const statMatch = /^\/us\/stat\/(\d+)\/(\d+)/.exec(href);
+        const plMatch = /^\/us\/pl\/(\d+)\/(\d+)/.exec(href);
+        if (statMatch) {
+          parts.push(`[${refText}](https://www.govinfo.gov/link/statute/${statMatch[1]}/${statMatch[2]})`);
+        } else if (plMatch) {
+          parts.push(`[${refText}](https://www.govinfo.gov/link/plaw/${plMatch[1]}/public/${plMatch[2]})`);
+        } else {
+          parts.push(refText);
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          if (k !== ':@' && Array.isArray(v)) {
+            walk(v);
+          }
+        }
+      }
+    }
+  }
+  walk(children);
+
+  const cleaned = parts
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+([,.;:)])/g, '$1')
+    .trim();
+
+  if (!cleaned) return '';
+  if (cleaned.startsWith('*') && cleaned.endsWith('*')) {
+    return cleaned;
+  }
+  return `*${cleaned}*`;
+}
+
 /** Generate markdown body for a single section node (preserveOrder children) */
 export function generateSectionBody(sectionChildren: unknown[]): string {
   const lines: string[] = [];
@@ -292,6 +339,18 @@ export function generateSectionBody(sectionChildren: unknown[]): string {
 
   // Walk nested list elements
   walkListElements(sectionChildren, 0, lines);
+
+  // Source credit / legislative history
+  const sourceCredits = findElements(sectionChildren, USLM_ELEMENTS.sourceCredit);
+  if (sourceCredits.length > 0) {
+    lines.push('');
+    lines.push('## Source Credit');
+    lines.push('');
+    for (const sc of sourceCredits) {
+      const credit = formatSourceCredit(sc.children);
+      if (credit) lines.push(credit);
+    }
+  }
 
   // Notes
   const notes = findElements(sectionChildren, USLM_ELEMENTS.note);

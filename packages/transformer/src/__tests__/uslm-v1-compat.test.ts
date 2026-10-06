@@ -59,6 +59,11 @@ describe('USLM 1.0 (uscDoc) compatibility', () => {
 
     // Section has body content
     expect(firstSection.content).toContain('meaning of any Act of Congress');
+
+    // Section extracts Source Credit with GovInfo links
+    expect(firstSection.content).toContain('## Source Credit');
+    expect(firstSection.content).toContain('https://www.govinfo.gov/link/statute/61/633');
+    expect(firstSection.content).toContain('[61 Stat. 633](https://www.govinfo.gov/link/statute/61/633)');
   });
 
   it('extracts multiple sections from the excerpt', () => {

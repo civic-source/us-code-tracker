@@ -44,6 +44,8 @@ export const USLM_ELEMENTS = {
   chapeau: 'chapeau',
   /** Note element */
   note: 'note',
+  /** Source credit (enactment and amendment history) */
+  sourceCredit: 'sourceCredit',
   /** Cross-reference */
   ref: 'ref',
   /** Table element */
