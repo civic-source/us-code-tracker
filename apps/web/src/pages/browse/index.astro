@@ -7,7 +7,7 @@ import { TITLE_NAMES } from '../../data/title-names';
 const allStatutes = await getCollection('statutes');
 
 // Group statutes by title number
-const byTitle = new Map<number, typeof allStatutes>();
+const byTitle = new Map<string, typeof allStatutes>();
 for (const entry of allStatutes) {
   const titleNum = entry.data.usc_title;
   if (!byTitle.has(titleNum)) {
@@ -16,8 +16,10 @@ for (const entry of allStatutes) {
   byTitle.get(titleNum)!.push(entry);
 }
 
-// Sort titles numerically
-const sortedTitles = [...byTitle.entries()].sort((a, b) => a[0] - b[0]);
+// Sort titles using natural alphanumeric collation (e.g. 18 before 18a before 19)
+const sortedTitles = [...byTitle.entries()].sort(([a], [b]) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+);
 
 const totalSections = allStatutes.length;
 const totalTitles = byTitle.size;

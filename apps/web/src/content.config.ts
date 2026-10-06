@@ -6,7 +6,7 @@ const statutes = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './content-data/statutes' }),
   schema: z.object({
     title: z.string(),
-    usc_title: z.number(),
+    usc_title: z.union([z.string(), z.number()]).transform((val) => String(val)),
     usc_section: z.string(),
     chapter: z.number(),
     current_through: z.string(),

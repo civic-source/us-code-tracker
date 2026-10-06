@@ -12,7 +12,7 @@ export type SectionStatus = z.infer<typeof SectionStatusSchema>;
 /** Zod schema for YAML frontmatter validation */
 export const FrontmatterSchema = z.object({
   title: z.string().min(1),
-  usc_title: z.number().int().positive(),
+  usc_title: z.union([z.string().min(1), z.number().int().positive()]).transform((val) => String(val)),
   usc_section: z.string().min(1),
   chapter: z.number().int().nonnegative(),
   current_through: z.string().default('Unknown'),
@@ -172,11 +172,22 @@ function yamlQuote(value: string): string {
 }
 
 /** Generate YAML frontmatter string from validated data */
-export function generateFrontmatter(data: Frontmatter): string {
+export function generateFrontmatter(data: {
+  title: string;
+  usc_title: string | number;
+  usc_section: string;
+  chapter: number;
+  current_through: string;
+  classification: string;
+  generated_at: string;
+  status: SectionStatus;
+}): string {
+  const titleStr = String(data.usc_title);
+  const formattedTitle = /^\d+$/.test(titleStr) ? titleStr : yamlQuote(titleStr);
   const lines = [
     '---',
     `title: ${yamlQuote(data.title)}`,
-    `usc_title: ${data.usc_title}`,
+    `usc_title: ${formattedTitle}`,
     `usc_section: ${yamlQuote(data.usc_section)}`,
     `chapter: ${data.chapter}`,
     `current_through: ${yamlQuote(data.current_through)}`,
@@ -382,13 +393,12 @@ export function generateMarkdownForSection(
   const heading = extractHeading(sectionChildren);
   const now = new Date().toISOString();
 
-  const uscTitle = parseInt(titleNum, 10) || 0;
   const chapterInt = parseInt(chapterNum, 10) || 0;
 
   const sectionTitle = `Section ${sectionNum}${heading ? ' - ' + heading : ''}`;
   const frontmatter = FrontmatterSchema.parse({
     title: sectionTitle,
-    usc_title: Math.max(uscTitle, 1),
+    usc_title: String(titleNum).trim() || '1',
     usc_section: sectionNum,
     chapter: chapterInt,
     current_through: currentThrough || 'Unknown',

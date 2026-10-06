@@ -10,7 +10,7 @@ export async function getStaticPaths() {
   const entries = await getCollection('statutes');
 
   // Group by usc_title
-  const byTitle = new Map<number, typeof entries>();
+  const byTitle = new Map<string, typeof entries>();
   for (const entry of entries) {
     const titleNum = entry.data.usc_title;
     if (!byTitle.has(titleNum)) {
