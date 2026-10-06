@@ -1,5 +1,5 @@
 import { type Result, ok, err } from '@civic-source/types';
-import { type Logger, MAX_RETRIES, BASE_BACKOFF_MS, TokenBucket } from '@civic-source/shared';
+import { type Logger, TokenBucket, fetchWithRetry } from '@civic-source/shared';
 import {
   COURTLISTENER_BASE_URL,
   SEARCH_ENDPOINT,
@@ -133,10 +133,6 @@ function hasResultsArray(data: unknown): data is { results: unknown[] } {
   return Array.isArray(obj['results']);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * CourtListener API client with retry logic and token bucket rate limiting.
  *
@@ -160,7 +156,10 @@ export class CourtListenerClient {
    * Search for opinions mentioning a statute section.
    * Uses full-text search since statute citations are not structured fields.
    */
-  async searchByStatute(section: string): Promise<Result<CourtListenerResult[]>> {
+  async searchByStatute(
+    section: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<Result<CourtListenerResult[]>> {
     if (!this.rateLimiter.tryConsume()) {
       this.logger.warn('Rate limited, waiting for token', { section });
       await this.rateLimiter.waitAndConsume();
@@ -174,10 +173,25 @@ export class CourtListenerClient {
 
     this.logger.info('Searching CourtListener', { section, url: url.toString() });
 
-    const result = await this.fetchWithRetry(url.toString());
-    if (!result.ok) return result;
+    const fetchOptions: { headers: Record<string, string>; logger: Logger; signal?: AbortSignal } = {
+      headers: { Authorization: `Token ${this.token}` },
+      logger: this.logger,
+    };
+    if (options?.signal !== undefined) {
+      fetchOptions.signal = options.signal;
+    }
+    const fetchResult = await fetchWithRetry(url.toString(), fetchOptions);
+    if (!fetchResult.ok) {
+      if (fetchResult.error.message.startsWith('HTTP 401')) {
+        return err(new Error('Invalid API token: authentication failed'));
+      }
+      return fetchResult;
+    }
 
-    const data = result.value;
+    const parsed = await readJsonCapped(fetchResult.value);
+    if (!parsed.ok) return parsed;
+
+    const data = parsed.value;
     if (!hasResultsArray(data)) {
       return ok([]);
     }
@@ -190,51 +204,5 @@ export class CourtListenerClient {
     }
     return ok(valid);
   }
-
-  /** Fetch with exponential backoff retry, including 429 handling */
-  private async fetchWithRetry(url: string): Promise<Result<unknown>> {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const response = await fetch(url, {
-          headers: { Authorization: `Token ${this.token}` },
-        });
-
-        if (response.ok) {
-          const parsed = await readJsonCapped(response);
-          if (!parsed.ok) return parsed;
-          return ok(parsed.value);
-        }
-
-        if (response.status === 401) {
-          return err(new Error('Invalid API token: authentication failed'));
-        }
-
-        if (response.status === 429 && attempt < MAX_RETRIES) {
-          const delayMs = BASE_BACKOFF_MS * Math.pow(2, attempt);
-          this.logger.warn('Rate limited (429), retrying', { url, attempt, delayMs });
-          await sleep(delayMs);
-          continue;
-        }
-
-        if (response.status >= 500 && attempt < MAX_RETRIES) {
-          const delayMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
-          this.logger.warn('Server error, retrying', { url, status: response.status, attempt, delayMs });
-          await sleep(delayMs);
-          continue;
-        }
-
-        return err(new Error(`HTTP ${response.status}: ${response.statusText}`));
-      } catch (error: unknown) {
-        if (attempt < MAX_RETRIES) {
-          const delayMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
-          this.logger.warn('Network error, retrying', { url, attempt, delayMs });
-          await sleep(delayMs);
-          continue;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        return err(new Error(`Network error after ${MAX_RETRIES} attempts: ${message}`));
-      }
-    }
-    return err(new Error(`Failed after ${MAX_RETRIES} attempts`));
-  }
 }
+

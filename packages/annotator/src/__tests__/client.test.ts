@@ -84,7 +84,20 @@ describe('CourtListenerClient.searchByStatute (#237)', () => {
     if (!result.ok) return;
     expect(result.value).toEqual([]);
   });
+
+  it('aborts immediately when signal is cancelled without retrying (#223 item 2)', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const client = new CourtListenerClient({ token: 't', logger: createLogger('test', 'error') });
+    const result = await client.searchByStatute('18 U.S.C. 111', { signal: controller.signal });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.name).toBe('AbortError');
+  });
 });
+
 
 describe('readJsonCapped — response size cap (#223 item 3)', () => {
   const CAP = MAX_API_RESPONSE_BYTES;
