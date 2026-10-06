@@ -3,6 +3,7 @@ import '../styles/global.css';
 import '@fontsource/public-sans/400.css';
 import '@fontsource/public-sans/500.css';
 import '@fontsource/public-sans/600.css';
+import CivicBanner from '../components/CivicBanner.astro';
 import ThemeToggle from '../components/ThemeToggle.svelte';
 import SearchBar from '../components/SearchBar.svelte';
 import BackToTop from '../components/BackToTop.svelte';
@@ -65,31 +66,39 @@ const titleEntries = Object.entries(TITLE_NAMES)
       })();
     </script>
   </head>
-  <body class="h-full bg-warm-white text-slate dark:bg-navy-dark dark:text-gray-100">
+  <body class="flex min-h-screen flex-col bg-warm-white text-slate antialiased dark:bg-[#091420] dark:text-gray-100">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded focus:bg-navy focus:px-4 focus:py-2 focus:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-navy">
       Skip to content
     </a>
-    <div class="flex h-full flex-col lg:flex-row">
-      <!-- Sidebar — nav column -->
-      <aside class="w-full border-b border-gray-200 bg-warm-gray font-sans lg:w-64 lg:flex-shrink-0 lg:border-b-0 lg:border-r dark:border-gray-800 dark:bg-[#0B1926] lg:flex lg:flex-col lg:h-full 2xl:w-60">
-        <div class="flex items-center justify-between p-4 lg:flex-col lg:items-start lg:gap-4">
-          <a href={base} class="text-lg font-bold text-navy dark:text-amber">
-            US Code Tracker
-          </a>
-          <span class="hidden text-xs text-slate dark:text-gray-500 lg:inline">Current through PL 119-73</span>
-          <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch">
+
+    <!-- USWDS Civic Transparency Banner atop all views -->
+    <CivicBanner />
+
+    <div class="flex flex-1 min-h-0 flex-col lg:flex-row">
+      <!-- Sidebar — USWDS-aligned usa-sidenav navigation -->
+      <aside class="w-full border-b border-gray-200 bg-warm-gray font-sans lg:w-64 lg:flex-shrink-0 lg:border-b-0 lg:border-r dark:border-gray-800 dark:bg-[#0B1926] lg:flex lg:flex-col lg:h-auto 2xl:w-64">
+        <div class="flex items-center justify-between p-4 lg:flex-col lg:items-start lg:gap-3">
+          <div class="flex items-center gap-2">
+            <a href={base} class="text-lg font-bold tracking-tight text-navy dark:text-amber">
+              US Code Tracker
+            </a>
+          </div>
+          <span class="hidden rounded bg-navy/10 px-2 py-0.5 text-[11px] font-medium text-navy dark:bg-amber/15 dark:text-amber lg:inline">
+            Current through PL 119-73
+          </span>
+          <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch lg:pt-1">
             <ThemeToggle client:load />
             <SearchBar client:load />
           </div>
         </div>
         <button
           id="menu-toggle"
-          class="mx-4 mb-2 rounded border border-gray-300 px-2 py-1 text-xs font-sans lg:hidden dark:border-gray-700"
+          class="mx-4 mb-2 rounded border border-gray-300 px-2.5 py-1 text-xs font-medium font-sans lg:hidden dark:border-gray-700 dark:text-gray-200"
           aria-expanded="false"
           aria-controls="main-nav"
           aria-label="Open menu"
         >
-          Menu
+          Browse Titles Menu
         </button>
         <nav id="main-nav" class="hidden px-4 pb-4 font-sans lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" aria-label="Main navigation">
           <label for="title-filter" class="sr-only">Filter titles</label>
@@ -98,18 +107,20 @@ const titleEntries = Object.entries(TITLE_NAMES)
             id="title-filter"
             placeholder="Filter titles…"
             autocomplete="off"
-            class="mb-2 w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 placeholder-gray-400 focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-amber dark:focus:ring-amber"
+            class="mb-2.5 w-full rounded border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-900 placeholder-gray-400 focus:border-state-blue focus:outline-none focus:ring-1 focus:ring-state-blue dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-amber dark:focus:ring-amber"
           />
-          <ul id="title-list" class="space-y-0.5 overflow-y-auto text-sm lg:max-h-[calc(100vh-280px)]">
+          <ul id="title-list" class="space-y-0.5 overflow-y-auto text-xs lg:max-h-[calc(100vh-270px)]">
             {titleEntries.map(({ num, name }) => {
               const isActive = currentTitleNum === num;
               const linkClass = isActive
-                ? 'block rounded px-2 py-1 bg-navy/10 font-semibold text-navy dark:bg-amber/10 dark:text-amber'
-                : 'block rounded px-2 py-1 text-slate hover:bg-gray-200 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber';
+                ? 'block rounded-r border-l-3 border-state-blue bg-navy/10 px-2.5 py-1.5 font-semibold text-navy dark:border-amber dark:bg-amber/15 dark:text-amber'
+                : 'block rounded px-2.5 py-1 text-slate hover:bg-gray-200 hover:text-navy dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-amber';
               return (
                 <li data-title-num={num} data-title-name={name.toLowerCase()}>
                   <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
-                    {num} &mdash; {name}
+                    <span class="font-mono text-[11px] font-medium text-gray-500 dark:text-gray-400">{num}</span>
+                    <span class="mx-1">&mdash;</span>
+                    <span>{name}</span>
                   </a>
                 </li>
               );
@@ -118,54 +129,55 @@ const titleEntries = Object.entries(TITLE_NAMES)
         </nav>
       </aside>
 
-      <!-- Main content — becomes flex at 2xl for 3-column precedent panel -->
+      <!-- Main content — flex container -->
       <main id="main-content" class="min-h-0 flex-1 overflow-y-auto 2xl:flex 2xl:flex-row">
         <article class="prose prose-lg prose-gray mx-auto max-w-3xl p-6 font-serif leading-relaxed dark:prose-invert lg:p-10 2xl:mx-0 2xl:flex-1 2xl:min-w-0">
           <slot />
         </article>
 
         <!-- Footer -->
-        <footer class="border-t border-gray-200 px-6 py-8 font-sans text-sm text-slate dark:border-gray-800 dark:text-gray-400">
+        <footer class="border-t border-gray-200 bg-warm-gray px-6 py-8 font-sans text-xs text-slate dark:border-gray-800 dark:bg-[#07131F] dark:text-gray-400">
           <div class="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
             <div>
-              <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">About</h2>
-              <p class="text-xs leading-relaxed">
-                Independent civic tech project tracking changes to U.S. federal law.
+              <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">About US Code Tracker</h2>
+              <p class="leading-relaxed">
+                Independent civic open-data initiative tracking every change to the United States Code with transparent Git-based version control.
               </p>
-              <p class="mt-1 text-xs leading-relaxed">
-                Not affiliated with any government agency.
+              <p class="mt-1.5 leading-relaxed text-gray-500 dark:text-gray-400">
+                Not affiliated with or endorsed by any U.S. government agency.
               </p>
             </div>
             <div>
-              <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">Resources</h2>
-              <ul class="space-y-2 text-xs">
+              <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">Authoritative Sources</h2>
+              <ul class="space-y-1.5">
                 <li>
-                  <a href="https://uscode.house.gov/" class="inline-block py-1 underline hover:text-teal" rel="noopener noreferrer" target="_blank">
-                    Official U.S. Code (OLRC)
+                  <a href="https://uscode.house.gov/" class="underline hover:text-teal dark:hover:text-teal-bright" rel="noopener noreferrer" target="_blank">
+                    Official U.S. Code (House OLRC) &rarr;
                   </a>
                 </li>
                 <li>
-                  <a href="https://github.com/civic-source/us-code" class="inline-block py-1 underline hover:text-teal" rel="noopener noreferrer" target="_blank">
-                    Source Data (GitHub)
+                  <a href="https://www.govinfo.gov/" class="underline hover:text-teal dark:hover:text-teal-bright" rel="noopener noreferrer" target="_blank">
+                    GPO GovInfo Portal &rarr;
                   </a>
                 </li>
                 <li>
-                  <a href="https://github.com/civic-source/us-code-tracker" class="inline-block py-1 underline hover:text-teal" rel="noopener noreferrer" target="_blank">
-                    Pipeline Code (GitHub)
+                  <a href="https://github.com/civic-source/us-code" class="underline hover:text-teal dark:hover:text-teal-bright" rel="noopener noreferrer" target="_blank">
+                    Source Statutory Data (GitHub) &rarr;
                   </a>
                 </li>
               </ul>
             </div>
             <div>
-              <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">Legal</h2>
-              <p class="text-xs leading-relaxed">Code: Apache 2.0 License</p>
-              <p class="mt-1 text-xs leading-relaxed">Data: CC0 Public Domain</p>
-              <p class="mt-1 text-xs leading-relaxed">Current through PL 119-73</p>
+              <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">Open Licensing</h2>
+              <p class="leading-relaxed">Pipeline Code: Apache 2.0 License</p>
+              <p class="mt-0.5 leading-relaxed">Statutory Text: CC0 1.0 Public Domain</p>
+              <p class="mt-1.5 font-medium text-navy dark:text-amber">Release Currency: Pub. L. 119-73</p>
             </div>
           </div>
         </footer>
       </main>
     </div>
+
     <script is:inline>
       (function () {
         // Mobile menu toggle

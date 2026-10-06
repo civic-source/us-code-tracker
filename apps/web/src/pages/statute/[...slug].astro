@@ -5,6 +5,8 @@ import DiffViewer from '../../components/DiffViewer.svelte';
 import PrecedentDrawer from '../../components/PrecedentDrawer.svelte';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import ArticleToc from '../../components/ArticleToc.svelte';
+import SummaryBox from '../../components/SummaryBox.astro';
+import ReadingToolbar from '../../components/ReadingToolbar.svelte';
 
 export async function getStaticPaths() {
   const entries = await getCollection('statutes');
@@ -167,55 +169,18 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     { label: `\u00A7 ${usc_section}` },
   ]} />
 
-  <!-- Metadata bar -->
-  <div class="not-prose mb-4 font-sans">
-    <p class="mb-2 text-sm font-medium text-navy dark:text-amber">{classification}</p>
-    <div class="flex flex-wrap items-center gap-3 text-xs">
-      <span class="rounded bg-navy/10 px-2 py-1 text-navy dark:bg-amber/10 dark:text-amber">
-        Title {usc_title}
-      </span>
-      <span class="rounded bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-        Chapter {chapter}
-      </span>
-      <span class="rounded bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-        Current through {current_through}
-      </span>
-      {wordCount > 0 && (
-        <span class="rounded bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-          ~{readingTimeMin} min read
-        </span>
-      )}
-      {formattedDate && (
-        <span class="rounded bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-          Last updated: {formattedDate}
-        </span>
-      )}
-      <a
-        href={olrcUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="rounded bg-teal/10 px-2 py-1 text-teal hover:bg-teal/20 transition-colors"
-        aria-label={`View § ${usc_section} on the Official U.S. Code, opens in new tab`}
-      >
-        View on OLRC &rarr;
-      </a>
-      <button
-        onclick="window.print()"
-        class="rounded bg-gray-100 px-2 py-1 text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-        aria-label="Print this section"
-      >
-        Print
-      </button>
-      <button
-        class="rounded bg-gray-100 px-2 py-1 text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-        aria-label="Copy citation to clipboard"
-        data-citation={classification}
-        onclick="navigator.clipboard.writeText(this.dataset.citation).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy cite',2000)}).catch(()=>{})"
-      >
-        Copy cite
-      </button>
-    </div>
-  </div>
+  <!-- USWDS Statutory Summary Box -->
+  <SummaryBox
+    classification={classification}
+    uscTitle={usc_title}
+    uscSection={usc_section}
+    chapter={chapter}
+    currentThrough={current_through}
+    status={status}
+    readingTimeMin={readingTimeMin}
+    lastUpdated={formattedDate}
+    olrcUrl={olrcUrl}
+  />
 
   <!-- Repealed / Reserved / Omitted / Transferred / Renumbered notices -->
   <!-- Each notice uses role="status", an icon, and explicit text label alongside color for colorblind accessibility -->
@@ -306,6 +271,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
   <div class="not-prose flex gap-8">
     <!-- Main statute content -->
     <div class="prose prose-gray min-w-0 flex-1 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-teal [&>h1]:pt-4">
+      <ReadingToolbar client:load />
       <Content />
     </div>
 

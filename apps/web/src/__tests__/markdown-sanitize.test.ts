@@ -12,7 +12,9 @@ import astroConfig from '../../astro.config.mjs';
  */
 describe('markdown sanitization wiring', () => {
   it('astro config registers rehype-sanitize as a markdown rehype plugin', () => {
-    const plugins = astroConfig.markdown?.rehypePlugins ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const unifiedOptions = (astroConfig.markdown as any)?.unified?.options;
+    const plugins = unifiedOptions?.rehypePlugins ?? (astroConfig.markdown as any)?.rehypePlugins ?? [];
     expect(plugins).toContain(rehypeSanitize);
   });
 });
