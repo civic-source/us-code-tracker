@@ -10,6 +10,7 @@ import {
   generateSectionBody,
   generateMarkdownForSection,
   XmlToMarkdownAdapter,
+  formatSourceCredit,
 } from '../index.js';
 
 // --- Minimal USLM XML fixtures ---
@@ -548,5 +549,61 @@ describe('reformatInlineLists', () => {
     expect(result).toContain('- **(c)** Program authority');
     expect(result).toContain('  - **(1)** In general The Secretary shall allocate funds.');
     expect(result).toContain('  - **(2)** Other For any fiscal year.');
+  });
+
+  describe('formatSourceCredit', () => {
+    it('formats source credit with Statutes at Large and Public Law links', () => {
+      const children = [
+        { '#text': '(' },
+        {
+          ref: [{ '#text': 'July 30, 1947, ch. 388' }],
+          ':@': { href: '/us/act/1947-07-30/ch388' },
+        },
+        { '#text': ',' },
+        {
+          ref: [{ '#text': '61 Stat. 633' }],
+          ':@': { href: '/us/stat/61/633' },
+        },
+        { '#text': ';' },
+        {
+          ref: [{ '#text': 'Pub. L. 111-148' }],
+          ':@': { href: '/us/pl/111/148' },
+        },
+        { '#text': '.)' },
+      ];
+
+      const formatted = formatSourceCredit(children);
+      expect(formatted).toBe(
+        '*(July 30, 1947, ch. 388, [61 Stat. 633](https://www.govinfo.gov/link/statute/61/633); [Pub. L. 111-148](https://www.govinfo.gov/link/plaw/111/public/148).)*'
+      );
+    });
+
+    it('handles empty children gracefully', () => {
+      expect(formatSourceCredit([])).toBe('');
+    });
+
+    it('integrates source credit into section body', () => {
+      const sectionNodes = [
+        { num: [{ '#text': '101' }] },
+        { heading: [{ '#text': 'Definitions' }] },
+        { content: [{ '#text': 'In this section, terms apply.' }] },
+        {
+          sourceCredit: [
+            { '#text': '(' },
+            {
+              ref: [{ '#text': '84 Stat. 1236' }],
+              ':@': { '@_href': '/us/stat/84/1236' },
+            },
+            { '#text': '.)' },
+          ],
+        },
+      ];
+
+      const body = generateSectionBody(sectionNodes);
+      expect(body).toContain('# 101 Definitions');
+      expect(body).toContain('In this section, terms apply.');
+      expect(body).toContain('## Source Credit');
+      expect(body).toContain('*([84 Stat. 1236](https://www.govinfo.gov/link/statute/84/1236).)*');
+    });
   });
 });

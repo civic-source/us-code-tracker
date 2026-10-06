@@ -12,6 +12,7 @@ export {
   FrontmatterSchema,
   SectionStatusSchema,
   detectSectionStatus,
+  formatSourceCredit,
 } from './markdown-generator.js';
 export type { Frontmatter, MarkdownFile, SectionStatus } from './markdown-generator.js';
 export { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.js';
