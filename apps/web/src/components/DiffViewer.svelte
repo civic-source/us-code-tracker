@@ -4,6 +4,7 @@
     isRateLimited, formatTagName, extractYear,
     type CommitInfo, type DiffLine, type ReleaseTag,
   } from "../lib/github";
+  import { computeWordDiff, type WordToken } from "../lib/word-diff";
 
   interface SectionDiff {
     from: string;
@@ -24,10 +25,6 @@
     changedCount: number;
   }
 
-  interface WordToken {
-    type: "context" | "add" | "del";
-    text: string;
-  }
 
   interface RedlineRow {
     type: "paired" | "del" | "add" | "context";
@@ -71,49 +68,6 @@
   let diffMode = $state<"redline" | "split" | "raw">("redline");
   const HISTORY_PREVIEW_COUNT = 10;
 
-  /** Simple word/punctuation tokenizer */
-  function tokenizeWords(text: string): string[] {
-    return text.match(/\w+|\s+|[^\w\s]/g) || [text];
-  }
-
-  /** Longest Common Subsequence word-level diff */
-  function computeWordDiff(oldText: string, newText: string): WordToken[] {
-    const a = tokenizeWords(oldText);
-    const b = tokenizeWords(newText);
-    const m = a.length;
-    const n = b.length;
-
-    // LCS table
-    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-    for (let i = 0; i < m; i++) {
-      for (let j = 0; j < n; j++) {
-        if (a[i] === b[j]) {
-          dp[i + 1]![j + 1] = dp[i]![j]! + 1;
-        } else {
-          dp[i + 1]![j + 1] = Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
-        }
-      }
-    }
-
-    // Backtrack to build tokens
-    const tokens: WordToken[] = [];
-    let i = m;
-    let j = n;
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-        tokens.unshift({ type: "context", text: a[i - 1]! });
-        i--;
-        j--;
-      } else if (j > 0 && (i === 0 || dp[i]![j - 1]! >= dp[i - 1]![j]!)) {
-        tokens.unshift({ type: "add", text: b[j - 1]! });
-        j--;
-      } else if (i > 0 && (j === 0 || dp[i]![j - 1]! < dp[i - 1]![j]!)) {
-        tokens.unshift({ type: "del", text: a[i - 1]! });
-        i--;
-      }
-    }
-    return tokens;
-  }
 
   /** Build redline rows by pairing consecutive del and add lines */
   let redlineRows = $derived.by<RedlineRow[]>(() => {
