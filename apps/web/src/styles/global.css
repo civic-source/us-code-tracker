@@ -7,21 +7,32 @@
   --font-serif: "Georgia", "Times New Roman", serif;
   --font-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  /* USWDS-influenced civic palette */
-  --color-navy: #1A4480;
-  --color-navy-dark: #112F4E;
-  --color-navy-light: #D9E8F6;
-  --color-teal: #0F6E56;
-  --color-teal-bright: #70E8B1;
+
+  /* USWDS 3.x official civic palette */
+  --color-navy: #1A4480;            /* blue-warm-70v — primary brand, headings */
+  --color-navy-dark: #112F4E;       /* blue-warm-80 — high contrast ink text */
+  --color-navy-light: #D9E8F6;      /* blue-10 — subtle civic blue tint */
+  --color-state-blue: #005EA2;      /* blue-60v — interactive links, active nav */
+  --color-state-blue-hover: #1A4480;/* blue-70v — link hover */
+  
+  --color-teal: #0F6E56;            /* mint-50 — in-force, success, diff additions */
+  --color-teal-bright: #70E8B1;     /* mint-cool-40v — dark-mode contrast teal */
+  --color-teal-light: #D8F2EA;      /* mint-10 — diff additions background */
+
   /* Darkened from #C2850C (2.82:1) to pass WCAG AA (4.5:1) on warm-white (#FAFAF8) — ratio ≈ 4.80:1 */
-  --color-amber: #8B6914;
-  --color-amber-light: #FEF0C8;
-  --color-crimson: #B50909;
-  --color-crimson-light: #FDE0DB;
-  --color-slate: #3D4551;
-  /* Warm neutrals — evokes legal publishing */
-  --color-warm-white: #FAFAF8;
-  --color-warm-gray: #F0EDE8;
+  --color-amber: #8B6914;           /* gold-50v — accessible alert text */
+  --color-amber-light: #FEF0C8;     /* gold-10 — warning tint, anchor target flash */
+  --color-gold: #FFBE2E;            /* gold-20v — icon fills */
+
+  --color-crimson: #B50909;         /* red-warm-50v — repealed status, diff deletions */
+  --color-crimson-light: #FDE0DB;   /* red-10 — repealed notice, diff del background */
+
+  --color-slate: #3D4551;           /* gray-warm-70 — supporting text, captions */
+
+  /* USWDS warm neutrals — parchment tone prevents reader glare */
+  --color-warm-white: #FAFAF8;      /* gray-warm-2 — page background */
+  --color-warm-gray: #F0EDE8;       /* gray-warm-5 — cards, sidebars, banner */
+  --color-warm-border: #D1CEC8;     /* gray-warm-20 — dividers */
 }
 
 /* Semantic color tokens — light mode */
@@ -31,9 +42,9 @@
   --color-text-muted: #5a6474;        /* slate lightened — captions, metadata */
   --color-surface: #FAFAF8;           /* warm-white — page background */
   --color-surface-elevated: #F0EDE8;  /* warm-gray — cards, sidebars */
-  --color-border: #d1cec8;            /* warm-gray darkened — dividers */
-  --color-diff-add: #22863a;          /* GitHub-standard diff green */
-  --color-diff-remove: #cb2431;       /* GitHub-standard diff red */
+  --color-border: #d1cec8;            /* warm-border — dividers */
+  --color-diff-add: #0F6E56;          /* USWDS mint/teal diff green */
+  --color-diff-remove: #B50909;       /* USWDS crimson diff red */
 }
 
 /* Semantic color tokens — dark mode */
@@ -44,20 +55,50 @@
   --color-surface: #0d1b2a;           /* deep navy — page background */
   --color-surface-elevated: #112F4E;  /* navy-dark — cards, sidebars */
   --color-border: #1e3a5a;            /* navy mid — dividers */
-  --color-diff-add: #3fb950;          /* GitHub dark-mode diff green */
-  --color-diff-remove: #f85149;       /* GitHub dark-mode diff red */
+  --color-diff-add: #70E8B1;          /* bright mint diff green */
+  --color-diff-remove: #f85149;       /* bright crimson diff red */
 }
 
 /* Legal text readability — 19px desktop, 16px mobile */
 .prose {
   font-size: 1.1875rem; /* 19px — optimal for legal text readability */
-  line-height: 1.5; /* Gov.uk uses 1.32 (25/19px), legal docs use 1.5 — balances density + readability */
+  line-height: 1.55; /* Balances density + eye-tracking across lines */
   max-width: min(72ch, 100%);
+  color: var(--color-text-primary);
+}
+
+/* Reader measure switcher options */
+.measure-standard {
+  max-width: min(72ch, 100%) !important;
+}
+
+.measure-wide {
+  max-width: min(92ch, 100%) !important;
+}
+
+/* Reader font family switcher */
+.font-reading-serif {
+  font-family: var(--font-serif) !important;
+}
+
+.font-reading-sans {
+  font-family: var(--font-sans) !important;
+}
+
+/* Reader font scale switcher */
+.text-scale-sm {
+  font-size: 1.0625rem !important; /* 17px */
+}
+.text-scale-base {
+  font-size: 1.1875rem !important; /* 19px */
+}
+.text-scale-lg {
+  font-size: 1.3125rem !important; /* 21px */
 }
 
 /* On wider screens, allow more width for deeply nested content */
 @media (min-width: 1280px) {
-  .prose {
+  .prose:not(.measure-standard) {
     max-width: min(80ch, 100%);
   }
 }
@@ -77,6 +118,11 @@
   font-variant-numeric: oldstyle-nums;
   font-feature-settings: "case" 1;
   text-wrap: balance;
+  color: var(--color-navy);
+}
+
+:where(.dark, .dark *) .prose h1 {
+  color: #97C4F5;
 }
 
 .prose h2 {
@@ -85,6 +131,11 @@
   margin-top: 1.75em;
   margin-bottom: 0.5em;
   text-wrap: balance;
+  color: var(--color-navy-dark);
+}
+
+:where(.dark, .dark *) .prose h2 {
+  color: var(--color-text-primary);
 }
 
 .prose h3 {
@@ -95,34 +146,55 @@
   text-wrap: balance;
 }
 
-/* Nested list styling improvements — visible in both light and dark mode */
+/* ==========================================================================
+   Statutory Hierarchy: "Hanging Rail" Guide Lines
+   Solves the mobile "pyramid of doom" indentation while providing visual rails.
+   ========================================================================== */
 .prose ul {
   list-style: none;
   padding-left: 0;
 }
 
-.prose ul ul {
-  padding-left: 1.75em;
-  border-left: 2px solid var(--color-teal);
-  margin-left: 0.5em;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+/* Level 1: Subsections (a), (b), (c) */
+.prose > ul > li {
+  margin-top: 0.85em;
+  margin-bottom: 0.85em;
+  position: relative;
 }
 
-/* Dark mode: slightly brighter teal border for nested lists */
-:where(.dark, .dark *) .prose ul ul {
+/* Level 2+: Paragraphs (1), Subparagraphs (A), Clauses (i) */
+.prose ul ul {
+  padding-left: 1.5rem;
+  border-left: 2px solid var(--color-border);
+  margin-left: 0.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.prose ul ul:hover {
+  border-left-color: var(--color-teal);
+}
+
+:where(.dark, .dark *) .prose ul ul:hover {
   border-left-color: var(--color-teal-bright);
 }
 
-/* At deep nesting, reduce padding to prevent horizontal overflow */
-.prose ul ul ul ul {
-  padding-left: 1em;
+/* Deep nesting reductions */
+.prose ul ul ul {
+  padding-left: 1.25rem;
+  margin-left: 0.25rem;
 }
 
-/* Legal text long paragraphs — list item spacing */
+.prose ul ul ul ul {
+  padding-left: 1rem;
+  margin-left: 0.15rem;
+}
+
+/* Legal text list item spacing */
 .prose li {
-  margin-top: 0.35em;
-  margin-bottom: 0.35em;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
 }
 
 .prose li > p {
@@ -132,14 +204,14 @@
 
 /* Code/reference blocks — subtle background tint */
 .prose code {
-  background-color: rgb(74 85 104 / 10%); /* slate at 10% opacity */
+  background-color: rgb(74 85 104 / 10%);
   padding: 0.15em 0.35em;
   border-radius: 0.25em;
   font-size: 0.875em;
 }
 
 :where(.dark, .dark *) .prose code {
-  background-color: rgb(27 58 92 / 50%); /* navy at 50% opacity */
+  background-color: rgb(27 58 92 / 50%);
   color: var(--color-gray-200, #e2e8f0);
 }
 
@@ -170,22 +242,59 @@ main, article, section {
   min-width: 0;
 }
 
-/* Mobile — comprehensive fixes */
+/* ==========================================================================
+   Legal Redline Diff Styling (Word-Level / Intraline)
+   ========================================================================== */
+del.diff-del {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background-color: var(--color-crimson-light);
+  color: var(--color-crimson);
+  padding: 0.05em 0.25em;
+  border-radius: 0.2em;
+  margin: 0 0.05em;
+}
+
+ins.diff-add {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  background-color: var(--color-teal-light);
+  color: var(--color-teal);
+  padding: 0.05em 0.25em;
+  border-radius: 0.2em;
+  margin: 0 0.05em;
+}
+
+:where(.dark, .dark *) del.diff-del {
+  background-color: rgba(181, 9, 9, 0.3);
+  color: #fca5a5;
+}
+
+:where(.dark, .dark *) ins.diff-add {
+  background-color: rgba(15, 110, 86, 0.3);
+  color: var(--color-teal-bright);
+}
+
+/* ==========================================================================
+   Mobile — Responsive Layout Adjustments
+   ========================================================================== */
 @media (max-width: 768px) {
   .prose {
     max-width: min(95vw, 65ch);
   }
 
-  /* Reduce nested list indentation aggressively */
+  /* Flatten nested list indentation on small screens */
   .prose ul ul {
     padding-left: 0.75rem;
-    margin-left: 0;
+    margin-left: 0.25rem;
   }
   .prose ul ul ul {
     padding-left: 0.5rem;
+    margin-left: 0.15rem;
   }
   .prose ul ul ul ul {
     padding-left: 0.375rem;
+    margin-left: 0;
   }
 
   /* Title browse — section lists in expanded chapters */
@@ -236,7 +345,7 @@ main, article, section {
   }
 }
 
-/* Sticky section headers on chapter pages — shows which section user is reading */
+/* Sticky section headers on chapter pages */
 .sticky-section-header {
   position: sticky;
   top: 0;
@@ -264,7 +373,6 @@ main, article, section {
   }
 }
 
-
 /* Print styles — page breaks, clean layout */
 @media print {
   aside, footer, nav, .not-prose { display: none !important; }
@@ -278,7 +386,8 @@ main, article, section {
 
 /* Subsection anchor highlighting — gold flash when arriving via #subsec-a link */
 [id^="subsec-"] {
-  scroll-margin-top: 4rem;
+  scroll-margin-top: 4.5rem;
+  transition: background-color 0.4s ease;
 }
 
 [id^="subsec-"]:target {
@@ -289,7 +398,7 @@ main, article, section {
 }
 
 :where(.dark, .dark *) [id^="subsec-"]:target {
-  background: rgba(194, 133, 12, 0.15);
+  background: rgba(139, 105, 20, 0.25);
 }
 
 /* Respect reduced motion preference */

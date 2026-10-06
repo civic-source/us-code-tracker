@@ -17,7 +17,7 @@ export async function getStaticPaths() {
     byTitleChapter.get(key)!.push(entry);
   }
 
-  return [...byTitleChapter.entries()].map(([key, chapterEntries]) => {
+  return [...byTitleChapter.values()].map((chapterEntries) => {
     const titleNum = chapterEntries[0]!.data.usc_title;
     const chapterNum = chapterEntries[0]!.data.chapter;
     return {

@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import rehypeSanitize from 'rehype-sanitize';
+import { unified } from '@astrojs/markdown-remark';
 
 export default defineConfig({
   integrations: [svelte()],
@@ -13,6 +14,8 @@ export default defineConfig({
   // (e.g. <img onerror>, <script>) and disallows non-http(s) link protocols
   // (e.g. [x](javascript:...)), closing the stored-XSS surface at render time.
   markdown: {
-    rehypePlugins: [rehypeSanitize],
+    unified: unified({
+      rehypePlugins: [rehypeSanitize],
+    }),
   },
 });

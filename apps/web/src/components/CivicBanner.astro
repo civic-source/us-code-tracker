@@ -1,0 +1,56 @@
+---
+// USWDS-aligned Civic Transparency Banner
+// Clarifies independent civic tech status while establishing public trust and data provenance.
+---
+
+<aside aria-label="Data source and independence disclosure" class="not-prose border-b border-warm-border bg-warm-gray text-xs text-slate font-sans dark:border-gray-800 dark:bg-[#07131F] dark:text-gray-300">
+  <div class="mx-auto max-w-7xl px-4 py-1.5 lg:px-6">
+    <details class="group">
+      <summary class="flex cursor-pointer list-none items-center justify-between gap-2 select-none focus:outline-none focus:ring-2 focus:ring-state-blue rounded py-0.5">
+        <div class="flex items-center gap-2">
+          <!-- Civic Shield SVG -->
+          <svg class="h-4 w-4 shrink-0 text-navy dark:text-amber" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V8.26l7-3.89v7.62z" />
+          </svg>
+          <span class="text-[11px] sm:text-xs">
+            <strong class="font-semibold text-navy dark:text-gray-100">US Code Tracker:</strong>
+            Independent civic tech tracking federal statutory law. Not affiliated with the U.S. Government.
+          </span>
+        </div>
+        <span class="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-state-blue hover:underline dark:text-amber">
+          <span>How our data works</span>
+          <svg class="h-3 w-3 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </span>
+      </summary>
+
+      <div class="mt-2.5 grid grid-cols-1 gap-4 border-t border-gray-200 pt-2.5 pb-2 text-[11px] leading-relaxed sm:grid-cols-2 dark:border-gray-800">
+        <div class="flex gap-2.5">
+          <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy/10 font-bold text-[10px] text-navy dark:bg-amber/15 dark:text-amber">
+            1
+          </div>
+          <div>
+            <p class="font-semibold text-navy dark:text-gray-100">Official Upstream Source</p>
+            <p class="mt-0.5 text-slate dark:text-gray-400">
+              Statutory text is synchronized verbatim from official XML releases published by the
+              <a href="https://uscode.house.gov" target="_blank" rel="noopener noreferrer" class="text-teal underline hover:text-navy dark:text-teal-bright dark:hover:text-white">Office of the Law Revision Counsel (OLRC)</a>
+              of the U.S. House of Representatives. For court filings, cite the official GPO or OLRC editions.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2.5">
+          <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal/10 font-bold text-[10px] text-teal dark:bg-teal/20 dark:text-teal-bright">
+            2
+          </div>
+          <div>
+            <p class="font-semibold text-navy dark:text-gray-100">Reproducible Git Version Control</p>
+            <p class="mt-0.5 text-slate dark:text-gray-400">
+              Every amendment and Public Law update is committed into an open Git repository. We calculate word- and line-level diffs between releases so researchers, journalists, and citizens can inspect exact statutory text modifications.
+            </p>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+</aside>
