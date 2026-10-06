@@ -51,19 +51,16 @@ const sectionMeta = sortedSections.map((entry) => {
   return { entry, isInactive, statusLabel };
 });
 
-// Only render full content at build time for small chapters (≤50 sections)
-// Large chapters render on-demand via the toggle
+// Statically compile all section bodies into the chapter rollup at build time
+const renderedSections = await Promise.all(
+  sectionMeta.map(async ({ entry, isInactive, statusLabel }) => {
+    const { Content } = await render(entry);
+    return { entry, Content, isInactive, statusLabel };
+  })
+);
+
 const INLINE_THRESHOLD = 50;
 const isSmallChapter = sortedSections.length <= INLINE_THRESHOLD;
-
-const renderedSections = isSmallChapter
-  ? await Promise.all(
-      sectionMeta.map(async ({ entry, isInactive, statusLabel }) => {
-        const { Content } = await render(entry);
-        return { entry, Content, isInactive, statusLabel };
-      })
-    )
-  : [];
 
 const base = import.meta.env.BASE_URL;
 const activeCount = sectionMeta.filter(s => !s.isInactive).length;
@@ -135,42 +132,36 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
     </ul>
   </div>
 
-  <!-- Full chapter content — rendered inline for small chapters, on-demand for large -->
+  <!-- Full chapter content — statically pre-rendered at build time -->
   <div id="full-content" class:list={[isSmallChapter ? '' : 'hidden', 'mt-6 space-y-8']}>
-    {isSmallChapter ? (
-      renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
-        <article
-          id={`section-${entry.data.usc_section}`}
-          class:list={['scroll-mt-4', isInactive && 'opacity-60']}
-        >
-          <div class="sticky-section-header not-prose mb-2 flex items-start justify-between gap-3">
-            <h2 class="font-serif text-lg font-bold text-navy dark:text-amber">
-              <a href={`${base}statute/${entry.id}/`} class="hover:underline underline-offset-2">
-                &sect; {entry.data.usc_section}. {entry.data.title.replace(/^Section \S+ - /, '')}
-              </a>
-            </h2>
-            <div class="flex shrink-0 items-center gap-2">
-              {statusLabel && (
-                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">{statusLabel}</span>
-              )}
-              <a
-                href={`${base}statute/${entry.id}/`}
-                class="rounded bg-teal/10 px-2 py-0.5 font-sans text-[10px] font-medium text-teal transition-colors hover:bg-teal/20 dark:text-teal-bright"
-              >
-                History &amp; diffs &rarr;
-              </a>
-            </div>
+    {renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
+      <article
+        id={`section-${entry.data.usc_section}`}
+        class:list={['scroll-mt-4', isInactive && 'opacity-60']}
+      >
+        <div class="sticky-section-header not-prose mb-2 flex items-start justify-between gap-3">
+          <h2 class="font-serif text-lg font-bold text-navy dark:text-amber">
+            <a href={`${base}statute/${entry.id}/`} class="hover:underline underline-offset-2">
+              &sect; {entry.data.usc_section}. {entry.data.title.replace(/^Section \S+ - /, '')}
+            </a>
+          </h2>
+          <div class="flex shrink-0 items-center gap-2">
+            {statusLabel && (
+              <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">{statusLabel}</span>
+            )}
+            <a
+              href={`${base}statute/${entry.id}/`}
+              class="rounded bg-teal/10 px-2 py-0.5 font-sans text-[10px] font-medium text-teal transition-colors hover:bg-teal/20 dark:text-teal-bright"
+            >
+              History &amp; diffs &rarr;
+            </a>
           </div>
-          <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
-            <Content />
-          </div>
-        </article>
-      ))
-    ) : (
-      <p id="loading-indicator" class="hidden py-8 text-center font-sans text-sm text-gray-500">
-        Loading full chapter text&hellip;
-      </p>
-    )}
+        </div>
+        <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
+          <Content />
+        </div>
+      </article>
+    ))}
   </div>
 
   <!-- Back to title link -->
@@ -180,126 +171,79 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
     </a>
   </div>
 
-  <!-- Toggle script for large chapters: reveal full text on demand -->
+  <!-- Instant client toggle for large chapters: toggles pre-rendered view without network calls -->
   {!isSmallChapter && (
     <script is:inline>
       (function () {
         var btn = document.getElementById('toggle-full-text');
-        var index = document.getElementById('section-index');
         var content = document.getElementById('full-content');
-        var loading = document.getElementById('loading-indicator');
+        if (!btn || !content) return;
+
         var expanded = false;
 
-        if (!btn || !index || !content) return;
-
-        btn.addEventListener('click', function () {
+        function setExpanded(val) {
+          expanded = val;
           if (expanded) {
-            // Collapse back to index view
+            content.classList.remove('hidden');
+            btn.textContent = 'Hide full chapter';
+          } else {
             content.classList.add('hidden');
             btn.textContent = 'Read full chapter';
-            expanded = false;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return;
           }
+        }
 
-          // Show loading state
-          if (loading) loading.classList.remove('hidden');
-          content.classList.remove('hidden');
-          btn.textContent = 'Show index only';
-          btn.disabled = true;
-
-          // Load section content via individual statute pages
-          var links = index.querySelectorAll('a[href*="/statute/"]');
-          var loaded = 0;
-          var total = links.length;
-
-          // Build content from section detail pages
-          links.forEach(function (link) {
-            var href = link.getAttribute('href');
-            if (!href) { loaded++; return; }
-
-            fetch(href)
-              .then(function (r) { return r.text(); })
-              .then(function (html) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, 'text/html');
-                // Extract the main prose content from the statute page
-                var prose = doc.querySelector('.prose');
-                var heading = doc.querySelector('h1');
-                if (prose) {
-                  var article = document.createElement('article');
-                  article.className = 'scroll-mt-4';
-                  var sectionNum = href.split('/').filter(Boolean).pop() || '';
-                  article.id = 'section-' + sectionNum;
-
-                  var h2 = document.createElement('h2');
-                  h2.className = 'font-serif text-lg font-bold text-navy dark:text-amber not-prose mb-2';
-                  var a = document.createElement('a');
-                  a.href = href;
-                  a.className = 'hover:underline underline-offset-2';
-                  a.textContent = heading ? heading.textContent : sectionNum;
-                  h2.appendChild(a);
-                  article.appendChild(h2);
-
-                  var wrapper = document.createElement('div');
-                  wrapper.className = 'prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden';
-                  while (prose.firstChild) {
-                    wrapper.appendChild(document.adoptNode(prose.firstChild));
-                  }
-                  article.appendChild(wrapper);
-                  content.appendChild(article);
-                }
-              })
-              .catch(function () { /* skip failed sections */ })
-              .finally(function () {
-                loaded++;
-                if (loaded >= total) {
-                  if (loading) loading.classList.add('hidden');
-                  btn.disabled = false;
-                  expanded = true;
-                }
-              });
-          });
+        btn.addEventListener('click', function () {
+          setExpanded(!expanded);
+          if (!expanded) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
         });
+
+        // Deep-linking: if URL contains #section-..., auto-expand full text and scroll to target
+        if (window.location.hash && window.location.hash.startsWith('#section-')) {
+          setExpanded(true);
+          var target = document.querySelector(window.location.hash);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
       })();
     </script>
   )}
 
-  <!-- Auto-link cross-references (only for inline-rendered small chapters) -->
-  {isSmallChapter && (
-    <script is:inline>
-      (function () {
-        var articles = document.querySelectorAll('article .prose');
-        var pattern = /\bsection (\d+[a-z]?)\b/gi;
-        articles.forEach(function (article) {
-          var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
-          var textNodes = [];
-          while (walker.nextNode()) textNodes.push(walker.currentNode);
-          textNodes.forEach(function (node) {
-            if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.tagName === 'H2') return;
-            var text = node.textContent || '';
-            if (!pattern.test(text)) return;
-            pattern.lastIndex = 0;
-            var frag = document.createDocumentFragment();
-            var lastIdx = 0;
-            var m;
-            while ((m = pattern.exec(text)) !== null) {
-              var secNum = m[1];
-              var target = document.getElementById('section-' + secNum);
-              if (!target) continue;
-              if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-              var a = document.createElement('a');
-              a.href = '#section-' + secNum;
-              a.textContent = m[0];
-              a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
-              frag.appendChild(a);
-              lastIdx = m.index + m[0].length;
-            }
-            if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-            if (lastIdx > 0) node.parentElement.replaceChild(frag, node);
-          });
+  <!-- Auto-link cross-references across statically rendered articles -->
+  <script is:inline>
+    (function () {
+      var articles = document.querySelectorAll('article .prose');
+      var pattern = /\bsection (\d+[a-z]?)\b/gi;
+      articles.forEach(function (article) {
+        var walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+        var textNodes = [];
+        while (walker.nextNode()) textNodes.push(walker.currentNode);
+        textNodes.forEach(function (node) {
+          if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.tagName === 'H2') return;
+          var text = node.textContent || '';
+          if (!pattern.test(text)) return;
+          pattern.lastIndex = 0;
+          var frag = document.createDocumentFragment();
+          var lastIdx = 0;
+          var m;
+          while ((m = pattern.exec(text)) !== null) {
+            var secNum = m[1];
+            var target = document.getElementById('section-' + secNum);
+            if (!target) continue;
+            if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+            var a = document.createElement('a');
+            a.href = '#section-' + secNum;
+            a.textContent = m[0];
+            a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
+            frag.appendChild(a);
+            lastIdx = m.index + m[0].length;
+          }
+          if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+          if (lastIdx > 0) node.parentElement.replaceChild(frag, node);
         });
-      })();
-    </script>
-  )}
+      });
+    })();
+  </script>
 </BaseLayout>
