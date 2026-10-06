@@ -1,4 +1,4 @@
-export const TITLE_NAMES: Record<number, string> = {
+export const TITLE_NAMES: Record<number | string, string> = {
   1: 'General Provisions',
   2: 'The Congress',
   3: 'The President',
@@ -53,4 +53,10 @@ export const TITLE_NAMES: Record<number, string> = {
   52: 'Voting and Elections',
   53: 'Reserved',
   54: 'National Park Service and Related Programs',
+  '5a': 'Government Organization and Employees (Appendix)',
+  '11a': 'Bankruptcy (Appendix)',
+  '18a': 'Crimes and Criminal Procedure (Appendix)',
+  '26a': 'Internal Revenue Code (Appendix)',
+  '28a': 'Judiciary and Judicial Procedure (Appendix)',
+  '50a': 'War and National Defense (Appendix)',
 };

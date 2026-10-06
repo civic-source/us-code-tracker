@@ -278,6 +278,22 @@ describe('FrontmatterSchema', () => {
       expect(result.data.current_through).toBe('Unknown');
     }
   });
+
+  it('accepts alphanumeric title like 18a and transforms to string', () => {
+    const result = FrontmatterSchema.safeParse({
+      title: 'Section 1',
+      usc_title: '18a',
+      usc_section: '1',
+      chapter: 1,
+      current_through: 'PL 119-1',
+      classification: '18a U.S.C. § 1',
+      generated_at: 'now',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.usc_title).toBe('18a');
+    }
+  });
 });
 
 describe('buildSectionPath', () => {
@@ -460,9 +476,9 @@ describe('XmlToMarkdownAdapter', () => {
     // Appendix sections live under title-18a, distinct from main title-18
     expect(section?.path).toBe('statutes/title-18a/chapter-1/section-1.md');
     expect(section?.path).not.toContain('title-18/');
-    // usc_title frontmatter remains numeric (18) despite the "18a" path
-    expect(section?.content).toContain('usc_title: 18');
-    expect(section?.content).not.toContain('usc_title: 18a');
+    // usc_title frontmatter preserves appendix designation ("18a")
+    expect(section?.content).toContain('usc_title: "18a"');
+    expect(section?.content).not.toContain('usc_title: 18\n');
   });
 
   it('preserves inline element text in mixed content (cross-references)', () => {

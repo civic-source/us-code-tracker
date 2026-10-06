@@ -28,10 +28,10 @@ export async function getStaticPaths() {
   }
 
   // Pre-compute sorted chapter list per title for cross-chapter nav
-  const titleChapters = new Map<number, number[]>();
+  const titleChapters = new Map<string, number[]>();
   for (const [key] of byTitleChapter) {
     const [titleStr, chapterStr] = key.split('-');
-    const titleNum = parseInt(titleStr ?? '0', 10);
+    const titleNum = titleStr ?? '';
     const chapterNum = parseInt(chapterStr ?? '0', 10);
     if (!titleChapters.has(titleNum)) titleChapters.set(titleNum, []);
     titleChapters.get(titleNum)!.push(chapterNum);
