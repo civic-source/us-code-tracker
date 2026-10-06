@@ -5,21 +5,28 @@
 
   $effect(() => {
     if (typeof window === 'undefined') return;
-    const storedFont = localStorage.getItem('reading-font');
-    if (storedFont === 'sans' || storedFont === 'serif') fontMode = storedFont;
+    try {
+      const storedFont = localStorage.getItem('reading-font');
+      if (storedFont === 'sans' || storedFont === 'serif') fontMode = storedFont;
 
-    const storedSize = localStorage.getItem('reading-size');
-    if (storedSize === 'sm' || storedSize === 'base' || storedSize === 'lg') textSize = storedSize;
+      const storedSize = localStorage.getItem('reading-size');
+      if (storedSize === 'sm' || storedSize === 'base' || storedSize === 'lg') textSize = storedSize;
 
-    const storedMeasure = localStorage.getItem('reading-measure');
-    if (storedMeasure === 'standard' || storedMeasure === 'wide') measureMode = storedMeasure;
+      const storedMeasure = localStorage.getItem('reading-measure');
+      if (storedMeasure === 'standard' || storedMeasure === 'wide') measureMode = storedMeasure;
+    } catch {
+      // Storage access blocked or restricted
+    }
 
     applyClasses();
   });
 
   function applyClasses() {
     if (typeof document === 'undefined') return;
-    const article = document.querySelector('article.prose') || document.querySelector('.prose');
+    const article =
+      document.querySelector('article.prose') ||
+      document.querySelector('.prose-statute') ||
+      document.querySelector('.prose');
     if (!article) return;
 
     // Font family
@@ -38,7 +45,11 @@
 
   function setFont(mode: 'serif' | 'sans') {
     fontMode = mode;
-    localStorage.setItem('reading-font', mode);
+    try {
+      localStorage.setItem('reading-font', mode);
+    } catch {
+      // Storage access blocked or restricted
+    }
     applyClasses();
   }
 
@@ -46,13 +57,21 @@
     if (textSize === 'sm') textSize = 'base';
     else if (textSize === 'base') textSize = 'lg';
     else textSize = 'sm';
-    localStorage.setItem('reading-size', textSize);
+    try {
+      localStorage.setItem('reading-size', textSize);
+    } catch {
+      // Storage access blocked or restricted
+    }
     applyClasses();
   }
 
   function toggleMeasure() {
     measureMode = measureMode === 'standard' ? 'wide' : 'standard';
-    localStorage.setItem('reading-measure', measureMode);
+    try {
+      localStorage.setItem('reading-measure', measureMode);
+    } catch {
+      // Storage access blocked or restricted
+    }
     applyClasses();
   }
 </script>
@@ -91,7 +110,7 @@
       class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-slate shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
       aria-label="Toggle text size"
     >
-      <span class="text-[11px] text-gray-400">Size:</span>
+      <span class="text-[11px] text-slate dark:text-gray-300">Size:</span>
       <span class="font-bold">{textSize === 'sm' ? '17px' : textSize === 'base' ? '19px' : '21px'}</span>
     </button>
 
@@ -102,7 +121,7 @@
       class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-slate shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
       aria-label="Toggle reading line width"
     >
-      <span class="text-[11px] text-gray-400">Width:</span>
+      <span class="text-[11px] text-slate dark:text-gray-300">Width:</span>
       <span>{measureMode === 'standard' ? 'Standard' : 'Wide'}</span>
     </button>
   </div>

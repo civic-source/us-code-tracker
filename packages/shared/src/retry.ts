@@ -23,9 +23,11 @@ function isRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-/** Exponential backoff for a 1-based attempt, capped at MAX_BACKOFF_MS. */
+/** Exponential backoff with randomized full jitter, capped at MAX_BACKOFF_MS. */
 function backoffDelayMs(baseDelayMs: number, attempt: number): number {
-  return Math.min(baseDelayMs * Math.pow(2, attempt - 1), MAX_BACKOFF_MS);
+  const maxDelay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), MAX_BACKOFF_MS);
+  // Full jitter: uniformly random between 0 and maxDelay to prevent thundering herds
+  return Math.floor(Math.random() * (maxDelay + 1));
 }
 
 /**

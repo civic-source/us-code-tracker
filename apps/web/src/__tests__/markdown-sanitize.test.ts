@@ -14,7 +14,18 @@ describe('markdown sanitization wiring', () => {
   it('astro config registers rehype-sanitize as a markdown rehype plugin', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const unifiedOptions = (astroConfig.markdown as any)?.unified?.options;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const plugins = unifiedOptions?.rehypePlugins ?? (astroConfig.markdown as any)?.rehypePlugins ?? [];
     expect(plugins).toContain(rehypeSanitize);
+  });
+
+  it('unified markdown renderer strips malicious script tags from output', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const unifiedProcessor = (astroConfig.markdown as any)?.unified;
+    expect(unifiedProcessor).toBeDefined();
+    const renderer = await unifiedProcessor.createRenderer({});
+    const result = await renderer.render('# Section Title\n\n<script>alert("xss")</script>\n\nLegitimate statutory text.');
+    expect(result.code).not.toContain('<script>');
+    expect(result.code).toContain('Legitimate statutory text.');
   });
 });

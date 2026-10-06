@@ -26,12 +26,13 @@ const {
 
 const isRepealed = status === 'repealed';
 const isTransferred = status === 'transferred';
+const isRenumbered = status === 'renumbered';
 const isOmitted = status === 'omitted';
 const isReserved = status === 'reserved';
 
 const borderAccent = isRepealed
   ? 'border-crimson bg-crimson-light/20 dark:border-red-500 dark:bg-red-950/20'
-  : isTransferred || isOmitted || isReserved
+  : isTransferred || isRenumbered || isOmitted || isReserved
   ? 'border-amber bg-amber-light/20 dark:border-amber-500 dark:bg-amber-950/20'
   : 'border-teal bg-teal-light/20 dark:border-teal dark:bg-teal/10';
 
@@ -39,6 +40,8 @@ const statusBadge = isRepealed
   ? { label: 'Repealed', class: 'bg-crimson/15 text-crimson dark:bg-red-900/40 dark:text-red-300' }
   : isTransferred
   ? { label: 'Transferred', class: 'bg-amber/15 text-amber dark:bg-amber-900/40 dark:text-amber' }
+  : isRenumbered
+  ? { label: 'Renumbered', class: 'bg-amber/15 text-amber dark:bg-amber-900/40 dark:text-amber' }
   : isOmitted
   ? { label: 'Omitted', class: 'bg-gray-200 text-slate dark:bg-gray-800 dark:text-gray-300' }
   : isReserved
@@ -88,7 +91,8 @@ const statusBadge = isRepealed
       </a>
 
       <button
-        onclick="window.print()"
+        id="print-section-btn"
+        type="button"
         class="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-xs text-slate shadow-2xs hover:bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
         aria-label="Print this section"
       >
@@ -124,18 +128,26 @@ const statusBadge = isRepealed
 
 <script is:inline>
   (function() {
-    var btn = document.getElementById('copy-cite-btn');
+    var copyBtn = document.getElementById('copy-cite-btn');
     var label = document.getElementById('copy-cite-label');
-    if (!btn || !label) return;
-    btn.addEventListener('click', function() {
-      var citation = btn.getAttribute('data-citation');
-      if (!citation) return;
-      navigator.clipboard.writeText(citation).then(function() {
-        label.textContent = 'Copied!';
-        setTimeout(function() {
-          label.textContent = 'Copy cite';
-        }, 2000);
-      }).catch(function() {});
-    });
+    if (copyBtn && label) {
+      copyBtn.addEventListener('click', function() {
+        var citation = copyBtn.getAttribute('data-citation');
+        if (!citation) return;
+        navigator.clipboard.writeText(citation).then(function() {
+          label.textContent = 'Copied!';
+          setTimeout(function() {
+            label.textContent = 'Copy cite';
+          }, 2000);
+        }).catch(function() {});
+      });
+    }
+
+    var printBtn = document.getElementById('print-section-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', function() {
+        window.print();
+      });
+    }
   })();
 </script>

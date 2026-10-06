@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content';
+import { compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { TITLE_NAMES } from '../../../data/title-names';
@@ -30,13 +31,8 @@ export async function getStaticPaths() {
 const { titleNum, chapterNum, entries } = Astro.props;
 const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
 
-// Sort sections numerically
-const sortedSections = entries.sort((a, b) => {
-  const aNum = parseFloat(a.data.usc_section);
-  const bNum = parseFloat(b.data.usc_section);
-  if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-  return a.data.usc_section.localeCompare(b.data.usc_section, undefined, { numeric: true });
-});
+// Sort sections using natural legal section comparison
+const sortedSections = entries.sort((a, b) => compareSectionNumbers(a.data.usc_section, b.data.usc_section));
 
 // Pre-compute section metadata (no rendering — that's deferred to toggle)
 const sectionMeta = sortedSections.map((entry) => {
@@ -247,7 +243,9 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
 
                   var wrapper = document.createElement('div');
                   wrapper.className = 'prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden';
-                  wrapper.innerHTML = prose.innerHTML;
+                  while (prose.firstChild) {
+                    wrapper.appendChild(document.adoptNode(prose.firstChild));
+                  }
                   article.appendChild(wrapper);
                   content.appendChild(article);
                 }

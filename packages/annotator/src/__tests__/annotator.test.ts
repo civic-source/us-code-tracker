@@ -346,6 +346,21 @@ describe('buildAnnotationPath', () => {
     expect(buildAnnotationPath('42 U.S.C. 1983a')).toBe('annotations/title-42/section-1983a.yaml');
   });
 
+  it('handles section symbol (§ and &sect;) and hyphens', () => {
+    expect(buildAnnotationPath('18 U.S.C. § 111')).toBe('annotations/title-18/section-111.yaml');
+    expect(buildAnnotationPath('42 U.S.C. § 2000e-1')).toBe('annotations/title-42/section-2000e-1.yaml');
+    expect(buildAnnotationPath('5 U.S.C. &sect; 552')).toBe('annotations/title-5/section-552.yaml');
+  });
+
+  it('resists polynomial backtracking (ReDoS) on pathological spaces', () => {
+    const malicious = '9 usc ' + ' '.repeat(5000);
+    const start = performance.now();
+    const path = buildAnnotationPath(malicious);
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(100);
+    expect(path).toMatch(/^annotations\/.*\.yaml$/);
+  });
+
   it('falls back to sanitized slug for non-standard citations', () => {
     const path = buildAnnotationPath('Some weird input!');
     expect(path).toMatch(/^annotations\/.*\.yaml$/);

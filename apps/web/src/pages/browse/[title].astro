@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import TitleFilter from '../../components/TitleFilter.svelte';
@@ -56,12 +57,7 @@ for (const entry of entries) {
 
 const sortedChapters = [...byChapter.entries()].sort((a, b) => a[0] - b[0]);
 for (const [, chapterEntries] of sortedChapters) {
-  chapterEntries.sort((a, b) => {
-    const aNum = parseFloat(a.data.usc_section);
-    const bNum = parseFloat(b.data.usc_section);
-    if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-    return a.data.usc_section.localeCompare(b.data.usc_section, undefined, { numeric: true });
-  });
+  chapterEntries.sort((a, b) => compareSectionNumbers(a.data.usc_section, b.data.usc_section));
 }
 
 const base = import.meta.env.BASE_URL;
@@ -152,13 +148,13 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
     <div class="not-prose mt-3 mb-2 flex gap-2 font-sans text-xs">
       <button
         id="expand-all"
+        type="button"
         class="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-        onclick="document.querySelectorAll('#title-toc details').forEach(d => d.open = true)"
       >Expand all</button>
       <button
         id="collapse-all"
+        type="button"
         class="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-        onclick="document.querySelectorAll('#title-toc details').forEach(d => d.open = false)"
       >Collapse all</button>
     </div>
   )}
@@ -236,6 +232,19 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
 
   <script is:inline>
     (function () {
+      var expandBtn = document.getElementById('expand-all');
+      var collapseBtn = document.getElementById('collapse-all');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', function () {
+          document.querySelectorAll('#title-toc details').forEach(function (d) { d.open = true; });
+        });
+      }
+      if (collapseBtn) {
+        collapseBtn.addEventListener('click', function () {
+          document.querySelectorAll('#title-toc details').forEach(function (d) { d.open = false; });
+        });
+      }
+
       function openFromHash() {
         var hash = window.location.hash;
         if (!hash || !hash.startsWith('#chapter-')) return;
