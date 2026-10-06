@@ -67,6 +67,27 @@
 * **web:** replace regex HTML sanitization with sanitize-html ([#171](https://github.com/civic-source/us-code-tracker/issues/171)) ([23297e9](https://github.com/civic-source/us-code-tracker/commit/23297e9446d04adf0b7c3da913fb8f0562759c37))
 * **web:** resolve 404s on Recently Changed Sections links ([#108](https://github.com/civic-source/us-code-tracker/issues/108)) ([ba8451e](https://github.com/civic-source/us-code-tracker/commit/ba8451ea123dbc34cf91d8f7e5488b4195502073))
 
+## [0.7.0](https://github.com/civic-source/us-code-tracker/compare/v0.6.1...v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **transformer:** preserve sourceCredit and legislative history provenance ([#282](https://github.com/civic-source/us-code-tracker/issues/282)) ([ce8dcaf](https://github.com/civic-source/us-code-tracker/commit/ce8dcaf83d82afdab96b1cae32bea0ba31559d05))
+* **web:** adopt USWDS civic design system, word-level redline diffs, and bump LTS deps ([8693c97](https://github.com/civic-source/us-code-tracker/commit/8693c972afb11661f5abef0c5e02f6158e631d86))
+
+
+### Bug Fixes
+
+* **annotator:** cap the CourtListener response body before parsing ([#268](https://github.com/civic-source/us-code-tracker/issues/268)) ([8fc1cd8](https://github.com/civic-source/us-code-tracker/commit/8fc1cd8e213bf9f47c1fa63c49c4262b0a175b15))
+* **annotator:** use shared fetchWithRetry in CourtListener client ([#275](https://github.com/civic-source/us-code-tracker/issues/275)) ([15f0536](https://github.com/civic-source/us-code-tracker/commit/15f0536ea8e50ac9510076731e394be51e399bd0))
+* **web:** resolve 2xl layout, section sorting, security hardening, and bundle footprint ([#276](https://github.com/civic-source/us-code-tracker/issues/276)) ([96addf4](https://github.com/civic-source/us-code-tracker/commit/96addf482350f6d9785338a3570081bbc33f286e))
+
+
+### Performance Improvements
+
+* **web:** replace quadratic LCS with Myers diff and fix deploy workflow ([#281](https://github.com/civic-source/us-code-tracker/issues/281)) ([b85c564](https://github.com/civic-source/us-code-tracker/commit/b85c5640573b8a3dd77f3478425be2453e245604))
+* **web:** statically compile chapter full-text rollups during build ([#284](https://github.com/civic-source/us-code-tracker/issues/284)) ([f33a757](https://github.com/civic-source/us-code-tracker/commit/f33a757e0b070c0bfc2e006db00552d4192bc83f)), closes [#279](https://github.com/civic-source/us-code-tracker/issues/279)
+
 ## [0.6.1](https://github.com/civic-source/us-code-tracker/compare/v0.6.0...v0.6.1) (2026-06-30)
 
 
