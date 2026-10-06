@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import sanitizeHtml from "sanitize-html";
+import { sanitizeContent, sanitizeExcerpt } from "./sanitize.js";
 
 export interface CommitInfo {
   sha: string;
@@ -60,46 +60,20 @@ export async function getFileDiff(
     const file = files.find((f) => f.filename === options.path);
     if (!file?.patch) return [];
 
-    return file.patch.split("\n").map((line) => {
+    return file.patch.split("\n").flatMap((line): DiffLine[] => {
+      if (line.startsWith("@@")) return [];
       if (line.startsWith("+") && !line.startsWith("+++")) {
-        return { type: "add", content: line.slice(1) };
+        return [{ type: "add", content: line.slice(1) }];
       }
       if (line.startsWith("-") && !line.startsWith("---")) {
-        return { type: "del", content: line.slice(1) };
+        return [{ type: "del", content: line.slice(1) }];
       }
-      return { type: "context", content: line };
+      const content = line.startsWith(" ") ? line.slice(1) : line;
+      return [{ type: "context", content }];
     });
   } catch {
     return null;
   }
-}
-
-export interface ReleaseTag {
-  name: string;
-  date: string;
-}
-
-export async function getReleaseTags(
-  owner: string,
-  repo: string,
-  token?: string,
-): Promise<ReleaseTag[]> {
-  const octokit = createClient(token);
-  const response = await octokit.repos.listTags({ owner, repo, per_page: 100 });
-
-  const parseTag = (name: string): [number, number] => {
-    const m = /pl-(\d+)-(\d+)/.exec(name);
-    return m && m[1] && m[2] ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [0, 0];
-  };
-
-  return response.data
-    .filter((t) => t.name.startsWith("pl-"))
-    .map((t) => ({ name: t.name, date: "" }))
-    .sort((a, b) => {
-      const [ac, al] = parseTag(a.name);
-      const [bc, bl] = parseTag(b.name);
-      return ac !== bc ? ac - bc : al - bl;
-    });
 }
 
 export async function getFileAtRef(
@@ -123,30 +97,7 @@ export async function getFileAtRef(
   }
 }
 
-/**
- * Strip all HTML tags to plain text.
- * Uses sanitize-html (a real HTML parser), not regex, so encoded entities and
- * malformed/nested tags can't bypass it. For displaying untrusted content as text.
- */
-export function sanitizeContent(raw: string): string {
-  return sanitizeHtml(raw, {
-    allowedTags: [],
-    allowedAttributes: {},
-    disallowedTagsMode: "discard",
-  });
-}
-
-/**
- * Sanitize Pagefind excerpt HTML, preserving only <mark> highlight tags.
- * Used in client-side search results rendered via {@html ...}.
- */
-export function sanitizeExcerpt(html: string): string {
-  return sanitizeHtml(html, {
-    allowedTags: ["mark"],
-    allowedAttributes: {},
-    disallowedTagsMode: "discard",
-  });
-}
+export { sanitizeContent, sanitizeExcerpt };
 
 /** Format a pl-* tag name into a human-readable label */
 export function formatTagName(tag: string): string {

@@ -36,11 +36,11 @@ export const MAX_DOWNLOAD_BYTES = 314572800; // 300 MiB
  * because XML inflates roughly 10-20x: a title whose compressed entry sits well
  * under the download cap can still inflate past 300 MiB, and reusing the
  * compressed cap as the inflate cap would false-drop it (#226). The largest
- * single USC title decompresses to well under 1 GiB, so this leaves ample
- * headroom for real data while still aborting a decompression bomb (the inflate
- * exceeds `maxOutputLength` and throws).
+ * single USC title decompresses to well under 500 MiB, so this leaves ample
+ * headroom for real data while strictly staying within V8 MAX_STRING_LENGTH (~512 MB)
+ * to avoid RangeError during buffer-to-string decoding (#226).
  */
-export const MAX_DECOMPRESSED_BYTES = 1073741824; // 1 GiB
+export const MAX_DECOMPRESSED_BYTES = 524288000; // 500 MiB
 
 /** Path for hash storage relative to working directory */
 export const HASH_STORE_DIR = '.openlaw-git';

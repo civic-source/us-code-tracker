@@ -166,7 +166,8 @@ export class CourtListenerClient {
     }
 
     const url = new URL(SEARCH_ENDPOINT, COURTLISTENER_BASE_URL);
-    url.searchParams.set('q', `"${section}"`);
+    const sanitizedQuery = section.replace(/["\\]/g, '').trim();
+    url.searchParams.set('q', `"${sanitizedQuery}"`);
     url.searchParams.set('type', 'o'); // opinions
     url.searchParams.set('order_by', 'dateFiled desc');
     url.searchParams.set('page_size', String(this.pageSize));

@@ -11,9 +11,7 @@
   /* USWDS 3.x official civic palette */
   --color-navy: #1A4480;            /* blue-warm-70v — primary brand, headings */
   --color-navy-dark: #112F4E;       /* blue-warm-80 — high contrast ink text */
-  --color-navy-light: #D9E8F6;      /* blue-10 — subtle civic blue tint */
   --color-state-blue: #005EA2;      /* blue-60v — interactive links, active nav */
-  --color-state-blue-hover: #1A4480;/* blue-70v — link hover */
   
   --color-teal: #0F6E56;            /* mint-50 — in-force, success, diff additions */
   --color-teal-bright: #70E8B1;     /* mint-cool-40v — dark-mode contrast teal */
@@ -22,7 +20,6 @@
   /* Darkened from #C2850C (2.82:1) to pass WCAG AA (4.5:1) on warm-white (#FAFAF8) — ratio ≈ 4.80:1 */
   --color-amber: #8B6914;           /* gold-50v — accessible alert text */
   --color-amber-light: #FEF0C8;     /* gold-10 — warning tint, anchor target flash */
-  --color-gold: #FFBE2E;            /* gold-20v — icon fills */
 
   --color-crimson: #B50909;         /* red-warm-50v — repealed status, diff deletions */
   --color-crimson-light: #FDE0DB;   /* red-10 — repealed notice, diff del background */
@@ -38,25 +35,14 @@
 /* Semantic color tokens — light mode */
 :root {
   --color-text-primary: #112F4E;      /* navy-dark — high contrast body text */
-  --color-text-secondary: #3D4551;    /* slate — supporting text */
-  --color-text-muted: #5a6474;        /* slate lightened — captions, metadata */
-  --color-surface: #FAFAF8;           /* warm-white — page background */
-  --color-surface-elevated: #F0EDE8;  /* warm-gray — cards, sidebars */
   --color-border: #d1cec8;            /* warm-border — dividers */
-  --color-diff-add: #0F6E56;          /* USWDS mint/teal diff green */
-  --color-diff-remove: #B50909;       /* USWDS crimson diff red */
 }
 
 /* Semantic color tokens — dark mode */
 :where(.dark, .dark *) {
   --color-text-primary: #e8f0f8;      /* near-white with warm-blue tint */
-  --color-text-secondary: #a8b4c0;    /* muted blue-gray */
-  --color-text-muted: #6e7e8c;        /* dim blue-gray */
-  --color-surface: #0d1b2a;           /* deep navy — page background */
-  --color-surface-elevated: #112F4E;  /* navy-dark — cards, sidebars */
   --color-border: #1e3a5a;            /* navy mid — dividers */
-  --color-diff-add: #70E8B1;          /* bright mint diff green */
-  --color-diff-remove: #f85149;       /* bright crimson diff red */
+  --color-amber: #FFBE2E;            /* bright gold — passes WCAG AA (>8:1) on deep navy */
 }
 
 /* Legal text readability — 19px desktop, 16px mobile */

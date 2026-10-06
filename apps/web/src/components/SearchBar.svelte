@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sanitizeExcerpt } from "../lib/github";
+  import { sanitizeExcerpt } from "../lib/sanitize";
 
   // Pagefind types for the dynamically imported module
   interface PagefindResult {

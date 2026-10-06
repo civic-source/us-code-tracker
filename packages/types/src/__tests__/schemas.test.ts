@@ -101,6 +101,11 @@ describe('CaseAnnotationSchema', () => {
     expect(() => CaseAnnotationSchema.parse({ ...valid, sourceUrl: 'javascript:alert(document.cookie)' })).toThrow();
   });
 
+  it('accepts an empty string sourceUrl (fallback for unpinned or missing source URLs)', () => {
+    const withEmpty = { ...valid, sourceUrl: '' };
+    expect(CaseAnnotationSchema.parse(withEmpty).sourceUrl).toBe('');
+  });
+
   it('rejects holdingSummary over 500 chars', () => {
     expect(() => CaseAnnotationSchema.parse({ ...valid, holdingSummary: 'x'.repeat(501) })).toThrow();
   });

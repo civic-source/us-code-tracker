@@ -1,5 +1,6 @@
 ---
 import { getCollection, getEntry, render } from 'astro:content';
+import { compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DiffViewer from '../../components/DiffViewer.svelte';
 import PrecedentDrawer from '../../components/PrecedentDrawer.svelte';
@@ -21,14 +22,9 @@ export async function getStaticPaths() {
     byTitleChapter.get(key)!.push(entry);
   }
 
-  // Sort each chapter's sections
+  // Sort each chapter's sections using natural legal section comparison
   for (const [, chapterEntries] of byTitleChapter) {
-    chapterEntries.sort((a, b) => {
-      const aNum = parseFloat(a.data.usc_section);
-      const bNum = parseFloat(b.data.usc_section);
-      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-      return a.data.usc_section.localeCompare(b.data.usc_section, undefined, { numeric: true });
-    });
+    chapterEntries.sort((a, b) => compareSectionNumbers(a.data.usc_section, b.data.usc_section));
   }
 
   // Pre-compute sorted chapter list per title for cross-chapter nav
@@ -341,7 +337,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       <div class="flex items-center justify-between">
         <h3 class="text-base font-semibold text-gray-800 dark:text-gray-200">Case Law</h3>
         <a
-          href={`https://www.courtlistener.com/?q=%22${usc_title}+U.S.C.+%C2%A7+${usc_section}%22&type=o`}
+          href={`https://www.courtlistener.com/?q=${encodeURIComponent(`"${usc_title} U.S.C. § ${usc_section}"`)}&type=o`}
           target="_blank"
           rel="noopener noreferrer"
           class="rounded bg-teal/10 px-2 py-1 text-xs font-medium text-teal transition-colors hover:bg-teal/20"
@@ -436,7 +432,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
   <!-- Keyboard shortcuts: j/k navigate sections -->
   <script is:inline>
     document.addEventListener('keydown', function (e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
       var nav = document.querySelector('nav[aria-label="Section navigation"]');
       if (!nav) return;
       var links = nav.querySelectorAll('a');

@@ -26,6 +26,15 @@ export const HttpUrlSchema = z
   .url()
   .refine((u) => /^https?:\/\//i.test(u), { message: 'URL must use the http(s) scheme' });
 
+/**
+ * A URL constrained to the http(s) scheme or an empty string. Used for external
+ * source URLs that collapse to empty string when failing origin validation without
+ * rejecting the entire annotation record (#248).
+ */
+export const OptionalHttpUrlSchema = z
+  .string()
+  .refine((u) => u === '' || /^https?:\/\//i.test(u), { message: 'URL must use the http(s) scheme or be empty' });
+
 // --- Release Point schema ---
 
 export const ReleasePointSchema = z.object({
@@ -64,7 +73,7 @@ export const CaseAnnotationSchema = z.object({
   court: z.enum(["SCOTUS", "Appellate", "District"]),
   date: z.string(),
   holdingSummary: z.string().max(500),
-  sourceUrl: HttpUrlSchema,
+  sourceUrl: OptionalHttpUrlSchema,
   impact: PrecedentImpactSchema,
   /** Public Law the statute was current through when this case was decided */
   statuteVersionRef: z.string().max(100).optional(),

@@ -15,6 +15,7 @@
     "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/svelte": "^9.0.1",
+    "@civic-source/shared": "workspace:*",
     "@civic-source/types": "workspace:*",
     "@fontsource/public-sans": "^5.3.0",
     "@octokit/rest": "^22.0.1",

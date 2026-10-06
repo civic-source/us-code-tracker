@@ -94,7 +94,7 @@ export function courtListenerSourceUrl(absoluteUrl: string): string {
  * Falls back to a sanitized slug when the citation doesn't match the expected pattern.
  */
 export function buildAnnotationPath(section: string): string {
-  const match = /^(\d+[a-zA-Z]?)\s+U\.S\.C\.\s+(\d+[a-zA-Z-]*)$/.exec(section);
+  const match = /^(\d+[a-zA-Z]?)\s+U\.?S\.?C\.?\s*(?:§|&sect;)?\s*([a-zA-Z0-9-]+)$/i.exec(section.trim());
   if (!match) {
     // Fallback: sanitize the section string into a safe filename
     const slug = section.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
@@ -113,7 +113,8 @@ export function buildAnnotationPath(section: string): string {
  * terminate or inject into the scalar — a `"` or newline in any field must not
  * be able to forge or corrupt sidecar keys.
  */
-function yamlEscape(s: string): string {
+function yamlEscape(s: string | undefined | null): string {
+  if (s == null) return '';
   return s
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
@@ -140,6 +141,12 @@ export function annotationToYaml(annotation: PrecedentAnnotation): string {
     lines.push(`    holdingSummary: "${yamlEscape(c.holdingSummary)}"`);
     lines.push(`    sourceUrl: "${yamlEscape(c.sourceUrl)}"`);
     lines.push(`    impact: "${yamlEscape(c.impact)}"`);
+    if (c.statuteVersionRef) {
+      lines.push(`    statuteVersionRef: "${yamlEscape(c.statuteVersionRef)}"`);
+    }
+    if (c.statuteVersionNote) {
+      lines.push(`    statuteVersionNote: "${yamlEscape(c.statuteVersionNote)}"`);
+    }
   }
   return lines.join('\n') + '\n';
 }
