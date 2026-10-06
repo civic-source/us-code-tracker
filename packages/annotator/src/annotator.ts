@@ -94,7 +94,10 @@ export function courtListenerSourceUrl(absoluteUrl: string): string {
  * Falls back to a sanitized slug when the citation doesn't match the expected pattern.
  */
 export function buildAnnotationPath(section: string): string {
-  const match = /^(\d+[a-zA-Z]?)\s+U\.?S\.?C\.?\s*(?:§|&sect;)?\s*([a-zA-Z0-9-]+)$/i.exec(section.trim());
+  // Pre-normalize section symbols and collapse multiple whitespace runs
+  // to avoid polynomial catastrophic backtracking (ReDoS) on untrusted input
+  const normalized = section.replace(/[§\u00A7]|&sect;/g, ' ').trim().replace(/\s+/g, ' ');
+  const match = /^(\d+[a-zA-Z]?)\s+U\.?S\.?C\.?\s+([a-zA-Z0-9-]+)$/i.exec(normalized);
   if (!match) {
     // Fallback: sanitize the section string into a safe filename
     const slug = section.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
