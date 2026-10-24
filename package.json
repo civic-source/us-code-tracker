@@ -14,13 +14,13 @@
     "@civic-source/annotator": "workspace:*",
     "@civic-source/fetcher": "workspace:*",
     "@civic-source/transformer": "workspace:*",
-    "@commitlint/cli": "^21.2.3",
-    "@commitlint/config-conventional": "^21.2.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.12.0",
-    "turbo": "^2.11.7",
+    "eslint": "^10.13.0",
+    "turbo": "^2.11.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.0",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^4.1.11"
   }
 }
