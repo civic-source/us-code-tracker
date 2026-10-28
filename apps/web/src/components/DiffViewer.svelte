@@ -25,7 +25,6 @@
     changedCount: number;
   }
 
-
   interface RedlineRow {
     type: "paired" | "del" | "add" | "context";
     tokens?: WordToken[];
@@ -48,6 +47,15 @@
     githubToken,
   }: Props = $props();
 
+  // Navigation & View State
+  let activeTab = $state<"compare" | "timeline" | "audit">("compare");
+  let diffMode = $state<"redline" | "split" | "raw">("redline");
+  let selectedCongressFilter = $state<number | null>(null);
+  let onlyShowChanges = $state(true);
+  let showAllHistory = $state(false);
+  const HISTORY_PREVIEW_COUNT = 8;
+
+  // Data State
   let commits = $state<CommitInfo[]>([]);
   let tags = $state<ReleaseTag[]>([]);
   let diffLines = $state<DiffLine[]>([]);
@@ -55,6 +63,9 @@
   let diffLoading = $state(false);
   let tagLoading = $state(false);
   let error = $state("");
+  let copyFeedback = $state(false);
+
+  // Comparison State
   let compareFrom = $state("");
   let compareTo = $state("");
   let selectedTagContent = $state("");
@@ -62,12 +73,7 @@
   let hasCompared = $state(false);
   let usingStaticDiffs = $state(false);
   let manifest = $state<DiffManifest | null>(null);
-  let expandedCongress = $state<Set<number>>(new Set());
-  let onlyShowChanges = $state(true);
-  let showAllHistory = $state(false);
-  let diffMode = $state<"redline" | "split" | "raw">("redline");
-  const HISTORY_PREVIEW_COUNT = 10;
-
+  let sectionChangePairs = $state<Set<string>>(new Set());
 
   /** Build redline rows by pairing consecutive del and add lines */
   let redlineRows = $derived.by<RedlineRow[]>(() => {
@@ -78,7 +84,6 @@
       if (current.type === "del") {
         const next = diffLines[i + 1];
         if (next && next.type === "add") {
-          // Pair deletion with addition for word-level redline
           const tokens = computeWordDiff(current.content, next.content);
           rows.push({
             type: "paired",
@@ -132,33 +137,61 @@
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
-  /** Check if a tag changed this section (using diff manifest) */
+  /** Check if a tag changed this section */
   function tagChangedThisSection(tagName: string): boolean {
-    if (!manifest) return true;
-    const parts = sectionPathToParts(sectionPath);
-    if (!parts) return true;
+    if (sectionChangePairs.size === 0) return true;
     return sectionChangePairs.has(tagName);
   }
 
-  let sectionChangePairs = $state<Set<string>>(new Set());
+  function sectionPathToParts(path: string): { title: string; section: string } | null {
+    const m = /statutes\/(title-[^/]+)\/[^/]+\/(section-[^/]+)\.md$/.exec(path);
+    if (!m) return null;
+    return { title: m[1] ?? "", section: m[2] ?? "" };
+  }
+
+  function pairKey(from: string, to: string): string {
+    return `${from}_${to}`;
+  }
+
+  function getBaseUrl(): string {
+    return typeof document !== "undefined"
+      ? document.querySelector('meta[name="base-url"]')?.getAttribute("content") ?? "/us-code-tracker/"
+      : "/us-code-tracker/";
+  }
 
   async function buildSectionChangePairs(): Promise<void> {
-    if (!manifest) return;
     const parts = sectionPathToParts(sectionPath);
     if (!parts) return;
     const baseUrl = getBaseUrl();
-    const changed = new Set<string>();
-    if (tags.length > 0) {
-      const first = tags[0];
-      if (first) changed.add(first.name);
+
+    // 1. Instant single-fetch lookup via precomputed changed-sections.json
+    try {
+      const res = await fetch(`${baseUrl}diffs/changed-sections.json`);
+      if (res.ok) {
+        const index = (await res.json()) as Record<string, string[]>;
+        const key = `${parts.title}/${parts.section}`;
+        const changedList = index[key];
+        if (changedList && Array.isArray(changedList)) {
+          const set = new Set(changedList);
+          if (tags.length > 0 && tags[0]) set.add(tags[0].name);
+          sectionChangePairs = set;
+          return;
+        }
+      }
+    } catch {
+      // Fall through to manifest probe
     }
-    for (const pair of manifest.pairs) {
+
+    // 2. Fallback: probe manifest pairs if index is missing
+    if (!manifest) return;
+    const changed = new Set<string>();
+    if (tags.length > 0 && tags[0]) changed.add(tags[0].name);
+
+    for (const pair of manifest.pairs.slice(0, 10)) {
       try {
         const url = `${baseUrl}diffs/${pair.from}_${pair.to}/${parts.title}/${parts.section}.json`;
         const res = await fetch(url, { method: "HEAD" });
-        if (res.ok) {
-          changed.add(pair.to);
-        }
+        if (res.ok) changed.add(pair.to);
       } catch {
         // Skip
       }
@@ -180,25 +213,22 @@
         label: `${ordinal(congress)} Congress`,
         years: congressYears(congress),
         tags: congressTags,
-        changedCount: congressTags.filter(t => tagChangedThisSection(t.name)).length,
+        changedCount: congressTags.filter((t) => tagChangedThisSection(t.name)).length,
       }));
   }
 
   let congressGroups = $derived(groupByCongress(tags));
 
-  function sectionPathToParts(path: string): { title: string; section: string } | null {
-    const m = /statutes\/(title-[^/]+)\/[^/]+\/(section-[^/]+)\.md$/.exec(path);
-    if (!m) return null;
-    return { title: m[1] ?? "", section: m[2] ?? "" };
-  }
+  let currentCongress = $derived(
+    tags.length > 0 ? parseCongress(tags[tags.length - 1]?.name ?? "") : 119
+  );
 
-  function pairKey(from: string, to: string): string {
-    return `${from}_${to}`;
-  }
+  let currentTag = $derived(tags.length > 0 ? tags[tags.length - 1]?.name ?? "" : "");
 
-  function getBaseUrl(): string {
-    return document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
-  }
+  let activeCongressGroup = $derived(
+    congressGroups.find((g) => g.congress === (selectedCongressFilter ?? currentCongress)) ??
+      congressGroups[0]
+  );
 
   async function fetchManifest(): Promise<DiffManifest | null> {
     try {
@@ -244,19 +274,18 @@
           .flatMap((p) => [p.from, p.to])
           .filter((v, i, a) => a.indexOf(v) === i)
           .map((name) => ({ name, date: "" }));
+
         const last = tags[tags.length - 1];
         const secondLast = tags[tags.length - 2];
         if (last) compareTo = last.name;
         if (secondLast) compareFrom = secondLast.name;
-        if (tags.length > 0) {
-          const latestCongress = parseCongress(tags[tags.length - 1]?.name ?? "");
-          if (latestCongress) expandedCongress = new Set([latestCongress]);
-        }
-        void buildSectionChangePairs();
+
+        await buildSectionChangePairs();
+
         try {
           const commitResult = await getFileHistory(repoOwner, repoName, sectionPath, githubToken);
           const seen = new Set<string>();
-          commits = commitResult.filter(c => !seen.has(c.message) && seen.add(c.message));
+          commits = commitResult.filter((c) => !seen.has(c.message) && seen.add(c.message));
         } catch {
           // Optional
         }
@@ -285,18 +314,18 @@
         }),
       ]);
       const seen = new Set<string>();
-      commits = commitResult.filter(c => !seen.has(c.message) && seen.add(c.message));
+      commits = commitResult.filter((c) => !seen.has(c.message) && seen.add(c.message));
       tags = tagResult;
       if (tags.length > 0) {
         compareTo = tags[tags.length - 1]?.name ?? "";
         if (tags.length > 1) compareFrom = tags[tags.length - 2]?.name ?? "";
-        const latestCongress = parseCongress(tags[tags.length - 1]?.name ?? "");
-        if (latestCongress) expandedCongress = new Set([latestCongress]);
       }
     } catch (e: unknown) {
       error = isRateLimited(e)
         ? "GitHub API rate limit reached. Try again later or provide a token."
-        : e instanceof Error ? e.message : "Failed to load history";
+        : e instanceof Error
+          ? e.message
+          : "Failed to load history";
     } finally {
       loading = false;
     }
@@ -309,29 +338,64 @@
     try {
       if (usingStaticDiffs) {
         const staticDiff = await fetchStaticDiff(compareFrom, compareTo);
-        if (staticDiff) {
-          diffLines = staticDiff.lines;
-        } else {
-          diffLines = [];
-        }
+        diffLines = staticDiff ? staticDiff.lines : [];
         hasCompared = true;
         return;
       }
 
       const result = await getFileDiff({
-        owner: repoOwner, repo: repoName,
-        base: compareFrom, head: compareTo,
-        path: sectionPath, token: githubToken,
+        owner: repoOwner,
+        repo: repoName,
+        base: compareFrom,
+        head: compareTo,
+        path: sectionPath,
+        token: githubToken,
       });
       diffLines = result ?? [];
       hasCompared = true;
     } catch (e: unknown) {
       error = isRateLimited(e)
         ? "GitHub API rate limit reached. Try again later or provide a token."
-        : e instanceof Error ? e.message : "Failed to load diff";
+        : e instanceof Error
+          ? e.message
+          : "Failed to load diff";
     } finally {
       diffLoading = false;
     }
+  }
+
+  function swapVersions() {
+    const temp = compareFrom;
+    compareFrom = compareTo;
+    compareTo = temp;
+    if (hasCompared) {
+      void compareVersions();
+    }
+  }
+
+  function applyPreset(preset: "latest" | "congress" | "all") {
+    if (tags.length === 0) return;
+    if (preset === "latest") {
+      const changedTags = tags.filter((t) => tagChangedThisSection(t.name));
+      if (changedTags.length >= 2) {
+        compareFrom = changedTags[changedTags.length - 2]!.name;
+        compareTo = changedTags[changedTags.length - 1]!.name;
+      } else {
+        compareTo = tags[tags.length - 1]?.name ?? "";
+        compareFrom = tags[tags.length - 2]?.name ?? tags[0]?.name ?? "";
+      }
+    } else if (preset === "congress") {
+      const congTags = tags.filter((t) => parseCongress(t.name) === currentCongress);
+      if (congTags.length > 0) {
+        compareFrom = congTags[0]!.name;
+        compareTo = congTags[congTags.length - 1]!.name;
+      }
+    } else if (preset === "all") {
+      compareFrom = tags[0]?.name ?? "";
+      compareTo = tags[tags.length - 1]?.name ?? "";
+    }
+    activeTab = "compare";
+    void compareVersions();
   }
 
   async function viewTag(tag: ReleaseTag) {
@@ -347,14 +411,26 @@
     }
   }
 
-  function toggleCongress(congress: number) {
-    const next = new Set(expandedCongress);
-    if (next.has(congress)) {
-      next.delete(congress);
-    } else {
-      next.add(congress);
+  function compareWithCurrent(tagName: string) {
+    compareFrom = tagName;
+    compareTo = currentTag;
+    activeTab = "compare";
+    selectedTagContent = "";
+    selectedTag = "";
+    void compareVersions();
+  }
+
+  async function copyPatchToClipboard() {
+    const patchText = diffLines
+      .map((l) => (l.type === "add" ? `+ ${l.content}` : l.type === "del" ? `- ${l.content}` : `  ${l.content}`))
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(patchText);
+      copyFeedback = true;
+      setTimeout(() => (copyFeedback = false), 2000);
+    } catch {
+      // Clipboard blocked
     }
-    expandedCongress = next;
   }
 
   function formatCommitMessage(msg: string): string {
@@ -365,312 +441,545 @@
     return msg.replace(/^(?:chore|feat|fix)\([^)]*\):\s*/i, "");
   }
 
-  function isLegislativeChange(msg: string): boolean {
-    return /Update to (?:PL |Public Law )/i.test(msg);
-  }
-
   function commitDisplayDate(msg: string, gitDate: string): string {
     const m = msg.match(/(\d{3})-(\d+)/);
-    if (m) return `${2013 + (parseInt(m[1]) - 113) * 2}`;
-    return gitDate ? new Date(gitDate).toLocaleDateString() : '';
+    if (m) return `${2013 + (parseInt(m[1]!, 10) - 113) * 2}`;
+    return gitDate ? new Date(gitDate).toLocaleDateString() : "";
   }
 
-  let currentTag = $derived(tags.length > 0 ? tags[tags.length - 1]?.name ?? "" : "");
-
-  $effect(() => { void loadHistory(); });
+  $effect(() => {
+    void loadHistory();
+  });
 </script>
 
-<div id="diff-viewer" class="rounded-lg border border-gray-200 bg-white p-5 font-sans text-sm shadow-xs dark:border-gray-800 dark:bg-[#0B1926]">
+<div
+  id="diff-viewer"
+  class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 sm:p-6 font-sans text-sm shadow-2xs transition-colors"
+>
   {#if loading}
-    <p class="text-gray-500">Loading version history...</p>
+    <div class="flex items-center gap-3 py-8 justify-center text-[var(--text-muted)]">
+      <svg class="h-5 w-5 animate-spin text-[var(--civic-action)]" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <span class="text-xs font-medium">Loading version intelligence and release pairs…</span>
+    </div>
   {:else if error}
-    <p class="text-crimson dark:text-red-400">{error}</p>
+    <div class="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-700 dark:text-red-400">
+      <p class="font-bold">Error loading statutory history:</p>
+      <p class="mt-1 font-mono">{error}</p>
+    </div>
   {:else}
-    <!-- Historical version warning banner -->
-    {#if selectedTag && selectedTag !== currentTag}
-      <div class="mb-5 flex items-center gap-2.5 rounded-lg border border-amber/40 bg-amber-light/30 px-3.5 py-2.5 dark:border-amber-600/40 dark:bg-amber-950/40">
-        <svg class="h-4 w-4 shrink-0 text-amber dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3l9.09 16.91H2.91L12 3z" />
-        </svg>
-        <span class="text-xs font-medium text-slate dark:text-gray-200">
-          Viewing historical version at <strong>{formatTagName(selectedTag)}</strong> &mdash; this is not current law.
-          <button class="ml-1 text-teal underline hover:text-navy dark:text-teal-bright" onclick={() => { selectedTagContent = ""; selectedTag = ""; }}>
-            Switch to current law &rarr;
-          </button>
-        </span>
-      </div>
-    {/if}
-
-    {#if tags.length > 0}
-      <!-- Version Timeline (Congress Groups) -->
-      <div class="mb-5">
-        <div class="mb-3 flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-bold text-navy dark:text-gray-100">Legislative Version Timeline</h3>
-            <p class="text-xs text-slate dark:text-gray-400">Release points published by the Office of the Law Revision Counsel.</p>
-          </div>
-          <label class="flex items-center gap-1.5 text-xs text-slate dark:text-gray-400 cursor-pointer">
-            <input type="checkbox" bind:checked={onlyShowChanges} class="h-3.5 w-3.5 rounded border-gray-300 accent-teal" />
-            <span>Changes only</span>
-          </label>
-        </div>
-
-        <div class="space-y-1.5">
-          {#each congressGroups as group (group.congress)}
-            {@const isExpanded = expandedCongress.has(group.congress)}
-            {@const visibleTags = onlyShowChanges ? group.tags.filter(t => tagChangedThisSection(t.name)) : group.tags}
-            <div class="rounded-md border border-gray-100 dark:border-gray-800 overflow-hidden">
-              <button
-                class="flex w-full items-center justify-between bg-warm-gray/50 px-3.5 py-2 text-left text-xs transition-colors hover:bg-warm-gray dark:bg-gray-850 dark:hover:bg-gray-800"
-                onclick={() => toggleCongress(group.congress)}
-              >
-                <span class="flex items-center gap-2">
-                  <svg class="h-3.5 w-3.5 text-gray-400 transition-transform {isExpanded ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                  <span class="font-semibold text-navy dark:text-gray-200">{group.label}</span>
-                  <span class="text-gray-400">({group.years})</span>
-                </span>
-                <span class="flex items-center gap-2">
-                  {#if group.changedCount > 0}
-                    <span class="rounded-full bg-teal/15 px-2 py-0.5 text-[10px] font-semibold text-teal dark:bg-teal/20 dark:text-teal-bright">
-                      {group.changedCount} modified
-                    </span>
-                  {/if}
-                  <span class="text-[11px] text-gray-400">{group.tags.length} releases</span>
-                </span>
-              </button>
-
-              {#if isExpanded}
-                <div class="border-t border-gray-100 bg-white px-3.5 py-2.5 dark:border-gray-800 dark:bg-[#0B1926]">
-                  {#if visibleTags.length === 0}
-                    <p class="py-1 text-xs text-gray-400">No modifications tracked for this section in the {group.label}.</p>
-                  {:else}
-                    <div class="flex flex-wrap gap-1.5">
-                      {#each visibleTags as tag (tag.name)}
-                        {@const changed = tagChangedThisSection(tag.name)}
-                        <button
-                          class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors {
-                            selectedTag === tag.name
-                              ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-400 dark:bg-amber-900/40 dark:text-amber-200'
-                              : changed
-                              ? 'bg-teal/10 text-teal hover:bg-teal/20 dark:bg-teal/20 dark:text-teal-bright'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-                          }"
-                          onclick={() => void viewTag(tag)}
-                          title="{formatTagName(tag.name)} ({extractYear(tag.date, tag.name)})"
-                        >
-                          <span class="h-1.5 w-1.5 rounded-full {selectedTag === tag.name ? 'bg-amber' : changed ? 'bg-teal' : 'bg-gray-400'}"></span>
-                          <span>{formatTagName(tag.name)}</span>
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      {#if tagLoading}
-        <p class="mb-4 text-xs text-gray-500">Loading version content...</p>
-      {:else if selectedTagContent}
-        <div class="mb-5 rounded-lg border border-gray-200 bg-warm-white dark:border-gray-700 dark:bg-gray-900">
-          <div class="flex items-center justify-between border-b border-gray-200 bg-warm-gray px-3.5 py-2 text-xs font-semibold text-navy dark:border-gray-800 dark:bg-gray-800 dark:text-amber">
-            <span>Historical Text at {formatTagName(selectedTag)}</span>
-            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" onclick={() => { selectedTagContent = ""; selectedTag = ""; }}>&times; Close</button>
-          </div>
-          <pre class="max-h-64 overflow-auto p-4 font-mono text-xs leading-relaxed text-slate dark:text-gray-200">{selectedTagContent}</pre>
-        </div>
-      {/if}
-
-      <!-- Compare Versions Control Bar -->
-      <div class="border-t border-gray-200 pt-5 dark:border-gray-800">
-        <h3 class="mb-1 text-base font-bold text-navy dark:text-gray-100">Compare Statutory Releases</h3>
-        <p class="mb-3 text-xs text-slate dark:text-gray-400">View word-level additions and deletions between any two federal law releases.</p>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="text-xs text-slate dark:text-gray-300">
-            Base:
-            <select class="ml-1 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" bind:value={compareFrom}>
-              {#each congressGroups as group (group.congress)}
-                <optgroup label="{group.label} ({group.years})">
-                  {#each group.tags as tag (tag.name)}
-                    <option value={tag.name}>{formatTagName(tag.name)}</option>
-                  {/each}
-                </optgroup>
-              {/each}
-            </select>
-          </label>
-
-          <label class="text-xs text-slate dark:text-gray-300">
-            Compare:
-            <select class="ml-1 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" bind:value={compareTo}>
-              {#each congressGroups as group (group.congress)}
-                <optgroup label="{group.label} ({group.years})">
-                  {#each group.tags as tag (tag.name)}
-                    <option value={tag.name}>{formatTagName(tag.name)}</option>
-                  {/each}
-                </optgroup>
-              {/each}
-            </select>
-          </label>
-
-          <button
-            class="rounded-md bg-teal px-4 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-teal/90 disabled:opacity-50 transition-colors"
-            onclick={() => void compareVersions()}
-            disabled={diffLoading || !compareFrom || !compareTo || compareFrom === compareTo}
-          >
-            {diffLoading ? "Comparing..." : "Compare"}
-          </button>
-        </div>
-      </div>
-
-      {#if diffLines.length > 0}
-        <div class="mt-5">
-          <!-- Diff Toolbar & Mode Switcher -->
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2 dark:border-gray-800">
-            <!-- Mode Switcher -->
-            <div class="inline-flex rounded-md border border-gray-300 bg-white p-0.5 shadow-2xs dark:border-gray-700 dark:bg-gray-800" role="group" aria-label="Diff view format">
-              <button
-                onclick={() => diffMode = "redline"}
-                class="rounded px-2.5 py-1 text-xs font-medium transition-colors {diffMode === 'redline' ? 'bg-navy text-white dark:bg-teal' : 'text-slate hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-              >
-                Legal Redline
-              </button>
-              <button
-                onclick={() => diffMode = "split"}
-                class="rounded px-2.5 py-1 text-xs font-medium transition-colors {diffMode === 'split' ? 'bg-navy text-white dark:bg-teal' : 'text-slate hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-              >
-                Side-by-Side
-              </button>
-              <button
-                onclick={() => diffMode = "raw"}
-                class="rounded px-2.5 py-1 text-xs font-medium transition-colors {diffMode === 'raw' ? 'bg-navy text-white dark:bg-teal' : 'text-slate hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-              >
-                Git Patch
-              </button>
-            </div>
-
-            <!-- Metrics Pill -->
-            <div class="flex items-center gap-3 text-xs">
-              <span class="text-slate dark:text-gray-400 font-medium">{formatTagName(compareFrom)} &rarr; {formatTagName(compareTo)}</span>
-              <span class="inline-flex items-center gap-1 rounded bg-teal/10 px-2 py-0.5 font-semibold text-teal dark:bg-teal/20 dark:text-teal-bright">
-                +{diffMetrics.additions} lines
-              </span>
-              <span class="inline-flex items-center gap-1 rounded bg-crimson/10 px-2 py-0.5 font-semibold text-crimson dark:bg-crimson/20 dark:text-red-400">
-                -{diffMetrics.deletions} lines
-              </span>
-            </div>
-          </div>
-
-          <!-- Display Mode 1: Legal Redline (Word-Level Intraline) -->
-          {#if diffMode === "redline"}
-            <div class="max-h-[500px] overflow-auto rounded-lg border border-gray-200 bg-warm-white p-4 font-serif text-sm leading-relaxed text-slate shadow-2xs dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200">
-              {#each redlineRows as row}
-                {#if row.type === "paired" && row.tokens}
-                  <p class="my-2 border-l-2 border-teal pl-3">
-                    {#each row.tokens as token}
-                      {#if token.type === "del"}
-                        <del class="diff-del">{token.text}</del>
-                      {:else if token.type === "add"}
-                        <ins class="diff-add">{token.text}</ins>
-                      {:else}
-                        <span>{token.text}</span>
-                      {/if}
-                    {/each}
-                  </p>
-                {:else if row.type === "del"}
-                  <p class="my-2 border-l-2 border-crimson pl-3">
-                    <del class="diff-del">{row.content}</del>
-                  </p>
-                {:else if row.type === "add"}
-                  <p class="my-2 border-l-2 border-teal pl-3">
-                    <ins class="diff-add">{row.content}</ins>
-                  </p>
-                {:else}
-                  <p class="my-1.5 text-gray-600 dark:text-gray-400">{row.content}</p>
-                {/if}
-              {/each}
-            </div>
-
-          <!-- Display Mode 2: Side-by-Side (Split) View -->
-          {:else if diffMode === "split"}
-            <div class="max-h-[500px] overflow-auto rounded-lg border border-gray-200 bg-white font-mono text-xs dark:border-gray-800 dark:bg-gray-950">
-              <div class="grid grid-cols-2 border-b border-gray-200 bg-warm-gray text-[11px] font-semibold text-slate dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
-                <div class="border-r border-gray-200 px-3 py-1.5 dark:border-gray-800">
-                  Previous: {formatTagName(compareFrom)}
-                </div>
-                <div class="px-3 py-1.5">
-                  Revised: {formatTagName(compareTo)}
-                </div>
-              </div>
-              <div class="divide-y divide-gray-100 dark:divide-gray-900">
-                {#each diffLines as line}
-                  <div class="grid grid-cols-2">
-                    <!-- Left (Previous) -->
-                    <div class="border-r border-gray-200 px-3 py-1 overflow-x-auto dark:border-gray-800 {line.type === 'del' ? 'bg-red-50 text-crimson dark:bg-red-950/40 dark:text-red-300 font-semibold' : ''}">
-                      {line.type === 'del' || line.type === 'context' ? line.content : ''}
-                    </div>
-                    <!-- Right (Revised) -->
-                    <div class="px-3 py-1 overflow-x-auto {line.type === 'add' ? 'bg-teal-50 text-teal dark:bg-teal-950/40 dark:text-teal-bright font-semibold' : ''}">
-                      {line.type === 'add' || line.type === 'context' ? line.content : ''}
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-          <!-- Display Mode 3: Raw Unified Git Patch -->
-          {:else}
-            <pre class="max-h-[500px] overflow-auto rounded-lg bg-gray-50 p-4 font-mono text-xs leading-5 dark:bg-gray-950">{#each diffLines as line}<span class="{line.type === 'add'
-  ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-  : line.type === 'del'
-    ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-    : 'text-gray-600 dark:text-gray-400'} block">{line.type === 'add' ? '+ ' : line.type === 'del' ? '- ' : '  '}{line.content}</span>{/each}</pre>
+    <!-- OpenDesign Workbench Header & Navigation Tabs -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="rounded bg-[var(--civic-action)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--civic-action)]">
+            OpenLaw Git Workbench
+          </span>
+          {#if usingStaticDiffs}
+            <span class="hidden sm:inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              Static Verified
+            </span>
           {/if}
         </div>
-      {:else if hasCompared && !diffLoading && compareFrom && compareTo && compareFrom !== compareTo}
-        <div class="mt-4 rounded-lg bg-warm-gray p-4 text-center text-xs text-slate dark:bg-gray-800 dark:text-gray-300">
-          <p class="font-semibold text-navy dark:text-amber">No textual changes detected</p>
-          <p class="mt-0.5">The statutory text of this section remained identical between {formatTagName(compareFrom)} and {formatTagName(compareTo)}.</p>
+        <h3 class="mt-1 text-lg font-bold text-[var(--text-primary)]">
+          Statutory Version Intelligence &amp; Diffs
+        </h3>
+      </div>
+
+      <!-- Workbench Navigation Tabs -->
+      <div class="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--surface-sunken)] p-1 shadow-2xs self-start sm:self-auto" role="tablist">
+        <button
+          role="tab"
+          aria-selected={activeTab === "compare"}
+          onclick={() => (activeTab = "compare")}
+          class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors {activeTab === 'compare' ? 'bg-[var(--surface-raised)] text-[var(--civic-navy)] dark:text-[var(--text-primary)] shadow-2xs' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          Compare Releases
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "timeline"}
+          onclick={() => (activeTab = "timeline")}
+          class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors {activeTab === 'timeline' ? 'bg-[var(--surface-raised)] text-[var(--civic-navy)] dark:text-[var(--text-primary)] shadow-2xs' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Version Timeline
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "audit"}
+          onclick={() => (activeTab = "audit")}
+          class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors {activeTab === 'audit' ? 'bg-[var(--surface-raised)] text-[var(--civic-navy)] dark:text-[var(--text-primary)] shadow-2xs' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Commit Ledger
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: COMPARE STATUTORY RELEASES -->
+    {#if activeTab === "compare"}
+      <div class="mt-5 space-y-5">
+        <!-- Quick Preset Triggers Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-semibold text-[var(--text-muted)]">Quick Presets:</span>
+            <button
+              onclick={() => applyPreset("latest")}
+              class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-2xs hover:bg-[var(--surface-canvas)] hover:border-[var(--civic-action)] transition-colors"
+            >
+              ⚡ Latest Revision
+            </button>
+            <button
+              onclick={() => applyPreset("congress")}
+              class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-2xs hover:bg-[var(--surface-canvas)] hover:border-[var(--civic-action)] transition-colors"
+            >
+              🏛️ {ordinal(currentCongress)} Congress Net
+            </button>
+            <button
+              onclick={() => applyPreset("all")}
+              class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-2xs hover:bg-[var(--surface-canvas)] hover:border-[var(--civic-action)] transition-colors"
+            >
+              📜 All Enacted Changes
+            </button>
+          </div>
+          <span class="text-[11px] text-[var(--text-muted)] font-mono">
+            {tags.length} official releases tracked
+          </span>
         </div>
-      {/if}
+
+        <!-- Dual Release Selectors Card -->
+        <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-4">
+          <div class="grid grid-cols-1 md:grid-cols-11 gap-3 items-center">
+            <!-- Base Version -->
+            <div class="md:col-span-5">
+              <label for="base-version" class="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                Base Release (Pre-Amendment)
+              </label>
+              <select
+                id="base-version"
+                bind:value={compareFrom}
+                class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--civic-action)]"
+              >
+                {#each congressGroups as group (group.congress)}
+                  <optgroup label="{group.label} ({group.years})">
+                    {#each group.tags as tag (tag.name)}
+                      <option value={tag.name}>
+                        {formatTagName(tag.name)} {tagChangedThisSection(tag.name) ? "• (Amended)" : ""}
+                      </option>
+                    {/each}
+                  </optgroup>
+                {/each}
+              </select>
+            </div>
+
+            <!-- Swap Direction Button -->
+            <div class="md:col-span-1 flex justify-center pt-2 md:pt-4">
+              <button
+                onclick={swapVersions}
+                title="Swap Base and Compare releases"
+                class="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] p-2 text-[var(--text-secondary)] shadow-2xs hover:bg-[var(--surface-canvas)] hover:text-[var(--civic-action)] transition-colors"
+                aria-label="Swap releases"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Target Version -->
+            <div class="md:col-span-5">
+              <label for="compare-version" class="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                Compare Target (Post-Amendment)
+              </label>
+              <div class="flex gap-2">
+                <select
+                  id="compare-version"
+                  bind:value={compareTo}
+                  class="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--civic-action)]"
+                >
+                  {#each congressGroups as group (group.congress)}
+                    <optgroup label="{group.label} ({group.years})">
+                      {#each group.tags as tag (tag.name)}
+                        <option value={tag.name}>
+                          {formatTagName(tag.name)} {tagChangedThisSection(tag.name) ? "• (Amended)" : ""}
+                        </option>
+                      {/each}
+                    </optgroup>
+                  {/each}
+                </select>
+
+                <button
+                  onclick={() => void compareVersions()}
+                  disabled={diffLoading || !compareFrom || !compareTo || compareFrom === compareTo}
+                  class="rounded-lg bg-[var(--civic-navy)] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:opacity-90 disabled:opacity-40 transition-opacity"
+                >
+                  {diffLoading ? "Diffing…" : "Inspect"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diff Results Display -->
+        {#if diffLines.length > 0}
+          <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] overflow-hidden shadow-2xs">
+            <!-- Format Switcher & Metrics Header -->
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)] px-4 py-3">
+              <!-- View Mode Switcher -->
+              <div class="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-0.5 shadow-2xs" role="radiogroup" aria-label="Diff view format">
+                <button
+                  onclick={() => (diffMode = "redline")}
+                  class="rounded-md px-3 py-1 text-xs font-semibold transition-colors {diffMode === 'redline' ? 'bg-[var(--civic-navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)]'}"
+                  role="radio"
+                  aria-checked={diffMode === 'redline'}
+                >
+                  Legal Redline
+                </button>
+                <button
+                  onclick={() => (diffMode = "split")}
+                  class="rounded-md px-3 py-1 text-xs font-semibold transition-colors {diffMode === 'split' ? 'bg-[var(--civic-navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)]'}"
+                  role="radio"
+                  aria-checked={diffMode === 'split'}
+                >
+                  Side-by-Side
+                </button>
+                <button
+                  onclick={() => (diffMode = "raw")}
+                  class="rounded-md px-3 py-1 text-xs font-semibold transition-colors {diffMode === 'raw' ? 'bg-[var(--civic-navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)]'}"
+                  role="radio"
+                  aria-checked={diffMode === 'raw'}
+                >
+                  Git Patch
+                </button>
+              </div>
+
+              <!-- Changes Metric Badge & Copy -->
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs text-[var(--text-muted)]">
+                  {formatTagName(compareFrom)} &rarr; {formatTagName(compareTo)}
+                </span>
+                <span class="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                  +{diffMetrics.additions} lines
+                </span>
+                <span class="inline-flex items-center gap-1 rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-400">
+                  -{diffMetrics.deletions} lines
+                </span>
+                <button
+                  onclick={copyPatchToClipboard}
+                  class="rounded border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  {copyFeedback ? "✓ Copied" : "Copy Patch"}
+                </button>
+              </div>
+            </div>
+
+            <!-- MODE 1: LEGAL REDLINE (Intraline word-level) -->
+            {#if diffMode === "redline"}
+              <div class="max-h-[600px] overflow-y-auto p-5 font-serif text-sm leading-relaxed text-[var(--text-primary)] bg-[var(--surface-raised)]">
+                {#each redlineRows as row}
+                  {#if row.type === "paired" && row.tokens}
+                    <p class="my-3 border-l-3 border-[var(--civic-action)] pl-3.5 bg-[var(--civic-action)]/5 py-1 rounded-r">
+                      {#each row.tokens as token}
+                        {#if token.type === "del"}
+                          <del class="rounded bg-red-500/15 px-1 py-0.5 text-red-700 dark:text-red-300 line-through decoration-red-500/60 font-sans text-xs">
+                            {token.text}
+                          </del>
+                        {:else if token.type === "add"}
+                          <ins class="rounded bg-emerald-500/15 px-1 py-0.5 text-emerald-800 dark:text-emerald-300 no-underline font-semibold border-b-2 border-emerald-500 font-sans text-xs">
+                            {token.text}
+                          </ins>
+                        {:else}
+                          <span>{token.text}</span>
+                        {/if}
+                      {/each}
+                    </p>
+                  {:else if row.type === "del"}
+                    <p class="my-2 border-l-3 border-red-500 pl-3.5 bg-red-500/5 py-1 rounded-r">
+                      <del class="rounded bg-red-500/15 px-1 py-0.5 text-red-700 dark:text-red-300 line-through decoration-red-500/60 font-sans text-xs">
+                        {row.content}
+                      </del>
+                    </p>
+                  {:else if row.type === "add"}
+                    <p class="my-2 border-l-3 border-emerald-500 pl-3.5 bg-emerald-500/5 py-1 rounded-r">
+                      <ins class="rounded bg-emerald-500/15 px-1 py-0.5 text-emerald-800 dark:text-emerald-300 no-underline font-semibold border-b-2 border-emerald-500 font-sans text-xs">
+                        {row.content}
+                      </ins>
+                    </p>
+                  {:else}
+                    <p class="my-1.5 text-[var(--text-secondary)]">{row.content}</p>
+                  {/if}
+                {/each}
+              </div>
+
+            <!-- MODE 2: SIDE-BY-SIDE (Split) VIEW -->
+            {:else if diffMode === "split"}
+              <div class="max-h-[600px] overflow-auto font-mono text-xs">
+                <div class="grid grid-cols-2 sticky top-0 z-10 border-b border-[var(--border-default)] bg-[var(--surface-sunken)] font-sans text-xs font-bold text-[var(--text-secondary)]">
+                  <div class="border-r border-[var(--border-default)] px-4 py-2">
+                    Base: {formatTagName(compareFrom)}
+                  </div>
+                  <div class="px-4 py-2">
+                    Revised: {formatTagName(compareTo)}
+                  </div>
+                </div>
+                <div class="divide-y divide-[var(--border-subtle)]">
+                  {#each diffLines as line}
+                    <div class="grid grid-cols-2">
+                      <div class="border-r border-[var(--border-default)] px-3 py-1.5 overflow-x-auto {line.type === 'del' ? 'bg-red-500/10 text-red-700 dark:text-red-300 font-semibold' : ''}">
+                        {line.type === 'del' || line.type === 'context' ? line.content : ''}
+                      </div>
+                      <div class="px-3 py-1.5 overflow-x-auto {line.type === 'add' ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-semibold' : ''}">
+                        {line.type === 'add' || line.type === 'context' ? line.content : ''}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+
+            <!-- MODE 3: RAW UNIFIED GIT PATCH -->
+            {:else}
+              <pre class="max-h-[600px] overflow-auto p-4 font-mono text-xs leading-5 bg-[var(--surface-sunken)] text-[var(--text-primary)]">{#each diffLines as line}<span class="{line.type === 'add'
+                  ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-medium'
+                  : line.type === 'del'
+                  ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                  : 'text-[var(--text-muted)]'} block">{line.type === 'add' ? '+ ' : line.type === 'del' ? '- ' : '  '}{line.content}</span>{/each}</pre>
+            {/if}
+          </div>
+        {:else if hasCompared && !diffLoading && compareFrom && compareTo && compareFrom !== compareTo}
+          <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-6 text-center text-xs">
+            <svg class="h-6 w-6 mx-auto mb-2 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="font-bold text-sm text-[var(--text-primary)]">
+              Identical Statutory Text Between Releases
+            </p>
+            <p class="mt-1 max-w-lg mx-auto text-[var(--text-secondary)]">
+              This statutory section remained unchanged between <strong>{formatTagName(compareFrom)}</strong> and <strong>{formatTagName(compareTo)}</strong>. While the enacted public law modified other provisions in the Code, the operative language of this section was not amended.
+            </p>
+          </div>
+        {/if}
+      </div>
     {/if}
 
-    <!-- Git Commit History -->
-    <div class="mt-6 border-t border-gray-200 pt-5 dark:border-gray-800">
-      <h3 class="mb-2 text-base font-bold text-navy dark:text-gray-100">Pipeline Commit Audit</h3>
-      {#if commits.length === 0}
-        <div class="rounded-lg bg-warm-gray p-4 text-center text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
-          <p>No amendments tracked yet for this section.</p>
-          <p class="mt-1 text-[11px]">Commit history will populate automatically as new Public Law releases are published by OLRC.</p>
+    <!-- TAB 2: LEGISLATIVE VERSION TIMELINE -->
+    {#if activeTab === "timeline"}
+      <div class="mt-5 space-y-5">
+        <!-- Congress Selector Strip & Filter -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
+          <div class="flex flex-wrap items-center gap-1.5">
+            {#each congressGroups as group (group.congress)}
+              <button
+                onclick={() => (selectedCongressFilter = group.congress)}
+                class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {(selectedCongressFilter ?? currentCongress) === group.congress ? 'bg-[var(--civic-navy)] text-white shadow-2xs' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--surface-canvas)]'}"
+              >
+                {group.label}
+                {#if group.changedCount > 0}
+                  <span class="ml-1 rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-bold">
+                    {group.changedCount}
+                  </span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+
+          <label class="inline-flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+            <input type="checkbox" bind:checked={onlyShowChanges} class="rounded border-[var(--border-default)] accent-[var(--civic-action)]" />
+            <span>Only show modifying releases</span>
+          </label>
         </div>
-      {:else}
-        {#if tags.length === 0}
-          <p class="mb-3 rounded bg-teal/10 p-2 text-xs text-teal dark:text-teal-300">Version timeline available when release point tags are published.</p>
-        {:else if !commits.some(c => isLegislativeChange(c.message))}
-          <p class="mb-3 rounded bg-amber/10 p-2 text-xs text-amber dark:bg-amber/5">No legislative changes tracked yet. Future updates will appear here as diffs.</p>
+
+        <!-- Selected Congress Milestone Rail -->
+        {#if activeCongressGroup}
+          {@const displayTags = onlyShowChanges
+            ? activeCongressGroup.tags.filter((t) => tagChangedThisSection(t.name))
+            : activeCongressGroup.tags}
+
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-[var(--text-primary)]">
+              {activeCongressGroup.label} ({activeCongressGroup.years}) &mdash; {activeCongressGroup.tags.length} Official Releases
+            </h4>
+            <span class="text-xs text-[var(--text-muted)]">
+              {activeCongressGroup.changedCount} legislative modifications
+            </span>
+          </div>
+
+          {#if displayTags.length === 0}
+            <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-6 text-center text-xs text-[var(--text-muted)]">
+              No statutory modifications were made to this section in the {activeCongressGroup.label}.
+            </div>
+          {:else}
+            <!-- Chronological Milestone Rail -->
+            <div class="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--border-default)]">
+              {#each displayTags as tag (tag.name)}
+                {@const isModified = tagChangedThisSection(tag.name)}
+                {@const isCurrent = tag.name === currentTag}
+                <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-3.5 shadow-2xs hover:border-[var(--civic-action)] transition-colors">
+                  <!-- Milestone Indicator Dot -->
+                  <div class="absolute -left-6 top-4 h-3 w-3 rounded-full border-2 border-[var(--surface-raised)] {isModified ? 'bg-[var(--civic-action)] ring-4 ring-[var(--civic-action)]/20' : 'bg-[var(--text-muted)]'}"></div>
+
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono text-xs font-bold text-[var(--text-primary)]">
+                        {formatTagName(tag.name)}
+                      </span>
+                      {#if isCurrent}
+                        <span class="rounded bg-[var(--civic-navy)]/10 px-1.5 py-0.5 text-[10px] font-bold text-[var(--civic-navy)] dark:text-[var(--text-primary)]">
+                          Current Law
+                        </span>
+                      {/if}
+                      {#if isModified}
+                        <span class="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          Amended
+                        </span>
+                      {/if}
+                    </div>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5">
+                      Enacted in {extractYear(tag.date, tag.name)} &bull; {activeCongressGroup.label}
+                    </p>
+                  </div>
+
+                  <!-- Quick Actions -->
+                  <div class="flex items-center gap-2">
+                    <button
+                      onclick={() => void viewTag(tag)}
+                      class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-canvas)] transition-colors"
+                    >
+                      View Snapshot
+                    </button>
+                    {#if !isCurrent}
+                      <button
+                        onclick={() => compareWithCurrent(tag.name)}
+                        class="rounded-lg bg-[var(--civic-action)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--civic-action)] hover:bg-[var(--civic-action)]/20 transition-colors"
+                      >
+                        Diff vs Current &rarr;
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
         {/if}
-        {@const visibleCommits = showAllHistory ? commits : commits.slice(0, HISTORY_PREVIEW_COUNT)}
-        <ul class="max-h-48 space-y-1 overflow-y-auto">
-          {#each visibleCommits as commit (commit.sha)}
-            <li class="flex items-center justify-between rounded px-2.5 py-1.5 text-xs text-slate hover:bg-warm-gray dark:text-gray-300 dark:hover:bg-gray-800">
-              <span class="font-medium">{formatCommitMessage(commit.message)}</span>
-              <span class="font-mono text-[11px] text-gray-400">{commitDisplayDate(commit.message, commit.date)}</span>
-            </li>
-          {/each}
-        </ul>
-        {#if commits.length > HISTORY_PREVIEW_COUNT}
-          <button
-            class="mt-2 text-xs font-medium text-teal hover:underline dark:text-teal-bright"
-            onclick={() => showAllHistory = !showAllHistory}
-          >
-            {showAllHistory ? `Show recent ${HISTORY_PREVIEW_COUNT}` : `Show all ${commits.length} commits`}
-          </button>
+
+        <!-- Historical Snapshot Prose Reader Modal/Card -->
+        {#if tagLoading}
+          <div class="py-4 text-center text-xs text-[var(--text-muted)]">
+            Loading historical snapshot…
+          </div>
+        {:else if selectedTagContent}
+          <div class="rounded-xl border border-amber-500/30 bg-[var(--surface-raised)] p-5 shadow-2xs font-serif">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[var(--border-subtle)] pb-3 font-sans">
+              <div>
+                <span class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                  Historical Snapshot: {formatTagName(selectedTag)}
+                </span>
+                <p class="text-xs text-[var(--text-muted)] mt-1">
+                  Historical text as codified under {formatTagName(selectedTag)} (Superseded &mdash; not current law).
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  onclick={() => compareWithCurrent(selectedTag)}
+                  class="rounded-lg bg-[var(--civic-action)] px-3 py-1 text-xs font-bold text-white shadow-2xs hover:opacity-90 transition-opacity"
+                >
+                  Diff vs Current Law &rarr;
+                </button>
+                <button
+                  onclick={() => { selectedTagContent = ""; selectedTag = ""; }}
+                  class="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  Close &times;
+                </button>
+              </div>
+            </div>
+            <div class="mt-4 max-h-80 overflow-y-auto whitespace-pre-wrap font-serif text-sm leading-relaxed text-[var(--text-secondary)]">
+              {selectedTagContent}
+            </div>
+          </div>
         {/if}
-      {/if}
-    </div>
+      </div>
+    {/if}
+
+    <!-- TAB 3: PIPELINE COMMIT AUDIT -->
+    {#if activeTab === "audit"}
+      <div class="mt-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+          <div>
+            <h4 class="text-sm font-bold text-[var(--text-primary)]">
+              Cryptographic Git Commit Ledger
+            </h4>
+            <p class="text-xs text-[var(--text-muted)]">
+              Immutable version history generated from official OLRC U.S. Code releases.
+            </p>
+          </div>
+          <span class="font-mono text-xs text-[var(--text-muted)]">
+            {commits.length} commits recorded
+          </span>
+        </div>
+
+        {#if commits.length === 0}
+          <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-6 text-center text-xs text-[var(--text-muted)]">
+            No commit ledger history found for this section.
+          </div>
+        {:else}
+          {@const visibleCommits = showAllHistory ? commits : commits.slice(0, HISTORY_PREVIEW_COUNT)}
+          <div class="rounded-xl border border-[var(--border-default)] overflow-hidden">
+            <table class="w-full text-left text-xs font-sans">
+              <thead class="bg-[var(--surface-sunken)] border-b border-[var(--border-default)] font-bold text-[var(--text-muted)]">
+                <tr>
+                  <th class="px-4 py-2.5">Revision Message</th>
+                  <th class="px-4 py-2.5">Commit SHA</th>
+                  <th class="px-4 py-2.5 text-right">Codified Year</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--border-subtle)] bg-[var(--surface-raised)]">
+                {#each visibleCommits as commit (commit.sha)}
+                  <tr class="hover:bg-[var(--surface-sunken)] transition-colors">
+                    <td class="px-4 py-2 font-medium text-[var(--text-primary)]">
+                      {formatCommitMessage(commit.message)}
+                    </td>
+                    <td class="px-4 py-2 font-mono text-[11px] text-[var(--civic-action)]">
+                      <a
+                        href="https://github.com/{repoOwner}/{repoName}/commit/{commit.sha}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="hover:underline"
+                      >
+                        {commit.sha.slice(0, 7)}
+                      </a>
+                    </td>
+                    <td class="px-4 py-2 text-right font-mono text-[11px] text-[var(--text-muted)]">
+                      {commitDisplayDate(commit.message, commit.date)}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+
+          {#if commits.length > HISTORY_PREVIEW_COUNT}
+            <div class="text-center pt-2">
+              <button
+                onclick={() => (showAllHistory = !showAllHistory)}
+                class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-sunken)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                {showAllHistory ? `Show top ${HISTORY_PREVIEW_COUNT} commits` : `Show all ${commits.length} commits`}
+              </button>
+            </div>
+          {/if}
+        {/if}
+      </div>
+    {/if}
   {/if}
 </div>
