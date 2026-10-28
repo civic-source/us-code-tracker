@@ -25,9 +25,15 @@ importers:
       '@civic-source/fetcher':
         specifier: workspace:*
         version: link:packages/fetcher
+      '@civic-source/shared':
+        specifier: workspace:*
+        version: link:packages/shared
       '@civic-source/transformer':
         specifier: workspace:*
         version: link:packages/transformer
+      '@civic-source/types':
+        specifier: workspace:*
+        version: link:packages/types
       '@commitlint/cli':
         specifier: ^21.2.4
         version: 21.2.4(conventional-commits-parser@7.1.2)(typescript@6.0.3)
