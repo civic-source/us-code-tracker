@@ -1,0 +1,86 @@
+/* ==========================================================================
+   OpenDesign Semantic Design Tokens
+   US Code Tracker — Authoritative Civic Design System (USWDS 3.x Aligned)
+   ========================================================================== */
+
+:root {
+  /* Surface Layers (Parchment & Civic White) */
+  --surface-canvas: #FAF9F6;       /* Page canvas - reduces eye fatigue */
+  --surface-raised: #FFFFFF;       /* Cards, modals, drawers */
+  --surface-sunken: #F0EDE8;       /* Sidenav, summary box, code panels */
+  --surface-overlay: #FFFFFF;      /* Popovers, tooltips */
+
+  /* Border Tokens */
+  --border-default: #D1CEC8;       /* USWDS gray-warm-20 */
+  --border-subtle: #E5E3DF;        /* Soft dividers */
+  --border-strong: #71767A;        /* High-contrast borders */
+
+  /* Text & Ink Tokens */
+  --text-primary: #112F4E;         /* USWDS blue-warm-80 */
+  --text-secondary: #3D4551;       /* USWDS gray-warm-70 */
+  --text-muted: #565C65;           /* USWDS gray-cool-50 */
+  --text-inverse: #FFFFFF;
+
+  /* Civic Brand & Action */
+  --civic-navy: #1A4480;           /* USWDS blue-warm-70v */
+  --civic-navy-dark: #112F4E;      /* USWDS blue-warm-80 */
+  --civic-action: #005EA2;         /* USWDS blue-60v */
+  --civic-action-hover: #1A4480;
+
+  /* Shepard's & KeyCite Legal Signals */
+  --legal-valid: #0F6E56;          /* Mint-50 (In-force, constitutional) */
+  --legal-valid-bg: #D8F2EA;       /* Mint-10 */
+  --legal-caution: #8B6914;        /* Gold-50v (Narrowed, pending review) */
+  --legal-caution-bg: #FEF0C8;     /* Gold-10 */
+  --legal-invalid: #B50909;        /* Red-warm-50v (Unconstitutional / Repealed) */
+  --legal-invalid-bg: #FDE0DB;     /* Red-10 */
+
+  /* Diff & Redline Tokens */
+  --diff-add-text: #0F6E56;
+  --diff-add-bg: #D8F2EA;
+  --diff-add-border: #70E8B1;
+  --diff-del-text: #B50909;
+  --diff-del-bg: #FDE0DB;
+  --diff-del-border: #F87171;
+}
+
+:where(.dark, .dark *) {
+  /* Surface Layers (Deep Civic Navy) */
+  --surface-canvas: #091420;       /* Base background */
+  --surface-raised: #0E1E2E;       /* Card surface */
+  --surface-sunken: #07131F;       /* Sidenav, panels, code backgrounds */
+  --surface-overlay: #13273D;      /* Modals, drawers */
+
+  /* Border Tokens */
+  --border-default: #1E3A5A;       /* Deep blue border */
+  --border-subtle: #152B42;        /* Subtle blue line */
+  --border-strong: #3A5F85;        /* Focused border */
+
+  /* Text & Ink Tokens */
+  --text-primary: #E8F0F8;         /* High-contrast cool white */
+  --text-secondary: #B0C4DE;       /* Soft slate */
+  --text-muted: #7E97B2;           /* Muted metadata */
+  --text-inverse: #091420;
+
+  /* Civic Brand & Action */
+  --civic-navy: #97C4F5;           /* Accessible light blue */
+  --civic-navy-dark: #E8F0F8;
+  --civic-action: #73B3E7;         /* Bright interactive blue */
+  --civic-action-hover: #A1D0F8;
+
+  /* Shepard's & KeyCite Legal Signals */
+  --legal-valid: #70E8B1;          /* Bright mint (passes AA) */
+  --legal-valid-bg: rgba(15, 110, 86, 0.25);
+  --legal-caution: #FFBE2E;        /* Accessible bright gold */
+  --legal-caution-bg: rgba(139, 105, 20, 0.25);
+  --legal-invalid: #FCA5A5;        /* Soft coral red */
+  --legal-invalid-bg: rgba(181, 9, 9, 0.25);
+
+  /* Diff & Redline Tokens */
+  --diff-add-text: #70E8B1;
+  --diff-add-bg: rgba(15, 110, 86, 0.3);
+  --diff-add-border: #0F6E56;
+  --diff-del-text: #FCA5A5;
+  --diff-del-bg: rgba(181, 9, 9, 0.3);
+  --diff-del-border: #B50909;
+}
