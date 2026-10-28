@@ -5,6 +5,10 @@ import rehypeSanitize from 'rehype-sanitize';
 import { unified } from '@astrojs/markdown-remark';
 
 export default defineConfig({
+  build: {
+    concurrency: 4,
+    inlineStylesheets: 'auto',
+  },
   integrations: [svelte()],
   vite: { plugins: [tailwindcss()] },
   site: 'https://civic-source.github.io',
