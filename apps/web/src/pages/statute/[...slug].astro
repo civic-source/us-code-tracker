@@ -145,6 +145,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 <BaseLayout
   title={entry.data.title}
   description={`Full text of ${classification} with change history. Current through ${current_through}.`}
+  wide={true}
 >
   <!-- Schema.org Legislation structured data -->
   <script type="application/ld+json" set:html={JSON.stringify({
@@ -268,26 +269,106 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     </details>
   )}
 
-  <!-- Content with chapter sidebar -->
-  <div class="not-prose flex gap-8">
-    <!-- Main statute content -->
-    <div class="prose prose-gray min-w-0 flex-1 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-teal [&>h1]:pt-4">
+  <!-- OpenDesign 3-Pane Legal Workbench: Reader Center + Right Authority Rail -->
+  <div class="not-prose flex flex-col xl:flex-row gap-8 items-start">
+    <!-- Center Statutory Reader: Controlled optimal reading measure -->
+    <div class="flex-1 min-w-0 max-w-4xl w-full">
       <ReadingToolbar client:load />
-      <Content />
+
+      <!-- Main statute content -->
+      <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none">
+        <Content />
+      </div>
+
+      <!-- Prev / Next section navigation with title previews -->
+      <nav class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
+        {prevSection ? (
+          <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%]">
+            <span class="text-[11px] text-[var(--text-muted)]">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>
+            <span class="text-sm font-semibold text-[var(--civic-action)]">&sect; {prevSection.data.usc_section}</span>
+            <span class="truncate text-xs text-[var(--text-muted)]">{prevSection.data.title.replace(/^Section \S+ - /, '')}</span>
+          </a>
+        ) : <span></span>}
+        {nextSection ? (
+          <a href={`${base}statute/${nextSection.id}/`} class="flex flex-col items-end gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%] ml-auto text-right">
+            <span class="text-[11px] text-[var(--text-muted)]">Next{nextIsCrossChapter ? ` (Ch. ${nextSection.data.chapter})` : ''} &rarr;</span>
+            <span class="text-sm font-semibold text-[var(--civic-action)]">&sect; {nextSection.data.usc_section}</span>
+            <span class="truncate text-xs text-[var(--text-muted)]">{nextSection.data.title.replace(/^Section \S+ - /, '')}</span>
+          </a>
+        ) : <span></span>}
+      </nav>
+
+      <!-- Diff viewer for change history -->
+      <div class="not-prose mt-8">
+        <DiffViewer client:idle sectionPath={sectionPath} />
+      </div>
+
+      <!-- Case law references -->
+      {precedentCases.length > 0 && (
+        <div class="not-prose mt-8 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 font-sans shadow-2xs">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-[var(--text-primary)]">Judicial Case Law Precedent</h3>
+            <a
+              href={`https://www.courtlistener.com/?q=${encodeURIComponent(`"${usc_title} U.S.C. § ${usc_section}"`)}&type=o`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded bg-[var(--civic-action)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--civic-action)] transition-colors hover:bg-[var(--civic-action)]/20"
+            >
+              View all on CourtListener &rarr;
+            </a>
+          </div>
+          <ul class="mt-4 space-y-2.5 text-sm">
+            {precedentCases.slice(0, 5).map((c) => (
+              <li class="flex items-start gap-2.5">
+                <span class:list={[
+                  'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                  c.court === 'SCOTUS' ? 'bg-[var(--legal-caution-bg)] text-[var(--legal-caution)]' :
+                  c.court === 'Appellate' ? 'bg-[var(--civic-action)]/10 text-[var(--civic-action)]' :
+                  'bg-[var(--surface-sunken)] text-[var(--text-muted)]'
+                ]}>{c.court}</span>
+                <div>
+                  <a
+                    href={c.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="font-medium text-[var(--text-primary)] underline-offset-2 hover:underline hover:text-[var(--civic-action)]"
+                  >{c.caseName}</a>
+                  {c.date && <span class="ml-2 text-xs text-[var(--text-muted)]">({c.date.slice(0, 4)})</span>}
+                  {c.holdingSummary && <p class="text-xs text-[var(--text-secondary)] mt-0.5">{c.holdingSummary}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
 
-    <!-- Right sidebar: Article TOC + Chapter sections -->
-    <aside class="hidden w-56 shrink-0 lg:block">
-      <!-- Article TOC (only renders for pages with 3+ headings) -->
-      <ArticleToc client:idle contentSelector=".prose" />
+    <!-- Right Workbench Rail: Statute Authority Inspector & Navigation Outlines -->
+    <div class="flex flex-col gap-6 xl:w-80 2xl:w-96 shrink-0 xl:sticky xl:top-6 xl:self-start w-full">
+      <!-- Authority & Precedent Inspector (Docked on XL+, Floating drawer below XL) -->
+      <StatuteInspector
+        client:idle
+        sectionId={usc_section}
+        uscTitle={usc_title}
+        uscSection={usc_section}
+        annotations={precedentCases}
+      />
 
-      <!-- Chapter TOC -->
+      <!-- Article TOC (headings in section) -->
+      <div class="hidden xl:block">
+        <ArticleToc client:idle contentSelector=".prose" />
+      </div>
+
+      <!-- Chapter Sections Navigation -->
       {chapterSiblings.length > 1 && (
-        <nav class="sticky top-6 mt-4 font-sans" aria-label="Chapter sections">
-          <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate dark:text-gray-500">
-            Chapter {chapter} Sections
-          </h2>
-          <ul class="max-h-[calc(100vh-8rem)] space-y-0.5 overflow-y-auto text-xs">
+        <nav class="hidden xl:block rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 shadow-2xs font-sans" aria-label="Chapter sections">
+          <div class="flex items-center justify-between mb-3 border-b border-[var(--border-subtle)] pb-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Chapter {chapter} Sections
+            </h2>
+            <span class="text-[11px] font-mono text-[var(--text-muted)]">{chapterSiblings.length} §</span>
+          </div>
+          <ul class="max-h-[calc(100vh-28rem)] space-y-1 overflow-y-auto text-xs">
             {chapterSiblings.map((sibling) => {
               const isCurrent = sibling.id === entry.id;
               return (
@@ -295,14 +376,15 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
                   <a
                     href={`${base}statute/${sibling.id}/`}
                     class:list={[
-                      'block rounded px-2 py-1 transition-colors',
+                      'block rounded-lg px-2.5 py-1.5 transition-colors',
                       isCurrent
-                        ? 'bg-navy/10 font-medium text-navy dark:bg-amber/10 dark:text-amber'
-                        : 'text-slate hover:bg-gray-100 hover:text-navy dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-amber',
+                        ? 'bg-[var(--civic-navy)]/10 font-bold text-[var(--civic-navy)] dark:bg-[var(--civic-navy)]/20 dark:text-[var(--text-primary)] border-l-2 border-[var(--civic-action)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]',
                     ]}
                     aria-current={isCurrent ? 'page' : undefined}
                   >
-                    &sect; {sibling.data.usc_section}
+                    <span class="font-mono font-semibold">&sect; {sibling.data.usc_section}</span>
+                    <span class="ml-1 text-[11px] text-[var(--text-muted)] font-normal truncate block">{sibling.data.title.replace(/^Section \S+ - /, '')}</span>
                   </a>
                 </li>
               );
@@ -310,69 +392,8 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
           </ul>
         </nav>
       )}
-    </aside>
-  </div>
-
-  <!-- Prev / Next section navigation with title previews -->
-  <nav class="not-prose mt-8 flex items-center justify-between border-t border-gray-200 pt-4 font-sans dark:border-gray-800" aria-label="Section navigation">
-    {prevSection ? (
-      <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-warm-gray dark:hover:bg-gray-800 max-w-[45%]">
-        <span class="text-[11px] text-gray-400">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>
-        <span class="text-sm font-medium text-teal">&sect; {prevSection.data.usc_section}</span>
-        <span class="truncate text-xs text-gray-500">{prevSection.data.title.replace(/^Section \S+ - /, '')}</span>
-      </a>
-    ) : <span></span>}
-    {nextSection ? (
-      <a href={`${base}statute/${nextSection.id}/`} class="flex flex-col items-end gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-warm-gray dark:hover:bg-gray-800 max-w-[45%] ml-auto text-right">
-        <span class="text-[11px] text-gray-400">Next{nextIsCrossChapter ? ` (Ch. ${nextSection.data.chapter})` : ''} &rarr;</span>
-        <span class="text-sm font-medium text-teal">&sect; {nextSection.data.usc_section}</span>
-        <span class="truncate text-xs text-gray-500">{nextSection.data.title.replace(/^Section \S+ - /, '')}</span>
-      </a>
-    ) : <span></span>}
-  </nav>
-
-  <!-- Diff viewer for change history -->
-  <div class="not-prose mt-8">
-    <DiffViewer client:idle sectionPath={sectionPath} />
-  </div>
-
-  <!-- Case law references -->
-  {precedentCases.length > 0 && (
-    <div class="not-prose mt-8 rounded-lg border border-gray-200 p-4 font-sans dark:border-gray-800">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-semibold text-gray-800 dark:text-gray-200">Case Law</h3>
-        <a
-          href={`https://www.courtlistener.com/?q=${encodeURIComponent(`"${usc_title} U.S.C. § ${usc_section}"`)}&type=o`}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="rounded bg-teal/10 px-2 py-1 text-xs font-medium text-teal transition-colors hover:bg-teal/20"
-        >
-          View all on CourtListener &rarr;
-        </a>
-      </div>
-      <ul class="mt-3 space-y-2 text-sm">
-        {precedentCases.slice(0, 5).map(c => (
-          <li class="flex items-start gap-2">
-            <span class:list={[
-              'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium',
-              c.court === 'SCOTUS' ? 'bg-amber/15 text-amber' :
-              c.court === 'Appellate' ? 'bg-teal/10 text-teal' :
-              'bg-gray-100 text-gray-500 dark:bg-gray-800'
-            ]}>{c.court}</span>
-            <div>
-              <a
-                href={c.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-navy underline-offset-2 hover:underline dark:text-amber"
-              >{c.caseName}</a>
-              {c.date && <span class="ml-2 text-xs text-gray-400">({c.date.slice(0, 4)})</span>}
-            </div>
-          </li>
-        ))}
-      </ul>
     </div>
-  )}
+  </div>
 
   <!-- Auto-link cross-references: "section N of this title" → chapter page anchor -->
   <script is:inline define:vars={{ base, usc_title, chapter }}>
@@ -458,13 +479,4 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     <kbd class="ml-2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] dark:border-gray-700 dark:bg-gray-800">/</kbd>
     search
   </div>
-
-  <!-- Authority & Precedent Inspector -->
-  <StatuteInspector
-    client:idle
-    sectionId={usc_section}
-    uscTitle={usc_title}
-    uscSection={usc_section}
-    annotations={precedentCases}
-  />
 </BaseLayout>

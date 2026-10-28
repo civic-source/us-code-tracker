@@ -13,11 +13,13 @@ import { TITLE_NAMES } from '../data/title-names';
 interface Props {
   title?: string;
   description?: string;
+  wide?: boolean;
 }
 
 const {
   title = 'US Code Tracker',
   description = 'Track changes to the United States Code with Git-based version control.',
+  wide = false,
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
@@ -133,15 +135,22 @@ const titleEntries = Object.entries(TITLE_NAMES)
 
       <!-- Main content — vertical container with full-width bottom footer -->
       <main id="main-content" tabindex="-1" class="min-h-0 flex-1 overflow-y-auto flex flex-col focus:outline-none">
-        <div class="flex-1 2xl:flex 2xl:flex-row 2xl:justify-center">
-          <article data-pagefind-body class="prose prose-lg prose-gray mx-auto max-w-3xl p-6 font-serif leading-relaxed dark:prose-invert lg:p-10 2xl:mx-0 2xl:flex-1 2xl:min-w-0">
+        <div class="flex-1 w-full">
+          <article
+            data-pagefind-body
+            class:list={[
+              wide
+                ? 'w-full max-w-7xl 2xl:max-w-[1680px] mx-auto p-4 sm:p-6 lg:p-8 2xl:p-10 flex-1 min-w-0'
+                : 'prose prose-lg prose-gray mx-auto max-w-3xl p-6 font-serif leading-relaxed dark:prose-invert lg:p-10 2xl:max-w-4xl flex-1 min-w-0',
+            ]}
+          >
             <slot />
           </article>
         </div>
 
         <!-- Footer -->
         <footer class="border-t border-[var(--border-default)] bg-[var(--surface-sunken)] px-6 py-8 font-sans text-xs text-[var(--text-secondary)]">
-          <div class="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+          <div class:list={['mx-auto grid grid-cols-1 gap-6 sm:grid-cols-3', wide ? 'max-w-7xl 2xl:max-w-[1680px]' : 'max-w-4xl']}>
             <div>
               <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">About US Code Tracker</h2>
               <p class="leading-relaxed">
