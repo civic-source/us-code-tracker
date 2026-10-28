@@ -69,6 +69,7 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
 <BaseLayout
   title={`Title ${titleNum}, Chapter ${chapterNum} — ${titleName}`}
   description={`Chapter ${chapterNum} of Title ${titleNum} of the United States Code (${sortedSections.length} sections)`}
+  wide={true}
 >
   <Breadcrumbs items={[
     { label: 'Home', href: base },
@@ -102,27 +103,27 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
       )}
     </div>
 
-    <ul class="not-prose divide-y divide-gray-100 rounded-lg border border-gray-200 font-sans dark:divide-gray-800 dark:border-gray-800">
+    <ul class="not-prose grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-gray-200 rounded-lg overflow-hidden border border-gray-200 font-sans dark:bg-gray-800 dark:border-gray-800">
       {sectionMeta.map(({ entry, isInactive, statusLabel }) => (
-        <li>
+        <li class="bg-white dark:bg-gray-900">
           <a
             href={`${base}statute/${entry.id}/`}
             class:list={[
-              'flex items-baseline gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900',
+              'flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-teal-50/40 dark:hover:bg-teal-950/20',
               isInactive && 'opacity-50',
             ]}
           >
-            <span class="w-14 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
+            <span class="w-12 shrink-0 text-right font-mono text-[11px] font-semibold text-slate dark:text-gray-400">
               &sect; {entry.data.usc_section}
             </span>
             <span class:list={[
-              'flex-1 text-gray-700 dark:text-gray-300',
+              'flex-1 truncate font-medium text-gray-700 dark:text-gray-300',
               isInactive && 'italic',
             ]}>
               {entry.data.title.replace(/^Section \S+ - /, '')}
             </span>
             {statusLabel && (
-              <span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800">
+              <span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 {statusLabel}
               </span>
             )}

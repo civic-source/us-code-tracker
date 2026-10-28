@@ -121,6 +121,7 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
 <BaseLayout
   title={`Title ${titleNum} — ${titleName}`}
   description={`Browse all ${entries.length} sections in Title ${titleNum} of the United States Code: ${titleName}`}
+  wide={true}
 >
   <Breadcrumbs items={[
     { label: 'Home', href: base },
@@ -189,13 +190,13 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
           </span>
         </summary>
 
-        <ul class="divide-y divide-gray-100 border-t border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-gray-200 border-t border-gray-200 dark:bg-gray-800 dark:border-gray-800">
           {ch.sections.map(s => (
-            <li>
+            <div class="bg-white dark:bg-gray-900">
               <a
                 href={`${base}statute/${s.id}/`}
                 class:list={[
-                  'flex items-center gap-3 px-4 py-1.5 pl-12 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-900',
+                  'flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-teal-50/40 dark:hover:bg-teal-950/20',
                   s.isInactive && 'opacity-50',
                 ]}
               >
@@ -204,11 +205,11 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
                 ) : (
                   <span class="h-1.5 w-1.5 shrink-0"></span>
                 )}
-                <span class="w-14 shrink-0 text-right font-mono text-[11px] text-slate dark:text-gray-500">
+                <span class="w-12 shrink-0 text-right font-mono text-[11px] font-semibold text-slate dark:text-gray-400">
                   &sect; {s.uscSection}
                 </span>
                 <span
-                  class:list={['truncate text-gray-700 dark:text-gray-300', s.isInactive && 'italic']}
+                  class:list={['truncate font-medium text-gray-700 dark:text-gray-300', s.isInactive && 'italic']}
                   title={s.displayTitle}
                 >
                   {s.displayTitle}
@@ -218,14 +219,14 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
                     {s.statusLabel}
                   </span>
                 ) : s.lastChangeLabel ? (
-                  <span class="ml-auto shrink-0 text-[9px] text-teal dark:text-teal-bright">
+                  <span class="ml-auto shrink-0 rounded bg-teal/10 px-1 py-0.5 font-mono text-[9px] text-teal dark:text-teal-bright">
                     {s.lastChangeLabel}
                   </span>
                 ) : null}
               </a>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </details>
     ))}
   </div>

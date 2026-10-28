@@ -59,18 +59,18 @@
   </button>
 </div>
 
-<!-- Inspector Container: Sidebar on XL+, Overlay Drawer below XL -->
+<!-- Inspector Container: Card widget on XL+, Overlay Drawer below XL -->
 <aside
   class:list={[
     'font-sans transition-all z-30',
-    // Mobile Drawer styling
+    // Mobile Drawer vs Desktop Docked Rail
     open
-      ? 'fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[var(--surface-raised)] border-l border-[var(--border-default)] shadow-2xl p-5 overflow-y-auto block xl:static xl:w-80 2xl:w-96 xl:p-0 xl:shadow-none xl:border-l xl:border-[var(--border-subtle)] xl:bg-[var(--surface-sunken)]'
-      : 'hidden xl:block xl:w-80 2xl:w-96 xl:border-l xl:border-[var(--border-subtle)] xl:bg-[var(--surface-sunken)]'
+      ? 'fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[var(--surface-raised)] border-l border-[var(--border-default)] shadow-2xl p-5 overflow-y-auto block xl:static xl:w-80 2xl:w-96 xl:p-0 xl:shadow-2xs xl:border xl:border-[var(--border-default)] xl:rounded-xl xl:bg-[var(--surface-raised)]'
+      : 'hidden xl:block xl:w-80 2xl:w-96 xl:border xl:border-[var(--border-default)] xl:rounded-xl xl:bg-[var(--surface-raised)] shadow-2xs overflow-hidden sticky top-6 self-start shrink-0'
   ]}
   aria-label="Statutory Authority & Precedent Inspector"
 >
-  <div class="sticky top-0 z-10 bg-[var(--surface-raised)] xl:bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] p-3">
+  <div class="sticky top-0 z-10 bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] p-3">
     <!-- Header with Pinpoint Title and Close on Mobile -->
     <div class="flex items-center justify-between pb-2">
       <div class="flex items-center gap-1.5">
