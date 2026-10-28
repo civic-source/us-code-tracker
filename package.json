@@ -13,7 +13,9 @@
   "devDependencies": {
     "@civic-source/annotator": "workspace:*",
     "@civic-source/fetcher": "workspace:*",
+    "@civic-source/shared": "workspace:*",
     "@civic-source/transformer": "workspace:*",
+    "@civic-source/types": "workspace:*",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@eslint/js": "^10.0.1",
