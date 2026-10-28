@@ -89,6 +89,60 @@ export const PrecedentAnnotationSchema = z.object({
 
 export type PrecedentAnnotation = z.infer<typeof PrecedentAnnotationSchema>;
 
+// --- Implementing Regulations (eCFR PTOA) schema ---
+
+export const ImplementingRegulationSchema = z.object({
+  /** CFR Title number */
+  cfrTitle: z.number().int().positive(),
+  /** CFR Part number */
+  cfrPart: z.number().int().positive(),
+  /** Agency name (e.g. "Environmental Protection Agency") */
+  agency: z.string().max(300),
+  /** Subject description */
+  description: z.string().max(500).optional(),
+  /** Authoritative eCFR URL */
+  ecfrUrl: HttpUrlSchema,
+});
+
+export type ImplementingRegulation = z.infer<typeof ImplementingRegulationSchema>;
+
+export const SectionRegulationsSchema = z.object({
+  targetSection: z.string(), // e.g. "18-111"
+  lastUpdated: z.string().datetime(),
+  regulations: z.array(ImplementingRegulationSchema),
+});
+
+export type SectionRegulations = z.infer<typeof SectionRegulationsSchema>;
+
+// --- Legislative History (Congress.gov / GovInfo) schema ---
+
+export const LegislativeHistoryItemSchema = z.object({
+  /** Public Law identifier, e.g. "PL 104-132" */
+  publicLaw: z.string().max(100),
+  congress: z.number().int().positive(),
+  billNumber: z.string().max(50).optional(),
+  enactedDate: z.string().optional(),
+  /** Non-partisan CRS summary of the enacted measure */
+  crsSummary: z.string().max(3000).optional(),
+  statutesAtLargeCitation: z.string().max(100).optional(), // e.g. "110 Stat. 1302"
+  statutesAtLargeUrl: OptionalHttpUrlSchema.optional(),
+  committeeReports: z.array(z.object({
+    reportNumber: z.string().max(100),
+    chamber: z.enum(['House', 'Senate', 'Conference']),
+    url: OptionalHttpUrlSchema,
+  })).default([]),
+});
+
+export type LegislativeHistoryItem = z.infer<typeof LegislativeHistoryItemSchema>;
+
+export const SectionLegislativeHistorySchema = z.object({
+  targetSection: z.string(),
+  lastUpdated: z.string().datetime(),
+  history: z.array(LegislativeHistoryItemSchema),
+});
+
+export type SectionLegislativeHistory = z.infer<typeof SectionLegislativeHistorySchema>;
+
 // --- Interfaces ---
 
 /** Fetches US Code release points from the OLRC */

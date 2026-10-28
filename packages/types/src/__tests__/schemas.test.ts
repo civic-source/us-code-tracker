@@ -4,6 +4,10 @@ import {
   CaseAnnotationSchema,
   PrecedentAnnotationSchema,
   PrecedentImpactSchema,
+  ImplementingRegulationSchema,
+  SectionRegulationsSchema,
+  LegislativeHistoryItemSchema,
+  SectionLegislativeHistorySchema,
   ok,
   err,
 } from '../index.js';
@@ -171,5 +175,64 @@ describe('PrecedentAnnotationSchema', () => {
       lastSyncedET: 'not-a-date',
       cases: [],
     })).toThrow();
+  });
+});
+
+describe('ImplementingRegulationSchema & SectionRegulationsSchema', () => {
+  const validReg = {
+    cfrTitle: 40,
+    cfrPart: 50,
+    agency: 'Environmental Protection Agency',
+    description: 'National Primary and Secondary Ambient Air Quality Standards',
+    ecfrUrl: 'https://www.ecfr.gov/current/title-40/part-50',
+  };
+
+  it('accepts valid implementing regulation', () => {
+    expect(ImplementingRegulationSchema.parse(validReg)).toEqual(validReg);
+  });
+
+  it('rejects invalid ecfrUrl scheme', () => {
+    expect(() => ImplementingRegulationSchema.parse({ ...validReg, ecfrUrl: 'javascript:alert(1)' })).toThrow();
+  });
+
+  it('accepts valid section regulations container', () => {
+    const container = {
+      targetSection: '42-7401',
+      lastUpdated: '2026-03-30T00:00:00Z',
+      regulations: [validReg],
+    };
+    expect(SectionRegulationsSchema.parse(container)).toEqual(container);
+  });
+});
+
+describe('LegislativeHistoryItemSchema & SectionLegislativeHistorySchema', () => {
+  const validHistory = {
+    publicLaw: 'PL 104-132',
+    congress: 104,
+    billNumber: 'S. 735',
+    enactedDate: '1996-04-24',
+    crsSummary: 'Antiterrorism and Effective Death Penalty Act of 1996.',
+    statutesAtLargeCitation: '110 Stat. 1214',
+    statutesAtLargeUrl: 'https://www.govinfo.gov/link/statute/110/1214',
+    committeeReports: [
+      {
+        reportNumber: 'H. Rept. 104-518',
+        chamber: 'Conference' as const,
+        url: 'https://www.govinfo.gov/content/pkg/CRPT-104hrpt518/pdf/CRPT-104hrpt518.pdf',
+      },
+    ],
+  };
+
+  it('accepts valid legislative history item', () => {
+    expect(LegislativeHistoryItemSchema.parse(validHistory)).toEqual(validHistory);
+  });
+
+  it('accepts valid section legislative history container', () => {
+    const container = {
+      targetSection: '18-2332b',
+      lastUpdated: '2026-03-30T00:00:00Z',
+      history: [validHistory],
+    };
+    expect(SectionLegislativeHistorySchema.parse(container)).toEqual(container);
   });
 });
