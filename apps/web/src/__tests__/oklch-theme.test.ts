@@ -14,7 +14,7 @@ describe('oklch-theme', () => {
     mockClasses = new Set();
     mockAttributes = {};
 
-    globalThis.localStorage = {
+    const mockLocalStorage = {
       getItem: (key: string) => mockStorage[key] ?? null,
       setItem: (key: string, val: string) => {
         mockStorage[key] = val;
@@ -28,9 +28,9 @@ describe('oklch-theme', () => {
       length: 0,
       key: () => null,
     };
+    (globalThis as unknown as { localStorage: unknown }).localStorage = mockLocalStorage;
 
-    // @ts-expect-error Mock minimal DOM Document
-    globalThis.document = {
+    const mockDoc = {
       documentElement: {
         classList: {
           add: (cls: string) => mockClasses.add(cls),
@@ -42,7 +42,9 @@ describe('oklch-theme', () => {
             mockStyles[prop] = val;
           },
           removeProperty: (prop: string) => {
+            const old = mockStyles[prop] ?? '';
             delete mockStyles[prop];
+            return old;
           },
           getPropertyValue: (prop: string) => mockStyles[prop] ?? '',
         },
@@ -56,13 +58,12 @@ describe('oklch-theme', () => {
         getAttribute: (name: string) => mockAttributes[name] ?? null,
       },
     };
+    (globalThis as unknown as { document: unknown }).document = mockDoc;
   });
 
   afterEach(() => {
-    // @ts-expect-error cleanup mock
-    delete globalThis.localStorage;
-    // @ts-expect-error cleanup mock
-    delete globalThis.document;
+    delete (globalThis as unknown as { localStorage?: unknown }).localStorage;
+    delete (globalThis as unknown as { document?: unknown }).document;
   });
 
   it('provides curated OKLCH terminal themes including solarized and gruvbox', () => {
