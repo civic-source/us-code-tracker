@@ -25,9 +25,22 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - name: Cache Turborepo artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      # Build libraries/CLI packages and Astro types without compiling 56k static HTML pages.
+      # Full static site build + Pagefind indexing is reserved for deploy-site.yml.
+      - name: Build packages & verify Astro bundle
+        run: |
+          pnpm --filter '!@civic-source/web' build
+          pnpm --filter @civic-source/web exec astro sync
 
       - run: pnpm typecheck
 
