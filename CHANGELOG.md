@@ -67,6 +67,37 @@
 * **web:** replace regex HTML sanitization with sanitize-html ([#171](https://github.com/civic-source/us-code-tracker/issues/171)) ([23297e9](https://github.com/civic-source/us-code-tracker/commit/23297e9446d04adf0b7c3da913fb8f0562759c37))
 * **web:** resolve 404s on Recently Changed Sections links ([#108](https://github.com/civic-source/us-code-tracker/issues/108)) ([ba8451e](https://github.com/civic-source/us-code-tracker/commit/ba8451ea123dbc34cf91d8f7e5488b4195502073))
 
+## [0.7.0](https://github.com/civic-source/us-code-tracker/compare/v0.6.1...v0.7.0) (2026-10-28)
+
+
+### Features
+
+* **enrichment:** implement regulatory and legislative schemas and dynamic client islands ([#295](https://github.com/civic-source/us-code-tracker/issues/295)) ([da46ea5](https://github.com/civic-source/us-code-tracker/commit/da46ea5f19ddcafd9291a7a38f83ba6d22424891))
+* **pipeline:** add eCFR Parallel Table of Authorities regulations extractor script ([#297](https://github.com/civic-source/us-code-tracker/issues/297)) ([2b32aac](https://github.com/civic-source/us-code-tracker/commit/2b32aacf2361ee3b8113b917e5e6ce31d546bfd2))
+* **transformer:** preserve sourceCredit and legislative history provenance ([#282](https://github.com/civic-source/us-code-tracker/issues/282)) ([ce8dcaf](https://github.com/civic-source/us-code-tracker/commit/ce8dcaf83d82afdab96b1cae32bea0ba31559d05))
+* **web:** adopt USWDS civic design system, word-level redline diffs, and bump LTS deps ([8693c97](https://github.com/civic-source/us-code-tracker/commit/8693c972afb11661f5abef0c5e02f6158e631d86))
+* **web:** elevate legislative timeline and compare releases with opendesign ([#303](https://github.com/civic-source/us-code-tracker/issues/303)) ([822d2a5](https://github.com/civic-source/us-code-tracker/commit/822d2a5f904a874f107bcdf4c99f0e1fda4f5d51))
+* **web:** integrate govinfo, cornell lii, and oklch terminal themes ([#300](https://github.com/civic-source/us-code-tracker/issues/300)) ([d5553d2](https://github.com/civic-source/us-code-tracker/commit/d5553d296c9216dc10102734b2288f8c88346175))
+* **web:** introduce OpenDesign tokens and multi-tab statute inspector ([#294](https://github.com/civic-source/us-code-tracker/issues/294)) ([1fd3dba](https://github.com/civic-source/us-code-tracker/commit/1fd3dba4333da78d16653d41fbf37f6fd1361d0e))
+* **web:** modernize desktop layout across wide resolutions with opendesign ([#301](https://github.com/civic-source/us-code-tracker/issues/301)) ([16868ad](https://github.com/civic-source/us-code-tracker/commit/16868ad7b6152459d7f06a1f2fe13e98399acfe6))
+* **web:** modernize homepage and title directory with opendesign ([#299](https://github.com/civic-source/us-code-tracker/issues/299)) ([4e5542c](https://github.com/civic-source/us-code-tracker/commit/4e5542c0d02d8cb85bc104310bd084afe0113b00))
+
+
+### Bug Fixes
+
+* **annotator:** cap the CourtListener response body before parsing ([#268](https://github.com/civic-source/us-code-tracker/issues/268)) ([8fc1cd8](https://github.com/civic-source/us-code-tracker/commit/8fc1cd8e213bf9f47c1fa63c49c4262b0a175b15))
+* **annotator:** use shared fetchWithRetry in CourtListener client ([#275](https://github.com/civic-source/us-code-tracker/issues/275)) ([15f0536](https://github.com/civic-source/us-code-tracker/commit/15f0536ea8e50ac9510076731e394be51e399bd0))
+* **web:** resolve 2xl layout, section sorting, security hardening, and bundle footprint ([#276](https://github.com/civic-source/us-code-tracker/issues/276)) ([96addf4](https://github.com/civic-source/us-code-tracker/commit/96addf482350f6d9785338a3570081bbc33f286e))
+
+
+### Performance Improvements
+
+* **ci:** scope build to library packages and cache turborepo ([#296](https://github.com/civic-source/us-code-tracker/issues/296)) ([945e30f](https://github.com/civic-source/us-code-tracker/commit/945e30f36c45cec366d5921c2fdd02dca2f38902))
+* **web:** accelerate static build with pagefind body and index ([#298](https://github.com/civic-source/us-code-tracker/issues/298)) ([e7e1420](https://github.com/civic-source/us-code-tracker/commit/e7e1420aa396d6d33132521de651815c4090cca1))
+* **web:** enable html minification and optimize pagefind indexing ([#302](https://github.com/civic-source/us-code-tracker/issues/302)) ([ddd0c51](https://github.com/civic-source/us-code-tracker/commit/ddd0c513db3cfae430704b5bac61c8350b61c082))
+* **web:** replace quadratic LCS with Myers diff and fix deploy workflow ([#281](https://github.com/civic-source/us-code-tracker/issues/281)) ([b85c564](https://github.com/civic-source/us-code-tracker/commit/b85c5640573b8a3dd77f3478425be2453e245604))
+* **web:** statically compile chapter full-text rollups during build ([#284](https://github.com/civic-source/us-code-tracker/issues/284)) ([f33a757](https://github.com/civic-source/us-code-tracker/commit/f33a757e0b070c0bfc2e006db00552d4192bc83f)), closes [#279](https://github.com/civic-source/us-code-tracker/issues/279)
+
 ## [0.6.1](https://github.com/civic-source/us-code-tracker/compare/v0.6.0...v0.6.1) (2026-06-30)
 
 
