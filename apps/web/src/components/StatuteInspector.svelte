@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { CaseAnnotation } from '../lib/types';
+  import FederalRegisterActivity from './FederalRegisterActivity.svelte';
+  import AgencyGuidanceSearch from './AgencyGuidanceSearch.svelte';
 
   interface Props {
     sectionId: string;
@@ -10,7 +12,7 @@
 
   let { sectionId, uscTitle, uscSection, annotations = [] }: Props = $props();
 
-  type TabId = 'precedents' | 'regulations' | 'rulemaking' | 'diffs';
+  type TabId = 'precedents' | 'regulations' | 'rulemaking' | 'guidance';
   let activeTab = $state<TabId>('precedents');
   let open = $state(false); // Mobile drawer toggle
   let expandedHoldings = $state<Set<number>>(new Set());
@@ -124,6 +126,19 @@
         ]}
       >
         <span>Federal Register</span>
+      </button>
+
+      <button
+        onclick={() => (activeTab = 'guidance')}
+        class:list={[
+          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+          activeTab === 'guidance'
+            ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
+            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+        ]}
+      >
+        <span>Guidance</span>
+        <span class="rounded-full bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber px-1.5 py-0.2 text-[9px] font-bold">Gov</span>
       </button>
     </nav>
   </div>
@@ -249,30 +264,11 @@
 
     <!-- TAB 3: LIVE FEDERAL REGISTER ACTIVITY -->
     {:else if activeTab === 'rulemaking'}
-      <div class="space-y-3">
-        <div class="rounded bg-[var(--surface-raised)] border border-[var(--border-subtle)] p-3 text-xs">
-          <div class="font-semibold text-[var(--text-primary)]">Active Federal Register Notices</div>
-          <p class="mt-1 text-[var(--text-muted)] text-[11px]">
-            Track proposed rules, public comment periods, and executive orders implementing this statute.
-          </p>
-        </div>
+      <FederalRegisterActivity {uscTitle} {uscSection} />
 
-        <a
-          href="https://www.federalregister.gov/documents/search?conditions%5Bterm%5D={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="block rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-xs hover:border-[var(--civic-action)] transition-colors shadow-2xs"
-        >
-          <div class="font-semibold text-[var(--civic-action)]">Search FederalRegister.gov &rarr;</div>
-          <p class="mt-1 text-[11px] text-[var(--text-secondary)]">
-            View proposed rules, final regulations, and open public comment dockets.
-          </p>
-        </a>
-
-        <div class="rounded border border-dashed border-[var(--border-subtle)] p-3 text-center text-[11px] text-[var(--text-muted)]">
-          Live Federal Register API Svelte Island activates in Phase 4.
-        </div>
-      </div>
+    <!-- TAB 4: FIRECRAWL GOV GUIDANCE EXPLORER -->
+    {:else if activeTab === 'guidance'}
+      <AgencyGuidanceSearch {uscTitle} {uscSection} />
     {/if}
   </div>
 </aside>
