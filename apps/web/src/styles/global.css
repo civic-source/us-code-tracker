@@ -1,10 +1,11 @@
 @import "tailwindcss";
+@import "./tokens.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-serif: "Georgia", "Times New Roman", serif;
+  --font-serif: "Source Serif 4", "Charter", "Georgia", "Times New Roman", serif;
   --font-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
@@ -32,17 +33,16 @@
   --color-warm-border: #D1CEC8;     /* gray-warm-20 — dividers */
 }
 
-/* Semantic color tokens — light mode */
+/* Backward compatibility mapping with OpenDesign tokens */
 :root {
-  --color-text-primary: #112F4E;      /* navy-dark — high contrast body text */
-  --color-border: #d1cec8;            /* warm-border — dividers */
+  --color-text-primary: var(--text-primary);
+  --color-border: var(--border-default);
 }
 
-/* Semantic color tokens — dark mode */
 :where(.dark, .dark *) {
-  --color-text-primary: #e8f0f8;      /* near-white with warm-blue tint */
-  --color-border: #1e3a5a;            /* navy mid — dividers */
-  --color-amber: #FFBE2E;            /* bright gold — passes WCAG AA (>8:1) on deep navy */
+  --color-text-primary: var(--text-primary);
+  --color-border: var(--border-default);
+  --color-amber: var(--legal-caution);
 }
 
 /* Legal text readability — 19px desktop, 16px mobile */

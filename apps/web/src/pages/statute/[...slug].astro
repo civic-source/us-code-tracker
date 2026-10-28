@@ -3,7 +3,7 @@ import { getCollection, getEntry, render } from 'astro:content';
 import { compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DiffViewer from '../../components/DiffViewer.svelte';
-import PrecedentDrawer from '../../components/PrecedentDrawer.svelte';
+import StatuteInspector from '../../components/StatuteInspector.svelte';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import ArticleToc from '../../components/ArticleToc.svelte';
 import SummaryBox from '../../components/SummaryBox.astro';
@@ -454,6 +454,12 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     search
   </div>
 
-  <!-- Precedent drawer: persistent 3rd column at 2xl, overlay below -->
-  <PrecedentDrawer client:idle sectionId={usc_section} annotations={precedentCases} />
+  <!-- Authority & Precedent Inspector -->
+  <StatuteInspector
+    client:idle
+    sectionId={usc_section}
+    uscTitle={usc_title}
+    uscSection={usc_section}
+    annotations={precedentCases}
+  />
 </BaseLayout>
