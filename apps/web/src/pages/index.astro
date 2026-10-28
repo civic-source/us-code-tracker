@@ -17,27 +17,42 @@ try {
 }
 
 // Read recently changed sections from diff manifest and resolve actual URLs
-interface RecentChange { title: string; section: string; entryId: string; sectionName: string; from: string; to: string; }
+interface RecentChange {
+  title: string;
+  section: string;
+  entryId: string;
+  sectionName: string;
+  from: string;
+  to: string;
+}
+
 let recentChanges: RecentChange[] = [];
 try {
   const { readFile, readdir } = await import('node:fs/promises');
   const { join } = await import('node:path');
   const publicDir = process.cwd() + '/apps/web/public/diffs';
   const manifestRaw = await readFile(join(publicDir, 'manifest.json'), 'utf8');
-  const manifest = JSON.parse(manifestRaw) as { pairs: { from: string; to: string; changedSections: number }[] };
-  const recentPair = manifest.pairs.filter(p => p.changedSections > 0).at(-1);
+  const manifest = JSON.parse(manifestRaw) as {
+    pairs: { from: string; to: string; changedSections: number }[];
+  };
+  const recentPair = manifest.pairs.filter((p) => p.changedSections > 0).at(-1);
   if (recentPair) {
     const allEntries = await getCollection('statutes');
     const entryLookup = new Map<string, { id: string; name: string }>();
     for (const entry of allEntries) {
       const key = `title-${entry.data.usc_title}/section-${entry.data.usc_section}`;
-      entryLookup.set(key, { id: entry.id, name: entry.data.title.replace(/^Section \S+ - /, '') });
+      entryLookup.set(key, {
+        id: entry.id,
+        name: entry.data.title.replace(/^Section \S+ - /, ''),
+      });
     }
 
     const pairDir = join(publicDir, `${recentPair.from}_${recentPair.to}`);
     const titles = await readdir(pairDir).catch(() => [] as string[]);
     for (const titleDir of titles.slice(0, 8)) {
-      const sections = await readdir(join(pairDir, titleDir)).catch(() => [] as string[]);
+      const sections = await readdir(join(pairDir, titleDir)).catch(
+        () => [] as string[]
+      );
       for (const sectionFile of sections.slice(0, 3)) {
         const section = sectionFile.replace('.json', '');
         const key = `${titleDir}/${section}`;
@@ -66,155 +81,299 @@ let titleCount = 54; // fallback
 try {
   const stats = await getCollection('statutes');
   sectionCount = stats.length;
-  titleCount = new Set(stats.map(e => e.data.usc_title)).size;
+  titleCount = new Set(stats.map((e) => e.data.usc_title)).size;
 } catch {
   // Fallback
 }
 
 const base = import.meta.env.BASE_URL;
+
+const popularTitles = [
+  { num: '18', name: 'Crimes & Criminal Procedure', badge: 'Title 18' },
+  { num: '26', name: 'Internal Revenue Code', badge: 'Title 26' },
+  { num: '42', name: 'Public Health & Welfare', badge: 'Title 42' },
+  { num: '5', name: 'Government Org & APA', badge: 'Title 5' },
+  { num: '11', name: 'Bankruptcy', badge: 'Title 11' },
+  { num: '35', name: 'Patents', badge: 'Title 35' },
+];
 ---
 
 <BaseLayout
   title="Home"
-  description="Track changes to the United States Code with Git-based version control and diff history."
+  description="Track changes to the United States Code with Git-based version control, legal redlines, and regulatory intelligence."
 >
-  <!-- USWDS Hero Section -->
-  <section class="not-prose pb-8 pt-4 text-center font-sans">
-    <div class="inline-flex items-center gap-1.5 rounded-full bg-navy/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-navy dark:bg-amber/15 dark:text-amber mb-4">
-      <svg class="h-3.5 w-3.5 text-navy dark:text-amber" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V8.26l7-3.89v7.62z" />
-      </svg>
-      <span>Open Civic Technology</span>
+  <!-- OpenDesign Command Center Hero -->
+  <section class="not-prose pb-10 pt-4 text-center font-sans">
+    <!-- Live Status Pill -->
+    <div class="inline-flex items-center gap-2 rounded-full border border-[var(--legal-valid)]/40 bg-[var(--legal-valid-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--legal-valid)] mb-5 shadow-2xs">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--legal-valid)] opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-[var(--legal-valid)]"></span>
+      </span>
+      <span>Official U.S. Code · Git Versioning & Redlines · Current through PL 119-73</span>
     </div>
-    <h1 class="mb-4 text-4xl font-extrabold tracking-tight text-navy dark:text-gray-100 sm:text-5xl md:text-6xl" style="line-height: 1.15">
-      US Code Tracker
+
+    <h1 class="mb-4 text-4xl font-black tracking-tight text-[var(--text-primary)] sm:text-5xl md:text-6xl" style="line-height: 1.1">
+      The Civic Legal Codebase
     </h1>
-    <p class="mx-auto mb-8 max-w-xl text-base text-slate sm:text-lg dark:text-gray-300 leading-relaxed">
-      Every amendment and codification to federal statutory law, tracked transparently through Git version control.
+    <p class="mx-auto mb-8 max-w-2xl text-base text-[var(--text-secondary)] sm:text-lg leading-relaxed">
+      Every federal statute, legislative amendment, and administrative regulation tracked with cryptographic Git history, authentic word-level redline diffs, and live regulatory radar.
     </p>
+
+    <!-- Action Buttons -->
     <div class="flex flex-wrap justify-center gap-3">
       <a
         href={`${base}browse/`}
-        class="rounded-md bg-navy px-6 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-navy-dark dark:bg-teal dark:hover:bg-teal/90"
+        class="inline-flex items-center gap-2 rounded-lg bg-[var(--civic-navy)] px-6 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[var(--civic-navy-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--civic-action)] focus:ring-offset-2"
       >
-        Browse all titles &rarr;
+        <span>Browse All 54 Titles</span>
+        <span>&rarr;</span>
       </a>
       <a
-        href="#how-it-works"
-        class="rounded-md border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate shadow-2xs transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+        href={`${base}statute/title-18/chapter-7/section-111/`}
+        class="inline-flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-6 py-3 text-sm font-semibold text-[var(--text-primary)] shadow-2xs transition-colors hover:border-[var(--civic-action)] hover:text-[var(--civic-action)] focus:outline-none focus:ring-2 focus:ring-[var(--civic-action)]"
       >
-        How it works
+        <span>Inspect Sample Statute (18 U.S.C. § 111)</span>
+        <span class="text-xs text-[var(--text-muted)] font-mono">Inspector &rarr;</span>
       </a>
+    </div>
+
+    <!-- Quick Jump Chips -->
+    <div class="mt-8 pt-6 border-t border-[var(--border-subtle)] max-w-3xl mx-auto">
+      <p class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+        Quick Access Codifications
+      </p>
+      <div class="flex flex-wrap justify-center gap-2">
+        {popularTitles.map((t) => (
+          <a
+            href={`${base}browse/title-${t.num}/`}
+            class="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--civic-action)] hover:text-[var(--text-primary)] hover:shadow-2xs"
+          >
+            <span class="font-mono font-bold text-[var(--civic-navy)]">{t.badge}</span>
+            <span>&middot;</span>
+            <span>{t.name}</span>
+          </a>
+        ))}
+      </div>
     </div>
   </section>
 
-  <!-- USWDS Metric Cards -->
-  <div class="not-prose my-8 grid grid-cols-2 gap-4 font-sans sm:grid-cols-4">
-    <div class="rounded-lg border border-gray-200 bg-warm-white p-4 text-center shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <p class="text-3xl font-extrabold text-navy dark:text-amber tabular-nums">{titleCount}</p>
-      <p class="mt-1 text-xs font-medium uppercase tracking-wider text-slate dark:text-gray-400">Titles</p>
+  <!-- OpenDesign Metric Cards -->
+  <div class="not-prose my-6 grid grid-cols-2 gap-4 font-sans sm:grid-cols-4">
+    <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 text-center shadow-2xs transition-all hover:border-[var(--civic-action)]">
+      <p class="text-3xl font-extrabold text-[var(--civic-navy)] tabular-nums">{titleCount}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Statutory Titles</p>
+      <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">General & permanent laws</p>
     </div>
-    <div class="rounded-lg border border-gray-200 bg-warm-white p-4 text-center shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <p class="text-3xl font-extrabold text-navy dark:text-amber tabular-nums">{sectionCount.toLocaleString()}</p>
-      <p class="mt-1 text-xs font-medium uppercase tracking-wider text-slate dark:text-gray-400">Sections</p>
+    <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 text-center shadow-2xs transition-all hover:border-[var(--civic-action)]">
+      <p class="text-3xl font-extrabold text-[var(--civic-navy)] tabular-nums">{sectionCount.toLocaleString()}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Codified Sections</p>
+      <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">Tracked across 100+ years</p>
     </div>
-    <div class="rounded-lg border border-gray-200 bg-warm-white p-4 text-center shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <p class="text-3xl font-extrabold text-teal dark:text-teal-bright">PL 119-73</p>
-      <p class="mt-1 text-xs font-medium uppercase tracking-wider text-slate dark:text-gray-400">Current through</p>
+    <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 text-center shadow-2xs transition-all hover:border-[var(--civic-action)]">
+      <p class="text-3xl font-extrabold text-[var(--legal-valid)] tabular-nums">PL 119-73</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Current Through</p>
+      <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">Verified from House OLRC XML</p>
     </div>
-    <div class="rounded-lg border border-gray-200 bg-warm-white p-4 text-center shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <p class="text-3xl font-extrabold text-teal dark:text-teal-bright tabular-nums">{releasePointCount > 0 ? releasePointCount : 230}</p>
-      <p class="mt-1 text-xs font-medium uppercase tracking-wider text-slate dark:text-gray-400">Release Points</p>
-    </div>
-  </div>
-
-  <p class="not-prose mb-6 text-center text-xs text-gray-500 font-sans dark:text-gray-400">
-    Synchronized directly with official XML releases from the Office of the Law Revision Counsel (House of Representatives).
-  </p>
-
-  <!-- Feature Grid: 4 Pillars of US Code Tracker -->
-  <h2 id="how-it-works" class="text-navy dark:text-gray-100">What this project does</h2>
-  <div class="not-prose my-6 grid grid-cols-1 gap-4 font-sans sm:grid-cols-2">
-    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber font-bold text-sm">
-          XML
-        </span>
-        <h3 class="text-sm font-bold text-navy dark:text-gray-100">Official Data Ingestion</h3>
-      </div>
-      <p class="text-xs leading-relaxed text-slate dark:text-gray-400">
-        Downloads official legislative XML releases from the Office of the Law Revision Counsel (OLRC) as soon as Congress publishes codifications.
-      </p>
-    </div>
-
-    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-teal/10 text-teal dark:bg-teal/20 dark:text-teal-bright font-bold text-sm">
-          Git
-        </span>
-        <h3 class="text-sm font-bold text-navy dark:text-gray-100">Transparent Git Versioning</h3>
-      </div>
-      <p class="text-xs leading-relaxed text-slate dark:text-gray-400">
-        Converts every title, chapter, and section into structured, plain-text files tracked by Git commits with cryptographic history.
-      </p>
-    </div>
-
-    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-teal/10 text-teal dark:bg-teal/20 dark:text-teal-bright font-bold text-sm">
-          &Delta;
-        </span>
-        <h3 class="text-sm font-bold text-navy dark:text-gray-100">Word-Level Redline Diffs</h3>
-      </div>
-      <p class="text-xs leading-relaxed text-slate dark:text-gray-400">
-        Generates authentic legal redlines with word-level additions and deletions so you can see exactly which words were added, removed, or amended.
-      </p>
-    </div>
-
-    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <div class="flex items-center gap-3 mb-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber font-bold text-sm">
-          §
-        </span>
-        <h3 class="text-sm font-bold text-navy dark:text-gray-100">Accessible Statutory Reading</h3>
-      </div>
-      <p class="text-xs leading-relaxed text-slate dark:text-gray-400">
-        Provides an easy-to-read, navigable interface adhering to USWDS accessibility guidelines, customizable typefaces, and cross-reference links.
-      </p>
+    <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 text-center shadow-2xs transition-all hover:border-[var(--civic-action)]">
+      <p class="text-3xl font-extrabold text-[var(--civic-action)] tabular-nums">{releasePointCount > 0 ? releasePointCount : 230}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Release Points</p>
+      <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">Cryptographic Git commits</p>
     </div>
   </div>
 
+  <!-- OpenDesign Civic Legal Workbench: 4 Core Pillars -->
+  <section class="not-prose my-10 font-sans">
+    <div class="mb-6 flex flex-col items-center text-center">
+      <div class="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-sunken)] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--civic-navy)] border border-[var(--border-subtle)] mb-2">
+        <span>The Civic Legal Workbench</span>
+      </div>
+      <h2 class="text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+        Built for Legal Accuracy, Research, and Verification
+      </h2>
+      <p class="mt-1 text-sm text-[var(--text-secondary)] max-w-xl">
+        Combining official House OLRC legislative XML with modern software engineering and judicial enrichment.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <!-- Pillar 1: Word-Level Redlines -->
+      <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-6 shadow-2xs transition-all hover:shadow-xs">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--legal-action)]/10 text-[var(--legal-action)] font-mono font-bold text-base">
+              &Delta;
+            </span>
+            <h3 class="text-base font-bold text-[var(--text-primary)]">Authentic Word-Level Redlines</h3>
+          </div>
+          <span class="rounded bg-[var(--diff-add-bg)] px-2 py-0.5 font-mono text-[11px] font-semibold text-[var(--diff-add-text)] border border-[var(--diff-add-border)]/30">
+            + additions / &minus; deletions
+          </span>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--text-secondary)] mb-4">
+          Every Public Law passed by Congress amends specific statutory language. Our diff engine computes exact word-level additions and deletions so legal scholars can see legislative intent instantly.
+        </p>
+        <div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3 font-mono text-xs leading-normal">
+          <span class="text-[var(--text-muted)]">"Whoever forcibly assaults, resists, </span>
+          <span class="rounded bg-[var(--diff-del-bg)] px-1 py-0.5 text-[var(--diff-del-text)] line-through">opposes</span>
+          <span class="text-[var(--text-muted)]"> </span>
+          <span class="rounded bg-[var(--diff-add-bg)] px-1 py-0.5 text-[var(--diff-add-text)] font-semibold">impedes, intimidates</span>
+          <span class="text-[var(--text-muted)]">, or interferes with any person..."</span>
+        </div>
+      </div>
+
+      <!-- Pillar 2: Shepard's & KeyCite Legal Signals -->
+      <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-6 shadow-2xs transition-all hover:shadow-xs">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--legal-valid)]/10 text-[var(--legal-valid)] font-bold text-base">
+              §
+            </span>
+            <h3 class="text-base font-bold text-[var(--text-primary)]">Judicial Validity Signals</h3>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--legal-valid)]" title="Active Law"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--legal-caution)]" title="Narrowed Precedent"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--legal-invalid)]" title="Unconstitutional / Struck Down"></span>
+          </div>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--text-secondary)] mb-4">
+          Integrated CourtListener case law annotations give you immediate Shepard's-style signals indicating whether statutory provisions have been upheld, narrowed, or ruled unconstitutional by federal courts.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-md border border-[var(--legal-valid)]/30 bg-[var(--legal-valid-bg)] px-2.5 py-1 text-xs font-medium text-[var(--legal-valid)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--legal-valid)]"></span>
+            Active In-Force Law
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-md border border-[var(--legal-caution)]/30 bg-[var(--legal-caution-bg)] px-2.5 py-1 text-xs font-medium text-[var(--legal-caution)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--legal-caution)]"></span>
+            Narrowed Holding
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-md border border-[var(--legal-invalid)]/30 bg-[var(--legal-invalid-bg)] px-2.5 py-1 text-xs font-medium text-[var(--legal-invalid)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--legal-invalid)]"></span>
+            Unconstitutional / Repealed
+          </span>
+        </div>
+      </div>
+
+      <!-- Pillar 3: Parallel Table of Authorities (eCFR PTOA) -->
+      <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-6 shadow-2xs transition-all hover:shadow-xs">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--civic-navy)]/10 text-[var(--civic-navy)] font-mono font-bold text-base">
+              CFR
+            </span>
+            <h3 class="text-base font-bold text-[var(--text-primary)]">eCFR Regulatory Mapping</h3>
+          </div>
+          <span class="rounded bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[11px] font-medium text-[var(--text-muted)] border border-[var(--border-subtle)]">
+            Parallel Table of Authorities
+          </span>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--text-secondary)] mb-4">
+          Statutes do not exist in isolation. Our automated eCFR PTOA pipeline connects statutory authority directly to agency implementing regulations across all 50 titles of the Code of Federal Regulations.
+        </p>
+        <div class="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-2.5 text-xs">
+          <span class="font-mono font-bold text-[var(--civic-navy)]">20 U.S.C. § 1070</span>
+          <span class="text-[var(--text-muted)]">&rarr;</span>
+          <span class="font-mono text-[var(--text-primary)]">34 CFR Part 668</span>
+          <span class="ml-auto text-[11px] text-[var(--text-muted)]">Dept of Education</span>
+        </div>
+      </div>
+
+      <!-- Pillar 4: Real-Time Federal Register Radar -->
+      <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-6 shadow-2xs transition-all hover:shadow-xs">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--civic-action)]/10 text-[var(--civic-action)] font-bold text-base">
+              FR
+            </span>
+            <h3 class="text-base font-bold text-[var(--text-primary)]">Federal Register Radar</h3>
+          </div>
+          <span class="inline-flex items-center gap-1 rounded-full bg-[var(--legal-valid-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--legal-valid)]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--legal-valid)] animate-pulse"></span>
+            Live API
+          </span>
+        </div>
+        <p class="text-xs leading-relaxed text-[var(--text-secondary)] mb-4">
+          Live queries directly to the Federal Register API show proposed rulemakings, public comment deadlines, and administrative action before changes are finalized into law.
+        </p>
+        <div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-2.5 text-xs flex items-center justify-between">
+          <div class="truncate mr-2">
+            <span class="font-semibold text-[var(--text-primary)]">Proposed Rulemaking Notice</span>
+            <p class="text-[11px] text-[var(--text-muted)] truncate">Public comments close in 14 days</p>
+          </div>
+          <span class="rounded bg-[var(--surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] shrink-0">
+            Submit Comment &rarr;
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recently Amended Sections -->
   {recentChanges.length > 0 && (
-    <h2 class="text-navy dark:text-gray-100">Recently amended sections</h2>
-    <p class="not-prose mb-3 text-xs text-gray-500 font-sans dark:text-gray-400">
-      Sections with text changes between {recentChanges[0]?.from.replace('pl-', 'PL ').replace('-', '-')} and {recentChanges[0]?.to.replace('pl-', 'PL ').replace('-', '-')}.
-    </p>
-    <div class="not-prose mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white font-sans text-xs dark:border-gray-800 dark:bg-[#0B1926]">
-      <ul class="divide-y divide-gray-100 dark:divide-gray-850">
-        {recentChanges.map(change => (
-          <li>
-            <a
-              href={`${base}statute/${change.entryId}/`}
-              class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-warm-gray dark:hover:bg-gray-800"
-            >
-              <span class="h-2 w-2 rounded-full bg-teal shrink-0" aria-hidden="true"></span>
-              <span class="font-mono text-xs font-semibold text-navy dark:text-amber shrink-0">{change.title.replace('title-', 'Title ')}</span>
-              <span class="font-medium text-slate dark:text-gray-200 shrink-0">{change.section.replace('section-', '§ ')}</span>
-              <span class="truncate text-gray-500 dark:text-gray-400">{change.sectionName}</span>
-              <span class="ml-auto shrink-0 font-medium text-teal hover:underline dark:text-teal-bright">View diff &rarr;</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section class="not-prose my-10 font-sans">
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-[var(--text-primary)]">Recently Amended Sections</h2>
+          <p class="text-xs text-[var(--text-muted)]">
+            Sections with text changes between {recentChanges[0]?.from.replace('pl-', 'PL ').replace('-', '-')} and {recentChanges[0]?.to.replace('pl-', 'PL ').replace('-', '-')}.
+          </p>
+        </div>
+        <a
+          href={`${base}browse/`}
+          class="text-xs font-semibold text-[var(--civic-action)] hover:underline"
+        >
+          View all changes &rarr;
+        </a>
+      </div>
+
+      <div class="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] shadow-2xs">
+        <ul class="divide-y divide-[var(--border-subtle)]">
+          {recentChanges.map((change) => (
+            <li>
+              <a
+                href={`${base}statute/${change.entryId}/`}
+                class="flex items-center gap-3 px-4 py-3 text-xs transition-colors hover:bg-[var(--surface-sunken)]"
+              >
+                <span class="h-2 w-2 rounded-full bg-[var(--legal-valid)] shrink-0" aria-hidden="true"></span>
+                <span class="font-mono font-bold text-[var(--civic-navy)] shrink-0">
+                  {change.title.replace('title-', 'Title ')}
+                </span>
+                <span class="font-medium text-[var(--text-primary)] shrink-0">
+                  {change.section.replace('section-', '§ ')}
+                </span>
+                <span class="truncate text-[var(--text-secondary)]">
+                  {change.sectionName}
+                </span>
+                <span class="ml-auto shrink-0 font-medium text-[var(--civic-action)] hover:underline inline-flex items-center gap-1">
+                  <span>View diff</span>
+                  <span>&rarr;</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   )}
 
-  <div class="not-prose mt-6">
-    <a
-      href={`${import.meta.env.BASE_URL}browse/`}
-      class="inline-flex items-center gap-2 rounded-md bg-teal px-6 py-3 font-sans text-sm font-semibold text-white shadow-xs transition-colors hover:bg-teal/90 focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2"
-    >
-      Browse all 54 Titles of the US Code &rarr;
-    </a>
-  </div>
+  <!-- Bottom CTA Banner -->
+  <section class="not-prose my-10 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-8 text-center font-sans">
+    <h3 class="text-xl font-bold text-[var(--text-primary)] sm:text-2xl">
+      Explore All 54 Titles of the United States Code
+    </h3>
+    <p class="mx-auto mt-2 max-w-lg text-sm text-[var(--text-secondary)]">
+      From Title 1 (General Provisions) to Title 54 (National Park Service), discover the full hierarchy of codified federal statutory law.
+    </p>
+    <div class="mt-5">
+      <a
+        href={`${base}browse/`}
+        class="inline-flex items-center gap-2 rounded-lg bg-[var(--civic-navy)] px-6 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[var(--civic-navy-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--civic-action)]"
+      >
+        <span>Open Title Directory</span>
+        <span>&rarr;</span>
+      </a>
+    </div>
+  </section>
 </BaseLayout>

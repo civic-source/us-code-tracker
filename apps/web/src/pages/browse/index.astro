@@ -2,7 +2,9 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import TitleDirectory, { type TitleEntry } from '../../components/TitleDirectory.svelte';
 import { TITLE_NAMES } from '../../data/title-names';
+import { getTitleCategory } from '../../data/title-categories';
 
 const allStatutes = await getCollection('statutes');
 
@@ -22,71 +24,40 @@ const sortedTitles = [...byTitle.entries()].sort(([a], [b]) =>
 );
 
 const totalSections = allStatutes.length;
-const totalTitles = byTitle.size;
 const maxSections = Math.max(...[...byTitle.values()].map((e) => e.length), 1);
-
 const base = import.meta.env.BASE_URL;
+
+const titleEntries: TitleEntry[] = sortedTitles.map(([titleNum, entries]) => {
+  const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
+  const pct = Math.round((entries.length / maxSections) * 100);
+  return {
+    num: titleNum,
+    name: titleName,
+    sectionCount: entries.length,
+    pct,
+    href: `${base}browse/title-${titleNum}/`,
+    category: getTitleCategory(titleNum),
+  };
+});
 ---
 
 <BaseLayout
   title="Browse Titles"
-  description="Browse all titles of the United States Code."
+  description="Browse all 54 titles of the United States Code with instant search and subject filtering."
 >
   <Breadcrumbs items={[{ label: 'Home', href: base }, { label: 'Browse' }]} />
 
-  <h1 class="text-navy dark:text-amber">United States Code</h1>
-
-  <!-- Summary stats -->
-  <div class="not-prose mb-4 flex items-center gap-2 font-sans text-sm text-slate dark:text-gray-400">
-    <span class="font-semibold text-navy dark:text-amber">{totalTitles}</span>
-    <span>titles</span>
-    <span class="text-gray-300 dark:text-gray-700">&middot;</span>
-    <span class="font-semibold text-navy dark:text-amber">{totalSections.toLocaleString()}</span>
-    <span>sections</span>
+  <div class="mb-6">
+    <div class="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-sunken)] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--civic-navy)] border border-[var(--border-subtle)] mb-3">
+      <span>Official Codification Directory</span>
+    </div>
+    <h1 class="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] sm:text-4xl">
+      United States Code
+    </h1>
+    <p class="mt-2 text-base text-[var(--text-secondary)] max-w-3xl leading-relaxed">
+      The general and permanent laws of the United States, arranged into 54 statutory titles. Filter by subject or title number to inspect chapters, sections, and revision history.
+    </p>
   </div>
 
-  <p>
-    The United States Code is organized into titles covering the general and
-    permanent laws of the United States. Titles with available sections are
-    shown below. Select a title to view its chapters.
-  </p>
-
-  <div class="not-prose mt-6">
-    <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-      {sortedTitles.map(([titleNum, entries]) => {
-        const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
-        const pct = Math.round((entries.length / maxSections) * 100);
-        return (
-          <li>
-            <a
-              href={`${base}browse/title-${titleNum}/`}
-              class="flex items-center gap-3 px-4 py-3 font-sans text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
-            >
-              <span class="w-10 shrink-0 text-right font-mono text-xs text-slate dark:text-gray-500">
-                {titleNum}
-              </span>
-              <span class="min-w-0 flex-1 text-navy dark:text-gray-200 truncate">
-                {titleName}
-              </span>
-              <!-- Relative size bar -->
-              <span class="hidden sm:flex items-center gap-2 shrink-0">
-                <span
-                  class="h-1.5 rounded-full bg-teal/40"
-                  style={`width: ${Math.max(pct, 2)}px`}
-                  aria-hidden="true"
-                ></span>
-              </span>
-              <span class="shrink-0 text-xs text-gray-400 tabular-nums">
-                {entries.length.toLocaleString()} §
-              </span>
-            </a>
-          </li>
-        );
-      })}
-    </ul>
-  </div>
-
-  {sortedTitles.length === 0 && (
-    <p class="mt-6 text-gray-500">No statute data available yet.</p>
-  )}
+  <TitleDirectory client:load titles={titleEntries} totalSections={totalSections} />
 </BaseLayout>
