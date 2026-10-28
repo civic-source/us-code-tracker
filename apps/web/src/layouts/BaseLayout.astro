@@ -5,6 +5,7 @@ import '@fontsource/public-sans/500.css';
 import '@fontsource/public-sans/600.css';
 import CivicBanner from '../components/CivicBanner.astro';
 import ThemeToggle from '../components/ThemeToggle.svelte';
+import ThemeInitializer from '../components/ThemeInitializer.svelte';
 import SearchBar from '../components/SearchBar.svelte';
 import BackToTop from '../components/BackToTop.svelte';
 import { TITLE_NAMES } from '../data/title-names';
@@ -73,6 +74,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
 
     <!-- USWDS Civic Transparency Banner atop all views -->
     <CivicBanner />
+    <ThemeInitializer client:load />
 
     <div class="flex flex-1 min-h-0 flex-col lg:flex-row">
       <!-- Sidebar — USWDS-aligned usa-sidenav navigation -->

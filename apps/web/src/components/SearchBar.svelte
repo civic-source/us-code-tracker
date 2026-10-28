@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sanitizeExcerpt } from "../lib/sanitize";
+  import { parseCitation } from "../lib/citation-parser";
 
   // Pagefind types for the dynamically imported module
   interface PagefindResult {
@@ -30,6 +31,8 @@
   let pagefind = $state<PagefindModule | null>(null);
   let devMode = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  let citationJump = $derived(parseCitation(query));
 
   // Load Pagefind on mount + register "/" shortcut
   $effect(() => {
@@ -123,11 +126,14 @@
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       activeIndex = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
-    } else if (event.key === 'Enter' && activeIndex >= 0) {
-      event.preventDefault();
-      const selectedResult = results[activeIndex];
-      if (selectedResult) {
-        window.location.href = selectedResult.url;
+    } else if (event.key === 'Enter') {
+      if (activeIndex >= 0 && results[activeIndex]) {
+        event.preventDefault();
+        window.location.href = results[activeIndex].url;
+      } else if (citationJump) {
+        event.preventDefault();
+        const base = document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
+        window.location.href = `${base}browse/title-${citationJump.title}/#section-${citationJump.section}`;
       }
     }
   }
@@ -168,9 +174,25 @@
     class="absolute left-0 top-full z-50 mt-1 w-72 overflow-y-auto rounded border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 {showResults ? 'max-h-80' : 'hidden'}"
   >
     {#if showResults}
+      {#if citationJump}
+        <li role="presentation" class="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-850">
+          <a
+            href="{document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/'}browse/title-{citationJump.title}/#section-{citationJump.section}"
+            class="flex items-center justify-between rounded bg-white px-2.5 py-1.5 text-xs font-semibold text-teal shadow-2xs hover:bg-gray-50 dark:bg-gray-800 dark:text-teal-bright dark:hover:bg-gray-700"
+          >
+            <span class="flex items-center gap-1.5">
+              <span class="rounded bg-teal/15 px-1 py-0.5 text-[10px] font-bold text-teal dark:text-teal-bright">
+                ⚡ Jump
+              </span>
+              <span>Go to {citationJump.display}</span>
+            </span>
+            <span class="text-xs">&rarr;</span>
+          </a>
+        </li>
+      {/if}
       {#if loading}
         <li role="option" aria-selected="false" class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Searching...</li>
-      {:else if results.length === 0}
+      {:else if results.length === 0 && !citationJump}
         <li role="option" aria-selected="false" class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No results found.</li>
       {:else}
         {#each results as result, i}

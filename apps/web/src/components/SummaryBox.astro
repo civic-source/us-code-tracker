@@ -85,8 +85,35 @@ const statusBadge = isRepealed
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] hover:border-[var(--civic-action)] transition-colors"
         aria-label={`View § ${uscSection} on the Official U.S. Code, opens in new tab`}
+        title="Official House OLRC legislative XML"
       >
         <span>OLRC</span>
+        <span aria-hidden="true">&rarr;</span>
+      </a>
+
+      <a
+        href={`https://www.govinfo.gov/link/uscode/${uscTitle}/${uscSection}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] hover:border-[var(--civic-action)] transition-colors"
+        aria-label={`Download official authenticated GPO PDF for § ${uscSection}, opens in new tab`}
+        title="Official GPO Authenticated PDF (GovInfo Link Service)"
+      >
+        <svg class="h-3 w-3 text-[var(--civic-action)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span>GPO PDF</span>
+      </a>
+
+      <a
+        href={`https://www.law.cornell.edu/uscode/text/${uscTitle}/${uscSection}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] hover:border-[var(--civic-action)] transition-colors"
+        aria-label={`Compare § ${uscSection} on Cornell Law School LII, opens in new tab`}
+        title="Compare on Cornell Legal Information Institute (LII)"
+      >
+        <span>Cornell LII</span>
         <span aria-hidden="true">&rarr;</span>
       </a>
 
