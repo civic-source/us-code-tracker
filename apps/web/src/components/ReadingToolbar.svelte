@@ -1,11 +1,7 @@
 <script lang="ts">
-  import { CURATED_OKLCH_THEMES } from '../data/oklch-presets';
-  import { applyOklchTheme, getCuratedTheme, OKLCH_THEME_STORAGE_KEY } from '../lib/oklch-theme';
-
   let fontMode = $state<'serif' | 'sans'>('serif');
   let textSize = $state<'sm' | 'base' | 'lg'>('base');
   let measureMode = $state<'standard' | 'wide'>('standard');
-  let selectedThemeSlug = $state<string>('default');
 
   $effect(() => {
     if (typeof window === 'undefined') return;
@@ -18,15 +14,6 @@
 
       const storedMeasure = localStorage.getItem('reading-measure');
       if (storedMeasure === 'standard' || storedMeasure === 'wide') measureMode = storedMeasure;
-
-      const storedTheme = localStorage.getItem(OKLCH_THEME_STORAGE_KEY);
-      if (storedTheme) {
-        const theme = getCuratedTheme(storedTheme);
-        if (theme) {
-          selectedThemeSlug = storedTheme;
-          applyOklchTheme(theme);
-        }
-      }
     } catch {
       // Storage access blocked or restricted
     }
@@ -87,20 +74,6 @@
     }
     applyClasses();
   }
-
-  function onThemeSelect(e: Event) {
-    const target = e.target as HTMLSelectElement;
-    const slug = target.value;
-    selectedThemeSlug = slug;
-    if (slug === 'default') {
-      applyOklchTheme(null);
-    } else {
-      const theme = getCuratedTheme(slug);
-      if (theme) {
-        applyOklchTheme(theme);
-      }
-    }
-  }
 </script>
 
 <div
@@ -151,26 +124,6 @@
       <span class="text-[11px] text-[var(--text-muted)]">Width:</span>
       <span class="text-[var(--text-primary)]">{measureMode === 'standard' ? 'Standard' : 'Wide'}</span>
     </button>
-
-    <!-- OKLCH Terminal Reading Theme Selector -->
-    <div class="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 shadow-2xs">
-      <span class="text-[11px] text-[var(--text-muted)] font-medium">Theme:</span>
-      <select
-        value={selectedThemeSlug}
-        onchange={onThemeSelect}
-        class="rounded bg-transparent py-0.5 pr-1 text-xs font-medium text-[var(--text-primary)] focus:outline-none cursor-pointer"
-        aria-label="Select OKLCH reading theme preset"
-      >
-        <option value="default">Civic Default</option>
-        <optgroup label="OKLCH Terminal Themes">
-          {#each CURATED_OKLCH_THEMES as theme}
-            <option value={theme.slug}>
-              {theme.name} ({theme.isDark ? 'Dark' : 'Light'})
-            </option>
-          {/each}
-        </optgroup>
-      </select>
-    </div>
   </div>
 
   <!-- Quick jump links -->
