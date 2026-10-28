@@ -9,6 +9,7 @@ export default defineConfig({
     concurrency: 4,
     inlineStylesheets: 'auto',
   },
+  compressHTML: true,
   integrations: [svelte()],
   vite: { plugins: [tailwindcss()] },
   site: 'https://civic-source.github.io',

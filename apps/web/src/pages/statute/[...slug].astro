@@ -243,7 +243,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 
   <!-- Mobile TOC fallback -->
   {chapterSiblings.length > 1 && (
-    <details class="not-prose lg:hidden mb-4">
+    <details data-pagefind-ignore class="not-prose lg:hidden mb-4">
       <summary class="font-sans text-sm font-medium cursor-pointer">Sections in this chapter</summary>
       <ul class="mt-2 space-y-0.5 text-xs font-sans">
         {chapterSiblings.map((sibling) => {
@@ -273,7 +273,9 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
   <div class="not-prose flex flex-col xl:flex-row gap-8 items-start">
     <!-- Center Statutory Reader: Controlled optimal reading measure -->
     <div class="flex-1 min-w-0 max-w-4xl w-full">
-      <ReadingToolbar client:load />
+      <div data-pagefind-ignore>
+        <ReadingToolbar client:load />
+      </div>
 
       <!-- Main statute content -->
       <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none">
@@ -281,7 +283,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       </div>
 
       <!-- Prev / Next section navigation with title previews -->
-      <nav class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
+      <nav data-pagefind-ignore class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
         {prevSection ? (
           <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%]">
             <span class="text-[11px] text-[var(--text-muted)]">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>
@@ -299,7 +301,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       </nav>
 
       <!-- Diff viewer for change history -->
-      <div class="not-prose mt-8">
+      <div data-pagefind-ignore class="not-prose mt-8">
         <DiffViewer client:idle sectionPath={sectionPath} />
       </div>
 
@@ -344,7 +346,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     </div>
 
     <!-- Right Workbench Rail: Statute Authority Inspector & Navigation Outlines -->
-    <div class="flex flex-col gap-6 xl:w-80 2xl:w-96 shrink-0 xl:sticky xl:top-6 xl:self-start w-full">
+    <div data-pagefind-ignore class="flex flex-col gap-6 xl:w-80 2xl:w-96 shrink-0 xl:sticky xl:top-6 xl:self-start w-full">
       <!-- Authority & Precedent Inspector (Docked on XL+, Floating drawer below XL) -->
       <StatuteInspector
         client:idle
