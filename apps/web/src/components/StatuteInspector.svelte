@@ -271,4 +271,33 @@
       <AgencyGuidanceSearch {uscTitle} {uscSection} />
     {/if}
   </div>
+
+  <!-- Primary Legal Authorities Footer -->
+  <div class="border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3 text-xs">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+      External Primary Authorities
+    </div>
+    <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+      <a
+        href="https://www.govinfo.gov/link/uscode/{uscTitle}/{uscSection}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] hover:border-[var(--civic-action)] transition-colors"
+        title="Official Authenticated GPO PDF"
+      >
+        <span class="font-semibold text-[var(--civic-action)]">GPO GovInfo</span>
+        <span class="text-[9px] text-[var(--text-muted)] ml-auto">PDF &rarr;</span>
+      </a>
+      <a
+        href="https://www.law.cornell.edu/uscode/text/{uscTitle}/{uscSection}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] hover:border-[var(--civic-action)] transition-colors"
+        title="Cornell Law School Legal Information Institute"
+      >
+        <span class="font-semibold text-[var(--civic-action)]">Cornell LII</span>
+        <span class="text-[9px] text-[var(--text-muted)] ml-auto">&rarr;</span>
+      </a>
+    </div>
+  </div>
 </aside>

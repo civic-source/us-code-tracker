@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { CURATED_OKLCH_THEMES } from '../data/oklch-presets';
+  import { applyOklchTheme, getCuratedTheme, OKLCH_THEME_STORAGE_KEY } from '../lib/oklch-theme';
+
   let fontMode = $state<'serif' | 'sans'>('serif');
   let textSize = $state<'sm' | 'base' | 'lg'>('base');
   let measureMode = $state<'standard' | 'wide'>('standard');
+  let selectedThemeSlug = $state<string>('default');
 
   $effect(() => {
     if (typeof window === 'undefined') return;
@@ -14,6 +18,15 @@
 
       const storedMeasure = localStorage.getItem('reading-measure');
       if (storedMeasure === 'standard' || storedMeasure === 'wide') measureMode = storedMeasure;
+
+      const storedTheme = localStorage.getItem(OKLCH_THEME_STORAGE_KEY);
+      if (storedTheme) {
+        const theme = getCuratedTheme(storedTheme);
+        if (theme) {
+          selectedThemeSlug = storedTheme;
+          applyOklchTheme(theme);
+        }
+      }
     } catch {
       // Storage access blocked or restricted
     }
@@ -74,20 +87,34 @@
     }
     applyClasses();
   }
+
+  function onThemeSelect(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    const slug = target.value;
+    selectedThemeSlug = slug;
+    if (slug === 'default') {
+      applyOklchTheme(null);
+    } else {
+      const theme = getCuratedTheme(slug);
+      if (theme) {
+        applyOklchTheme(theme);
+      }
+    }
+  }
 </script>
 
 <div
   role="toolbar"
   aria-label="Reader customization controls"
-  class="not-prose mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-gray-200 py-2 font-sans text-xs dark:border-gray-800"
+  class="not-prose mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-[var(--border-default)] py-2 font-sans text-xs"
 >
   <!-- Reading Preferences -->
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <!-- Font family switcher -->
-    <div class="inline-flex rounded-md border border-gray-200 bg-white p-0.5 shadow-2xs dark:border-gray-700 dark:bg-gray-800" role="radiogroup" aria-label="Font typeface">
+    <div class="inline-flex rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] p-0.5 shadow-2xs" role="radiogroup" aria-label="Font typeface">
       <button
         onclick={() => setFont('serif')}
-        class="rounded px-2 py-0.5 text-xs font-serif transition-colors {fontMode === 'serif' ? 'bg-navy text-white dark:bg-teal' : 'text-slate hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+        class="rounded px-2 py-0.5 text-xs font-serif transition-colors {fontMode === 'serif' ? 'bg-[var(--civic-navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)]'}"
         aria-checked={fontMode === 'serif'}
         role="radio"
       >
@@ -95,7 +122,7 @@
       </button>
       <button
         onclick={() => setFont('sans')}
-        class="rounded px-2 py-0.5 text-xs font-sans transition-colors {fontMode === 'sans' ? 'bg-navy text-white dark:bg-teal' : 'text-slate hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+        class="rounded px-2 py-0.5 text-xs font-sans transition-colors {fontMode === 'sans' ? 'bg-[var(--civic-navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)]'}"
         aria-checked={fontMode === 'sans'}
         role="radio"
       >
@@ -107,30 +134,50 @@
     <button
       onclick={cycleSize}
       title="Toggle font size (17px / 19px / 21px)"
-      class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-slate shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+      class="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-2xs hover:bg-[var(--surface-sunken)]"
       aria-label="Toggle text size"
     >
-      <span class="text-[11px] text-slate dark:text-gray-300">Size:</span>
-      <span class="font-bold">{textSize === 'sm' ? '17px' : textSize === 'base' ? '19px' : '21px'}</span>
+      <span class="text-[11px] text-[var(--text-muted)]">Size:</span>
+      <span class="font-bold text-[var(--text-primary)]">{textSize === 'sm' ? '17px' : textSize === 'base' ? '19px' : '21px'}</span>
     </button>
 
     <!-- Reading measure width toggle -->
     <button
       onclick={toggleMeasure}
       title="Toggle reading line width: Standard (72ch) vs Wide (92ch)"
-      class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-slate shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+      class="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-2xs hover:bg-[var(--surface-sunken)]"
       aria-label="Toggle reading line width"
     >
-      <span class="text-[11px] text-slate dark:text-gray-300">Width:</span>
-      <span>{measureMode === 'standard' ? 'Standard' : 'Wide'}</span>
+      <span class="text-[11px] text-[var(--text-muted)]">Width:</span>
+      <span class="text-[var(--text-primary)]">{measureMode === 'standard' ? 'Standard' : 'Wide'}</span>
     </button>
+
+    <!-- OKLCH Terminal Reading Theme Selector -->
+    <div class="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 shadow-2xs">
+      <span class="text-[11px] text-[var(--text-muted)] font-medium">Theme:</span>
+      <select
+        value={selectedThemeSlug}
+        onchange={onThemeSelect}
+        class="rounded bg-transparent py-0.5 pr-1 text-xs font-medium text-[var(--text-primary)] focus:outline-none cursor-pointer"
+        aria-label="Select OKLCH reading theme preset"
+      >
+        <option value="default">Civic Default</option>
+        <optgroup label="OKLCH Terminal Themes">
+          {#each CURATED_OKLCH_THEMES as theme}
+            <option value={theme.slug}>
+              {theme.name} ({theme.isDark ? 'Dark' : 'Light'})
+            </option>
+          {/each}
+        </optgroup>
+      </select>
+    </div>
   </div>
 
   <!-- Quick jump links -->
   <div class="flex items-center gap-2">
     <a
       href="#diff-viewer"
-      class="inline-flex items-center gap-1 rounded bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal hover:bg-teal/20 transition-colors dark:text-teal-bright"
+      class="inline-flex items-center gap-1 rounded bg-[var(--civic-action)]/10 px-2 py-0.5 text-xs font-medium text-[var(--civic-action)] hover:bg-[var(--civic-action)]/20 transition-colors"
     >
       <span>&Delta; Version History</span>
     </a>
