@@ -274,7 +274,7 @@ export async function processReleasePoint(
     if (dryRun) {
       log.info('Dry run: would commit', { message: commitMsg, tag: tagName });
     } else {
-      commitSha = await gitCommit(repoPath, commitMsg);
+      await gitCommit(repoPath, commitMsg);
       const tagRes = await publishImmutableReleaseTag(repoPath, rp, {
         state,
         manifestHash,

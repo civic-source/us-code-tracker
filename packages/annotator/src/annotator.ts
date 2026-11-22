@@ -86,7 +86,7 @@ export function courtListenerSourceUrl(absoluteUrl: string): string {
  * Input: "18 U.S.C. 111" -> "annotations/title-18/section-111.yaml"
  */
 export function buildAnnotationPath(section: string): string {
-  const normalized = section.replace(/[§\u00A7]|&sect;/g, ' ').trim().replace(/\s+/g, ' ');
+  const normalized = section.replace(/\u00A7|&sect;/g, ' ').trim().replace(/\s+/g, ' ');
   const match = /^(\d+[a-zA-Z]?)\s+U\.?S\.?C\.?\s+([a-zA-Z0-9-]+)$/i.exec(normalized);
   if (!match) {
     const slug = section.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();

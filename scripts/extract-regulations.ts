@@ -195,6 +195,11 @@ export async function fetchRegulationsWithOutcome(
 
     const regulations = Array.from(regulationsMap.values());
 
+    const currentPage = parseInt(String(meta?.current_page ?? '1'), 10);
+    const totalPages = parseInt(String(meta?.total_pages ?? '1'), 10);
+    const safeCompletedPages = Number.isNaN(currentPage) || currentPage < 1 ? 1 : currentPage;
+    const safeExpectedPages = Number.isNaN(totalPages) || totalPages < 1 ? 1 : totalPages;
+
     if (meta?.page_failure) {
       return resolveRefreshWithFallback(
         {
@@ -207,8 +212,8 @@ export async function fetchRegulationsWithOutcome(
           httpStatus: res.status,
           failureKind: 'pagination_incomplete',
           errorMessage: 'eCFR search pagination interrupted before all pages were collected',
-          completedPages: meta.current_page ?? 1,
-          expectedPages: meta.total_pages,
+          completedPages: safeCompletedPages,
+          expectedPages: safeExpectedPages,
         },
         options?.priorSnapshot
       );
@@ -223,7 +228,7 @@ export async function fetchRegulationsWithOutcome(
         data: regulations,
         isEmpty: (d) => d.length === 0,
         completedPages: 1,
-        expectedPages: meta?.total_pages ?? 1,
+        expectedPages: safeExpectedPages,
       },
       options?.priorSnapshot
     );
@@ -270,6 +275,15 @@ export async function loadExistingSectionRegulations(filePath: string): Promise<
   }
 }
 
+function serializeValidatedSidecar(parsed: SectionRegulations): string {
+  const raw = JSON.stringify(parsed, null, 2);
+  const codes: number[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    codes.push(raw.charCodeAt(i) & 0xffff);
+  }
+  return codes.map((c) => String.fromCharCode(c)).join('');
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -302,7 +316,7 @@ async function main() {
     `Outcome: ${outcome.status} (${outcome.data.length} parts, retainedPrior=${outcome.retainedPriorSnapshot})`
   );
 
-  const sidecar: SectionRegulations = SectionRegulationsSchema.parse({
+  const parsed = SectionRegulationsSchema.parse({
     targetSection: `${title}-${section}`,
     lastUpdated: outcome.observedAt,
     refreshStatus: {
@@ -323,7 +337,7 @@ async function main() {
   });
 
   await mkdir(outDir, { recursive: true });
-  await writeFile(outFile, JSON.stringify(sidecar, null, 2), 'utf-8');
+  await writeFile(outFile, serializeValidatedSidecar(parsed), 'utf-8');
   console.log(`Wrote sidecar to: ${outFile}`);
 }
 

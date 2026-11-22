@@ -496,7 +496,12 @@ export function formatTableMarkdown(table: StructuredTable): string {
     ...table.rows.map((r) => r.length),
     1
   );
-  const escapeCell = (s: string) => s.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
+  const escapeCell = (s: string) =>
+    s
+      .replace(/\\/g, '\\\\')
+      .replace(/\|/g, '\\|')
+      .replace(/\r?\n/g, ' ')
+      .trim();
   const hdrs = Array.from({ length: colCount }, (_, i) => escapeCell(table.headers[i] ?? `Col ${i + 1}`));
   lines.push(`| ${hdrs.join(' | ')} |`);
   lines.push(`| ${hdrs.map(() => '---').join(' | ')} |`);
