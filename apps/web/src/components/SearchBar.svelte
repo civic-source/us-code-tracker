@@ -23,7 +23,50 @@
     search: (query: string) => Promise<PagefindResponse>;
   }
 
+  // USCT-036: Historical release search shard manifest & shard entry schemas
+  interface HistoricalReleaseMeta {
+    releaseId: string;
+    label: string;
+    titlesAvailable: string[];
+    missingTitles: string[];
+    coverageState: 'complete' | 'partial' | 'failed' | 'not_collected';
+  }
+
+  interface HistoricalSearchIndexManifest {
+    schemaVersion: 'usct.historical-search-manifest/v1';
+    generatedForPublicationId: string;
+    availableReleases: HistoricalReleaseMeta[];
+    shards: Record<string, { shardPath: string; shardDigest: string; entryCount: number }>;
+  }
+
+  interface HistoricalSearchShardEntry {
+    provisionId: string;
+    provisionVersionId: string;
+    releaseId: string;
+    uscTitle: string;
+    uscSection: string;
+    citation: string;
+    aliases: string[];
+    heading: string;
+    excerpt: string;
+    historicalUrl: string;
+  }
+
+  interface HistoricalSearchShard {
+    schemaVersion: 'usct.historical-search-shard/v1';
+    shardId: string;
+    releaseId: string;
+    publisherReleaseLabel: string;
+    uscTitle: string;
+    coverageState: 'complete' | 'partial' | 'failed' | 'not_collected';
+    entries: HistoricalSearchShardEntry[];
+    shardDigest: string;
+  }
+
   let query = $state('');
+  let selectedRelease = $state<string>('current');
+  let historicalManifest = $state<HistoricalSearchIndexManifest | null>(null);
+  let historicalWarning = $state<string | null>(null);
   let results = $state<PagefindResultData[]>([]);
   let loading = $state(false);
   let showResults = $state(false);
@@ -31,12 +74,23 @@
   let pagefind = $state<PagefindModule | null>(null);
   let devMode = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  const shardCache = new Map<string, HistoricalSearchShard>();
 
   let citationJump = $derived(parseCitation(query));
 
-  // Load Pagefind on mount + register "/" shortcut
+  function getBaseUrl(): string {
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="base-url"]')?.getAttribute('content');
+      if (meta) return meta.endsWith('/') ? meta : `${meta}/`;
+    }
+    const envBase = import.meta.env.BASE_URL || '/us-code-tracker/';
+    return envBase.endsWith('/') ? envBase : `${envBase}/`;
+  }
+
+  // Load Pagefind + historical shard manifest on mount + register "/" shortcut
   $effect(() => {
     loadPagefind();
+    loadHistoricalManifest();
     function onGlobalKeydown(e: KeyboardEvent): void {
       if (e.key === '/' && !devMode && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
@@ -53,26 +107,43 @@
   async function loadPagefind(): Promise<void> {
     if (typeof window === 'undefined') return;
     try {
-      // Use string concatenation to prevent Vite/Rollup from resolving this at build time.
-      // Pagefind generates its JS bundle into dist/pagefind/ during the post-build step.
-      const base = document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
+      const base = getBaseUrl();
       const path = base + 'pagefind/' + 'pagefind.js';
       const mod = (await import(/* @vite-ignore */ path)) as PagefindModule;
       await mod.init();
       pagefind = mod;
     } catch {
-      // Pagefind bundle only exists after build; in dev mode it's unavailable
       devMode = true;
     }
   }
 
-  // Debounced search triggered by query changes
+  async function loadHistoricalManifest(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch(`${getBaseUrl()}search-shards/manifest.json`);
+      if (!res.ok) return;
+      const raw: unknown = await res.json();
+      if (
+        raw &&
+        typeof raw === 'object' &&
+        (raw as { schemaVersion?: unknown }).schemaVersion === 'usct.historical-search-manifest/v1'
+      ) {
+        historicalManifest = raw as HistoricalSearchIndexManifest;
+      }
+    } catch {
+      // Static historical shards optional if not yet built
+    }
+  }
+
+  // Debounced search triggered by query or selectedRelease changes
   $effect(() => {
     const q = query;
+    const rel = selectedRelease;
     if (debounceTimer !== undefined) clearTimeout(debounceTimer);
 
     if (q.length === 0) {
       results = [];
+      historicalWarning = null;
       showResults = false;
       return;
     }
@@ -80,11 +151,16 @@
     loading = true;
     showResults = true;
     debounceTimer = setTimeout(() => {
-      performSearch(q);
+      if (rel === 'current') {
+        performSearch(q);
+      } else {
+        performHistoricalSearch(q, rel);
+      }
     }, 300);
   });
 
   async function performSearch(q: string): Promise<void> {
+    historicalWarning = null;
     if (!pagefind || q.length === 0) {
       loading = false;
       return;
@@ -103,8 +179,70 @@
     }
   }
 
+  /**
+   * USCT-036: Query bounded static historical release search shards without ever falling back
+   * to current-release Pagefind text when a historical shard or release is unavailable.
+   */
+  async function performHistoricalSearch(q: string, releaseId: string): Promise<void> {
+    results = [];
+    historicalWarning = null;
+    if (!historicalManifest) {
+      historicalWarning = 'Historical search index is not available; current law is not substituted.';
+      loading = false;
+      return;
+    }
+
+    const relMeta = historicalManifest.availableReleases.find((r) => r.releaseId === releaseId);
+    if (!relMeta || relMeta.titlesAvailable.length === 0) {
+      historicalWarning = `No historical search shards collected for release ${releaseId}; current law is not substituted.`;
+      loading = false;
+      return;
+    }
+
+    const qLower = q.toLowerCase().trim();
+    const matched: PagefindResultData[] = [];
+
+    try {
+      for (const title of relMeta.titlesAvailable) {
+        const shardKey = `${releaseId}__title-${title}`;
+        const shardMeta = historicalManifest.shards[shardKey];
+        if (!shardMeta) continue;
+
+        let shard = shardCache.get(shardKey);
+        if (!shard) {
+          const res = await fetch(`${getBaseUrl()}${shardMeta.shardPath}`);
+          if (res.ok) {
+            shard = (await res.json()) as HistoricalSearchShard;
+            shardCache.set(shardKey, shard);
+          }
+        }
+        if (!shard) continue;
+
+        for (const entry of shard.entries) {
+          const hay = `${entry.citation} ${entry.aliases.join(' ')} ${entry.heading} ${entry.excerpt}`.toLowerCase();
+          if (hay.includes(qLower)) {
+            matched.push({
+              url: entry.historicalUrl,
+              meta: { title: `${entry.citation} — ${entry.heading} (${relMeta.label})` },
+              excerpt: entry.excerpt,
+            });
+          }
+        }
+      }
+
+      if (relMeta.coverageState !== 'complete') {
+        historicalWarning = `Historical release ${relMeta.label} coverage is ${relMeta.coverageState}.`;
+      }
+      results = matched.slice(0, 10);
+    } catch {
+      historicalWarning = `Failed to load historical search shard for ${releaseId}; current law is not substituted.`;
+      results = [];
+    } finally {
+      loading = false;
+    }
+  }
+
   function closeResults(): void {
-    // Delay to allow click on result links
     setTimeout(() => {
       showResults = false;
       activeIndex = -1;
@@ -132,15 +270,31 @@
         window.location.href = results[activeIndex].url;
       } else if (citationJump) {
         event.preventDefault();
-        const base = document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/';
-        window.location.href = `${base}browse/title-${citationJump.title}/#section-${citationJump.section}`;
+        const base = getBaseUrl();
+        const releaseParam = selectedRelease !== 'current' ? `?release=${encodeURIComponent(selectedRelease)}` : '';
+        window.location.href = `${base}browse/title-${citationJump.title}/${releaseParam}#section-${citationJump.section}`;
       }
     }
   }
 </script>
 
-<div class="relative font-sans" role="search">
+<div class="relative font-sans space-y-1" role="search">
   <label for="search-input" class="sr-only">Search the US Code</label>
+  {#if historicalManifest && historicalManifest.availableReleases.length > 0}
+    <div class="flex items-center justify-between gap-1 text-[10px]">
+      <label for="search-release-scope" class="text-gray-500 dark:text-gray-400">Scope:</label>
+      <select
+        id="search-release-scope"
+        bind:value={selectedRelease}
+        class="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+      >
+        <option value="current">Current Law</option>
+        {#each historicalManifest.availableReleases as rel}
+          <option value={rel.releaseId}>{rel.label} ({rel.coverageState})</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
   <div class="relative">
     <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -150,8 +304,8 @@
     <input
       id="search-input"
       type="search"
-      placeholder={devMode ? 'Search available in production build' : 'Search (press /)'}
-      disabled={devMode}
+      placeholder={devMode && selectedRelease === 'current' ? 'Search available in production build' : 'Search (press /)'}
+      disabled={devMode && selectedRelease === 'current'}
       bind:value={query}
       onfocusin={() => { if (query.length > 0) showResults = true; }}
       onfocusout={closeResults}
@@ -174,10 +328,15 @@
     class="absolute left-0 top-full z-50 mt-1 w-72 overflow-y-auto rounded border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 {showResults ? 'max-h-80' : 'hidden'}"
   >
     {#if showResults}
+      {#if historicalWarning}
+        <li role="presentation" class="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          {historicalWarning}
+        </li>
+      {/if}
       {#if citationJump}
         <li role="presentation" class="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-850">
           <a
-            href="{document.querySelector('meta[name="base-url"]')?.getAttribute('content') ?? '/us-code-tracker/'}browse/title-{citationJump.title}/#section-{citationJump.section}"
+            href="{getBaseUrl()}browse/title-{citationJump.title}/{selectedRelease !== 'current' ? `?release=${encodeURIComponent(selectedRelease)}` : ''}#section-{citationJump.section}"
             class="flex items-center justify-between rounded bg-white px-2.5 py-1.5 text-xs font-semibold text-teal shadow-2xs hover:bg-gray-50 dark:bg-gray-800 dark:text-teal-bright dark:hover:bg-gray-700"
           >
             <span class="flex items-center gap-1.5">
