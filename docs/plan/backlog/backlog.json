@@ -1,0 +1,1313 @@
+{
+  "schema_version": "us-code-tracker.implementation-backlog/v1",
+  "created_on": "2026-11-21",
+  "purpose": "Proposed implementation plan only; no product changes, external issues or deployments were performed.",
+  "baseline": {
+    "repository": "https://github.com/civic-source/us-code-tracker",
+    "commit": "822d2a5f904a874f107bcdf4c99f0e1fda4f5d51"
+  },
+  "method_source": {
+    "repository": "https://github.com/mattpocock/skills",
+    "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+    "skills": [
+      "to-spec",
+      "to-tickets",
+      "domain-modeling",
+      "codebase-design",
+      "tdd",
+      "code-review",
+      "implement-spec"
+    ],
+    "use": "Methods adapted to the authorized planning scope; nothing installed or published."
+  },
+  "milestones": {
+    "M0": "Reconcile existing work and repair current trust/history failures",
+    "M1": "Prove source-to-history-page behavior and the local catalog",
+    "M2": "Attach verified legal context and explicit uncertainty",
+    "M3": "Update independently and publish an exactly pinned static snapshot",
+    "M4": "Provide a local research workbench and static topic views",
+    "M5": "Backfill, validate, cut over and operate recoverably",
+    "M6": "Evaluate optional compute and RuleSpec interoperability"
+  },
+  "status_semantics": {
+    "status": "All tickets are proposed, not started.",
+    "readiness": "ready means no listed blockers; blocked means prerequisite tickets must be completed or reconciled as already satisfied.",
+    "optional": "Optional tickets never block required delivery tickets; all external actions need the applicable execution authorization."
+  },
+  "default_execution_rules": [
+    "Reconcile existing work before creating an issue or editing code; use current code and issue state, not this snapshot alone.",
+    "Work the ready dependency frontier in isolated worktrees with fresh implementer context and pinned spec/ticket pointers; use topological_order rather than numeric ticket order.",
+    "Use behavior tests with independently checked expected results; avoid private-method tests and self-generated truth.",
+    "Preserve public URLs, immutable released identities, raw source bundles and explicit uncertainty.",
+    "Use expand-migrate-contract for schema-wide changes; retain a rollback-compatible previous publication.",
+    "Local PostgreSQL with required lexical search and optional pgvector ranking plus DuckDB/Parquet support research/processing; the hosted site remains static Astro with no required database or model.",
+    "Optional local Gemma, an HCK/ACQ executor adapter and RuleSpec export do not gate required delivery; pin verified current interfaces if an optional experiment is selected.",
+    "Relevant public/already-authorized source discovery, acquisition/refetch and schema backfills are authorized; prefer official bulk/API paths, preserve raw-version provenance and license/reuse basis, and respect per-source limits without repeated confirmation for ordinary in-scope collection."
+  ],
+  "ready_frontier": [
+    "USCT-001"
+  ],
+  "optional_tickets": [
+    "USCT-024",
+    "USCT-031",
+    "USCT-032"
+  ],
+  "tickets": [
+    {
+      "id": "USCT-001",
+      "title": "Reconcile the merged plan with current code and work already tracked",
+      "milestone": "M0",
+      "type": "decision",
+      "status": "proposed",
+      "readiness": "ready",
+      "blocked_by": [],
+      "delivers": "An implementer can identify which proposed capabilities are already complete, partial, absent or superseded and select a genuine ready task.",
+      "acceptance_criteria": [
+        "Pin the tracker/data/related-source commits examined and inventory existing issues, PRs, schemas, workflows and published data identities.",
+        "Inventory each new schema field against available and missing source evidence, including metadata, temporal endpoints and assertions; map gaps to relevant public/already-authorized sources and an acquisition or explicit-unknown disposition.",
+        "Map every backlog item to existing work or an explicit new gap; retain completed capabilities and document superseded recommendations.",
+        "Record local PostgreSQL with required lexical retrieval, optional pgvector ranking, DuckDB/Parquet, optional local Gemma, and static Astro; an HCK/ACQ executor adapter and RuleSpec export remain optional.",
+        "Publish a reviewable decision register and dependency graph without creating external issues or changing repository policy."
+      ],
+      "independent_validation": "A second reviewer samples existing-code, existing-issue and new-gap mappings against the pinned sources; detect any recommendation that contradicts current behavior.",
+      "demo": "Walk from an existing implemented feature and a confirmed gap to their disposition and next ready ticket.",
+      "evidence_to_close": [
+        "Snapshot inventory",
+        "Existing-work mapping",
+        "Decision register",
+        "Reviewed blocker graph",
+        "Schema-field-to-source coverage and acquisition-gap matrix"
+      ],
+      "rollback_notes": "Revise the plan records; no product state changes.",
+      "implementation_notes": "Use the current Matt Pocock to-spec/to-tickets methods; do not run an installation or restart already settled interviews. Relevant source discovery and acquisition to resolve these gaps are already authorized under the backlog data-acquisition policy; do not restrict the schema to current repository payloads.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-002",
+      "title": "Show source outages and partial results without reporting false emptiness",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "A reader and operator can distinguish no matches from an unavailable, rate-limited, malformed or partially fetched source.",
+      "acceptance_criteria": [
+        "Replace empty-on-error paths with typed success-empty, success-nonempty, partial and failed outcomes, including source, scope and last successful observation.",
+        "Preserve the last successful snapshot when a refresh fails; label stale evidence instead of replacing it with an empty list.",
+        "Static artifacts and current UI consumers retain these distinctions; an HTTP error is never a zero-result legal conclusion."
+      ],
+      "independent_validation": "Replay independently authored 200-empty, 200-results, 429, 500, timeout, malformed payload and pagination-failure fixtures through the public fetch-to-render path.",
+      "demo": "A populated page survives a simulated source outage with a visible stale/unavailable indicator and unchanged underlying evidence.",
+      "evidence_to_close": [
+        "Fixture outcomes",
+        "Rendered state evidence",
+        "Refresh report showing retained snapshot"
+      ],
+      "rollback_notes": "Restore the previous validated snapshot and compatible renderer; do not delete failure evidence.",
+      "implementation_notes": "This slice covers shared result semantics and one representative source path, then applies the same result contract to existing adapters.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-003",
+      "title": "Label eCFR text matches as unverified candidates",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "A reader no longer mistakes a regulation found by text search for a verified implementing regulation.",
+      "acceptance_criteria": [
+        "Represent the present eCFR text-match output as a typed candidate with query, source URL, retrieval time and matching evidence.",
+        "Remove implementation/authority labels unless a supporting authority relationship has been verified.",
+        "Preserve existing links and content while making candidate and verified states visibly distinct."
+      ],
+      "independent_validation": "Use one exact authority citation, one incidental numeric/text mention and one unrelated match; only the independently checked authority fixture may be labeled verified.",
+      "demo": "Open a candidate regulation card and inspect why it was retrieved and what remains unverified.",
+      "evidence_to_close": [
+        "Candidate schema example",
+        "Before/after UI evidence",
+        "False-positive fixture result"
+      ],
+      "rollback_notes": "Disable candidate display while retaining evidence; never revert to an unsupported authority label.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-004",
+      "title": "Present CourtListener snippets as retrieval evidence, not holdings",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "A reader sees what a case-search result actually establishes and can follow the opinion source.",
+      "acceptance_criteria": [
+        "Migrate search snippets from holding-summary semantics to an explicitly labeled retrieval excerpt with source and retrieval context.",
+        "Do not infer a holding, interpretation, invalidation or binding precedential effect from a search result alone.",
+        "Retain separately verified annotations with their evidence/status and preserve compatibility with existing case sidecars."
+      ],
+      "independent_validation": "Replay a snippet that mentions a statute in passing and an independently reviewed opinion excerpt; verify that only the latter can carry a reviewed legal proposition.",
+      "demo": "Compare an unreviewed search hit and a reviewed case annotation in the reader interface.",
+      "evidence_to_close": [
+        "Migration compatibility result",
+        "Snippet/opinion fixtures",
+        "Rendered labels"
+      ],
+      "rollback_notes": "Retain old sidecars as source records and hide unverified propositions; do not recreate asserted holdings from snippets.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-005",
+      "title": "Resume historical imports across a failed middle release",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "An operator can recover a failed release without silently losing it when later releases succeed.",
+      "acceptance_criteria": [
+        "Persist completion by exact source release and title/scope, not by a single latest-success cursor.",
+        "For R1 success, R2 failure and R3 success, resume retries R2 while retaining R1 and R3; duplicate retries do not create duplicate identities.",
+        "The run remains incomplete while R2 is missing; comparisons spanning the gap declare that gap rather than implying adjacent complete history.",
+        "Interrupted writes cannot mark an incomplete transformation complete."
+      ],
+      "independent_validation": "Run the three-release failure scenario with independently specified expected state, including process interruption before/after output promotion.",
+      "demo": "Resume a run containing a failed middle release and show the repaired historical page without reimporting completed releases.",
+      "evidence_to_close": [
+        "Checkpoint ledger before/after",
+        "Recovery transcript",
+        "No-duplicate identity report",
+        "Gap display"
+      ],
+      "rollback_notes": "Restore the preceding checkpoint ledger and immutable artifacts; failed or partial work stays retryable.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-006",
+      "title": "Protect published release identities from replacement",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "A bookmarked or pinned release always resolves to the same published content.",
+      "acceptance_criteria": [
+        "Remove force replacement of published release tags/identities; an existing identity with different bytes produces an explicit collision failure.",
+        "An idempotent rerun of identical content is a no-op; corrections receive a new revision identity and a supersession link.",
+        "Existing public links remain resolvable and a promotion log records the correction relationship."
+      ],
+      "independent_validation": "Attempt identical and conflicting re-publications against a disposable fixture repository; independently compare refs and hashes before/after.",
+      "demo": "Show a collision rejection followed by a new correction revision while the original URL still resolves.",
+      "evidence_to_close": [
+        "Identity collision test",
+        "Immutable ref/hash report",
+        "Supersession example"
+      ],
+      "rollback_notes": "Repoint only the mutable current-publication pointer to a prior immutable release; do not force-move historical tags.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-007",
+      "title": "Preserve complete release catalogs and paginate API fallbacks",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-001"
+      ],
+      "delivers": "A reader and importer can find every cataloged release and detect incomplete API fallback history rather than silently accepting the first response page.",
+      "acceptance_criteria": [
+        "A proposed synthetic fixture of 103 distinct release identities retains all 103 in the complete catalog, history navigation and import selection; this fixture is not a claim about live corpus totals.",
+        "The current static manifest path remains the primary historical source. The GitHub tag fallback must paginate beyond its observed per_page=100 request, and file-history fallback must paginate beyond its observed per_page=50 request or explicitly declare a bounded/incomplete scope.",
+        "Pagination ends only on verified exhaustion; duplicate pages, a failed later page or a resource cap produce explicit completeness results rather than silent truncation.",
+        "The eight-item commit preview stays a presentation choice; it must not define the underlying catalog/history completeness."
+      ],
+      "independent_validation": "Create an independently enumerated synthetic 103-release fixture and a 53-commit history fixture. Check exact identity sets, navigation beyond the first pages, duplicate-page behavior and failure of the final page.",
+      "demo": "Navigate to synthetic release 101 and commit 51, then inspect the incomplete state when the next API page fails.",
+      "evidence_to_close": [
+        "Synthetic fixture provenance and expected identity sets",
+        "Static-manifest path compatibility",
+        "Paginated fallback results",
+        "Failed-page completeness result"
+      ],
+      "rollback_notes": "Restore the preceding validated catalog artifact or disable the fallback with an explicit unavailable state; do not silently treat a first page as complete.",
+      "implementation_notes": "Observed at the pinned tracker snapshot: DiffViewer reads static manifest pairs first; its fallback fetches tags with per_page=100 without a pagination loop. getFileHistory requests commits with per_page=50. No 60-release cap was verified. Counts 103 and 53 are proposed synthetic regression cases, not observed production counts.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate.",
+      "source_references": [
+        {
+          "label": "DiffViewer static manifest, tag fallback and commit preview",
+          "url": "https://github.com/civic-source/us-code-tracker/blob/822d2a5f904a874f107bcdf4c99f0e1fda4f5d51/apps/web/src/components/DiffViewer.svelte"
+        },
+        {
+          "label": "getFileHistory one-page commit request",
+          "url": "https://github.com/civic-source/us-code-tracker/blob/822d2a5f904a874f107bcdf4c99f0e1fda4f5d51/apps/web/src/lib/github.ts"
+        }
+      ]
+    },
+    {
+      "id": "USCT-008",
+      "title": "Trace one source release through a canonical historical section page",
+      "milestone": "M1",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-002",
+        "USCT-005",
+        "USCT-006",
+        "USCT-007"
+      ],
+      "delivers": "A reader can inspect a selected historical section and follow its version, source bytes, citation and date evidence end to end.",
+      "acceptance_criteria": [
+        "Preserve source bundle hash, provision identity, provision-version identity, citation aliases and exact source evidence anchors for a bounded representative fixture.",
+        "Fetch or refetch relevant public/already-authorized source documents when the canonical fixture lacks required schema evidence, preferring official bulk/API paths and preserving each raw version with source identity, hash, observation time and license/reuse basis.",
+        "Separate release/source-as-of, observed/processed, enacted and effective/applicability dates; unsupported dates remain unknown.",
+        "Produce a static Astro history page and comparison from the same canonical fixture without a runtime database or model.",
+        "Changing only a retrieval timestamp does not invent a new legal content version."
+      ],
+      "independent_validation": "A manually reviewed two-version USLM fixture has explicit expected text, IDs, evidence anchors and dates; compare the page and machine-readable artifacts against those expectations.",
+      "demo": "Select an older version, inspect its evidence panel and compare it with the next observed version.",
+      "evidence_to_close": [
+        "Fixture source bundle and hash",
+        "Canonical records",
+        "Rendered history/comparison",
+        "Date provenance review",
+        "Source acquisition/refetch manifest and preserved raw-version inventory"
+      ],
+      "rollback_notes": "Keep legacy readers and artifacts available during expansion; withdraw the new projection without changing source history.",
+      "implementation_notes": "Ordinary in-scope acquisition and refetches are already authorized. Use per-source limits and resumable collection; preserve previous raw versions instead of overwriting them. This ticket still demonstrates a bounded fixture before larger backfill.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-009",
+      "title": "Load and query the canonical fixture in the local PostgreSQL workbench",
+      "milestone": "M1",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-008"
+      ],
+      "delivers": "A researcher can ingest the same fixture locally, query its provisions and evidence, and export the same static page inputs.",
+      "acceptance_criteria": [
+        "Provide an opt-in local PostgreSQL catalog with migrations and constrained provision/version/evidence relationships; retain a file-backed fixture/replay path.",
+        "A public CLI/query interface retrieves the selected provision from an explicit as-published release snapshot and separately reports actual recorded source-observation and processing timestamps; it does not equate a publication date with when the tracker first knew the content.",
+        "Exported static artifacts agree with the file-fixture path; PostgreSQL is not required to view or host the published Astro site.",
+        "Repeat ingestion is idempotent, and a failed transaction leaves no half-published version."
+      ],
+      "independent_validation": "Load the independently reviewed fixture in a disposable database and the file replay path; compare query results and exported artifact hashes.",
+      "demo": "Query a selected as-published historical release locally, inspect its separate actual observation timestamp and build the static page from that pinned snapshot.",
+      "evidence_to_close": [
+        "Migration and replay transcript",
+        "Database constraints result",
+        "File/database parity report",
+        "Static export"
+      ],
+      "rollback_notes": "Restore a tested local database backup or rebuild from immutable source bundles; keep prior artifact readers compatible.",
+      "implementation_notes": "USCT-009 proves catalog/replay parity and explicit publication versus observation fields. USCT-034 owns the complete bounded temporal query modes and evidence-backed applicability result contract.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-010",
+      "title": "Preserve rich USLM structure in readable historical output",
+      "milestone": "M1",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-008"
+      ],
+      "delivers": "A reader can inspect notes, nested provisions and tables without losing legal structure during XML conversion.",
+      "acceptance_criteria": [
+        "Preserve mixed content, subdivision order, headings, tables, notes, references, amendment/effective-date notes and appendix identifiers represented in the selected fixture.",
+        "Keep structural anchors usable by evidence records and accessible static rendering; unsupported structures produce explicit findings.",
+        "Differentiate source text changes from rendering/normalization changes in comparison metadata."
+      ],
+      "independent_validation": "Use an independently annotated complex USLM fixture and compare semantic text, ordering, table cells, notes and anchors; visually inspect generated pages.",
+      "demo": "Read and compare a table-and-note-heavy section with a link from a rendered clause back to its XML evidence.",
+      "evidence_to_close": [
+        "Reviewed expected structure",
+        "Fidelity report",
+        "Accessible rendered pages",
+        "Unsupported-element findings"
+      ],
+      "rollback_notes": "Retain raw XML and previous projection versions; revert the renderer/transformer projection without rewriting source identities.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-011",
+      "title": "Follow a provision through citation changes and uncertain continuity",
+      "milestone": "M1",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-008"
+      ],
+      "delivers": "A reader following an old citation can find its historical target and understand renumbering, transfer or unresolved continuity.",
+      "acceptance_criteria": [
+        "Keep stable provision identities separate from citation aliases and versioned location labels.",
+        "Represent renumbered, transferred, repealed/reserved and split/merged candidates explicitly with evidence and review status.",
+        "Do not infer continuity solely from similar wording; ambiguous mappings remain unresolved and old URLs remain usable."
+      ],
+      "independent_validation": "Use independently labeled renumbering, repeal, split and same-number-different-context fixtures; assert exact or ambiguous resolutions through the citation resolver.",
+      "demo": "Follow an old citation to the correct historical version and inspect a transfer notice; show an unresolved split rather than a guessed redirect.",
+      "evidence_to_close": [
+        "Identity/alias fixture set",
+        "Resolver results",
+        "Old-link compatibility evidence"
+      ],
+      "rollback_notes": "Remove an incorrect alias/relationship by superseding it with an evidence-bearing correction; preserve the original assertion and historical URLs.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-012",
+      "title": "Publish per-scope completeness and source freshness beside the text",
+      "milestone": "M1",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-008"
+      ],
+      "delivers": "Readers can tell precisely which titles, releases and annotation families are complete, partial, stale or unavailable.",
+      "acceptance_criteria": [
+        "Generate a manifest that declares intended and completed source/title/release scopes, failures, skipped inputs and freshness.",
+        "A complete statute slice cannot mask a failed case/regulation slice, and a fresh retrieval does not imply fresh legal content.",
+        "Historical pages and machine-readable exports expose the relevant scope state without requiring live source calls."
+      ],
+      "independent_validation": "Build a fixture with one complete title, one missing release and one failed annotation source; compare displayed badges and manifest scopes to an independent expected matrix.",
+      "demo": "Inspect two pages with different coverage states and drill into the exact missing source/release.",
+      "evidence_to_close": [
+        "Expected coverage matrix",
+        "Manifest schema/result",
+        "Rendered completeness evidence"
+      ],
+      "rollback_notes": "Restore the last validated manifest together with its artifact bundle; never publish a newer success claim over older incomplete data.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-013",
+      "title": "Verify a section amendment against enacted law evidence",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-010"
+      ],
+      "delivers": "A reader can follow a change in a section to the enacted public law and relevant source evidence.",
+      "acceptance_criteria": [
+        "Link one bounded representative amendment chain to official public-law/Statutes-at-Large evidence, retaining enactment and effective/applicability distinctions.",
+        "Treat source-credit citations and legislative summaries as separate evidence types; a summary is not the enacted text.",
+        "Expose uncodified or note-based applicability evidence when present, and unresolved amendment mappings when verification is incomplete.",
+        "Discover and acquire additional relevant public/already-authorized enacted-law, amendment or note sources when required metadata/temporal/assertion fields lack evidence; prefer official bulk/API records and preserve raw versions, provenance and license/reuse basis."
+      ],
+      "independent_validation": "Manually reconcile a known section change against the official enacted-law text and an independent expected evidence map, including a delayed-effective-date case.",
+      "demo": "From a historical diff, open the enacted-law evidence and the separate applicability note.",
+      "evidence_to_close": [
+        "Official source snapshot/hash",
+        "Reviewed amendment mapping",
+        "Date evidence",
+        "Static section-to-law view",
+        "Field-to-source gap resolution and acquisition manifest"
+      ],
+      "rollback_notes": "Disable or supersede the incorrect relationship while leaving the source snapshot and underlying statute history intact.",
+      "implementation_notes": "Source expansion is authorized where needed to fill the declared schema/evidence gaps; ordinary public/already-authorized collection does not require repeated confirmation. Apply per-source limits, retain exact raw versions and keep authoritative text distinct from summaries or interpretations.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-014",
+      "title": "Promote a regulation candidate only with verified authority evidence",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-003",
+        "USCT-008"
+      ],
+      "delivers": "A reader can distinguish a supported regulatory authority link from a merely related search hit.",
+      "acceptance_criteria": [
+        "For one bounded CFR/agency family, ingest official dated regulation text and authority/citation evidence.",
+        "Record typed, directed and version-aware relationships such as cites or authority-for; reserve stronger implementation labels for explicitly supported reviewed cases.",
+        "Keep ambiguous candidates visible as candidates and retain competing or outdated evidence.",
+        "Add relevant public/already-authorized dated regulation, authority-table or agency-source records when the new fields or a candidate relationship need evidence; prefer official bulk/API paths and preserve raw versions, provenance and license/reuse basis."
+      ],
+      "independent_validation": "Independently label true authority, incidental citation, broad chapter reference and superseded-version fixtures; verify promotion decisions and displayed labels.",
+      "demo": "Inspect a verified regulation relationship with its exact authority evidence and an unpromoted neighboring candidate.",
+      "evidence_to_close": [
+        "Dated regulation snapshot",
+        "Reviewed relationship fixture",
+        "Promotion evidence",
+        "Reader view",
+        "Field-to-source gap resolution and acquisition manifest"
+      ],
+      "rollback_notes": "Revoke the derived verification status through a superseding assertion; preserve candidate/source records.",
+      "implementation_notes": "Source expansion is authorized where needed to fill the declared schema/evidence gaps; ordinary public/already-authorized collection does not require repeated confirmation. Apply per-source limits, retain exact raw versions and keep authoritative text distinct from summaries or interpretations.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-015",
+      "title": "Attach a reviewed case proposition to exact opinion evidence",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-004",
+        "USCT-011"
+      ],
+      "delivers": "A reader can inspect what an opinion says about a statute and see the limits of the version alignment.",
+      "acceptance_criteria": [
+        "Ingest a bounded opinion fixture with stable case/opinion identity, court/date and exact supporting passage.",
+        "Separate citation detection, proposition extraction, statute-version alignment and reviewed legal-effect classification.",
+        "A case date alone does not prove which statutory wording the court applied; uncertainty remains visible.",
+        "No search snippet, model output or citation count automatically establishes a holding or binding effect.",
+        "Acquire relevant public/already-authorized opinion, docket-metadata or original court records needed for new schema fields and supporting passages; distinguish original evidence from retrieval intermediaries and preserve raw versions, provenance and license/reuse basis."
+      ],
+      "independent_validation": "Use a small independently reviewed opinion set containing an incidental mention, substantive discussion and ambiguous historical version; compare the exact expected labels.",
+      "demo": "Open a reviewed proposition, its opinion passage and its version-alignment status.",
+      "evidence_to_close": [
+        "Opinion source/hash",
+        "Independent annotated cases",
+        "Version-alignment findings",
+        "Static case panel",
+        "Field-to-source gap resolution and acquisition manifest"
+      ],
+      "rollback_notes": "Unpublish the derived proposition or revert to citation-only display without deleting the opinion evidence.",
+      "implementation_notes": "Source expansion is authorized where needed to fill the declared schema/evidence gaps; ordinary public/already-authorized collection does not require repeated confirmation. Apply per-source limits, retain exact raw versions and keep authoritative text distinct from summaries or interpretations.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-016",
+      "title": "Render Federal Register and agency guidance context from static snapshots",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-013"
+      ],
+      "delivers": "A reader sees dated rulemaking and guidance context even when the browser has no access to external source APIs.",
+      "acceptance_criteria": [
+        "For one bounded agency/topic, precompute Federal Register and guidance cards from documented official sources with type, publication/status and evidence.",
+        "Distinguish proposed rule, final rule, notice, guidance and statute; publication or association does not imply legal applicability.",
+        "Replace live browser retrieval on this path with versioned static artifacts; failed refreshes retain last-good content and explicit freshness.",
+        "A network-denied browser can use the published content and follow ordinary external links when connectivity is restored.",
+        "Add relevant public/already-authorized Federal Register or agency-guidance sources as metadata, temporal or assertion-evidence gaps require; prefer official bulk/API access and preserve each source version, provenance and license/reuse basis."
+      ],
+      "independent_validation": "Replay representative official records and a failed refresh; inspect output with all third-party API requests blocked.",
+      "demo": "Browse rulemaking and guidance cards offline and inspect their separate source types and dates.",
+      "evidence_to_close": [
+        "Source snapshot inventory",
+        "Offline network log",
+        "Static card evidence",
+        "Failure-state report",
+        "Field-to-source gap resolution and acquisition manifest"
+      ],
+      "rollback_notes": "Disable the new context panel or republish a prior snapshot; do not restore mandatory live API calls.",
+      "implementation_notes": "Source expansion is authorized where needed to fill the declared schema/evidence gaps; ordinary public/already-authorized collection does not require repeated confirmation. Apply per-source limits, retain exact raw versions and keep authoritative text distinct from summaries or interpretations.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-017",
+      "title": "Expose unresolved evidence and shrinking quality exceptions",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-012",
+        "USCT-014",
+        "USCT-034"
+      ],
+      "delivers": "A reviewer can find and resolve an ambiguous citation, source discrepancy or unsupported structure without hiding it from coverage reporting.",
+      "acceptance_criteria": [
+        "Create a typed finding register with evidence, affected scopes, owner, issue/reference, fingerprint, status and expiry where appropriate.",
+        "Keep conflicting readings and their adopters separate from authoritative law; project review is never labeled an official ruling.",
+        "New unapproved exceptions and stale fixed exceptions fail the selected quality gate; unavailable sources remain explicit failures, not waivers by default.",
+        "Resolve one real fixture finding and update its reader-visible status and coverage.",
+        "Expose a bounded private review inbox over the finding register, showing source changes, affected published outputs and unresolved identity/applicability decisions without exporting private reviewer notes."
+      ],
+      "independent_validation": "Seed known findings from independent fixtures, introduce one new gap and fix one existing gap; verify both directions of the exception ratchet.",
+      "demo": "Follow a page warning to its evidence, record a reviewed resolution and show the superseding status.",
+      "evidence_to_close": [
+        "Finding register",
+        "Ratchet demonstration",
+        "Resolution evidence",
+        "Coverage update"
+      ],
+      "rollback_notes": "Reopen/supersede a finding with its evidence trail intact; never erase a disagreement to make the gate green.",
+      "implementation_notes": "Temporal findings consume the bounded mode/status contract from USCT-034 so a publication-time observation, conditional applicability and disputed reading cannot collapse into one undifferentiated warning.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-018",
+      "title": "Rebuild safely when content, producer, schema or configuration changes",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-009",
+        "USCT-012"
+      ],
+      "delivers": "An operator gets correct cache reuse and bounded invalidation, including changes to previously absent or collection-valued inputs.",
+      "acceptance_criteria": [
+        "Artifact keys include normalized input identities/hashes, producer version, schema version and relevant configuration; model/prompt/index identities are included when applicable.",
+        "Persist a build dependency DAG distinct from legal relationships, including negative lookups and collection-membership inputs.",
+        "Adding a previously missing citation target or a new item to a result collection invalidates dependents; unrelated retrieval timestamps do not.",
+        "Fail incomplete dependency extraction explicitly instead of silently treating skipped inputs as an empty dependency set.",
+        "Produce an inspectable pre-acceptance impact report listing the affected provisions, assertions, pages, search shards and exports from the recorded dependency graph."
+      ],
+      "independent_validation": "Mutate one input dimension at a time against an independent expected invalidation matrix, including absent-to-present and collection-add/remove cases; compare clean and incremental output hashes.",
+      "demo": "Show cache hits for unchanged inputs, a required rebuild after a producer/schema change, and a newly resolved formerly missing citation.",
+      "evidence_to_close": [
+        "Key specification examples",
+        "Expected invalidation matrix",
+        "Clean/incremental parity",
+        "Dependency coverage report"
+      ],
+      "rollback_notes": "Discard affected caches and perform a clean replay from pinned sources; immutable accepted artifacts remain available.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-019",
+      "title": "Refresh one external source without rerunning unrelated work",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-014",
+        "USCT-015",
+        "USCT-016",
+        "USCT-035"
+      ],
+      "delivers": "A new opinion, regulation or rulemaking snapshot updates its dependent views while preserving unaffected statute and annotation artifacts.",
+      "acceptance_criteria": [
+        "Use source-specific checkpoints and dependency-driven work selection for the already supported bounded source families.",
+        "A new case can update case context without retransforming unchanged statutory XML; a failed source does not suppress successful independent work.",
+        "Changed collection and negative-query inputs participate in invalidation, and every run reports completed, cached, partial and failed scopes.",
+        "A clean rebuild and the incremental result produce equivalent published content for the same accepted inputs.",
+        "Execute refresh attempts through the USCT-035 generation/lease/fencing acceptance contract; a stale refresh cannot promote artifacts after a newer generation succeeds."
+      ],
+      "independent_validation": "Inject independent statute, case and regulation changes plus one outage; compare actual work/output sets with an independently authored dependency expectation.",
+      "demo": "Refresh a new case while the regulation source is unavailable and show a correct partial report and updated case page.",
+      "evidence_to_close": [
+        "Source checkpoint report",
+        "Work-selection trace",
+        "Artifact parity report",
+        "Partial-run demonstration"
+      ],
+      "rollback_notes": "Restore the last accepted publication and retry only failed scopes; rebuild from pinned inputs if dependency metadata is suspect.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-020",
+      "title": "Carry an accepted data release into the exact deployed site manifest",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-018",
+        "USCT-033"
+      ],
+      "delivers": "An operator and reader can prove that a published site was built from the intended accepted data release.",
+      "acceptance_criteria": [
+        "Define one explicit sequence: validate data candidate, promote immutable data identity, update the tracker submodule/artifact pin, build from that exact pin, then deploy a manifest-bound artifact.",
+        "A data-only promotion triggers or queues the pin update and deployment through the documented mechanism; it cannot leave the site silently on an older submodule commit.",
+        "Record data commit/artifact digest, tracker producer commit, schema/config identities, validation result and site artifact digest in the deployment manifest.",
+        "Reject mismatched pin/manifest or partial-required-scope promotion; source scraping and publication credentials remain separated."
+      ],
+      "independent_validation": "Use a disposable pipeline fixture to promote two distinct data releases, inject stale-pin and wrong-artifact failures, and compare deployed manifest hashes to independently captured inputs.",
+      "demo": "Promote a data-only change and trace it from data identity through pin change to the site footer/manifest.",
+      "evidence_to_close": [
+        "Promotion event record",
+        "Pin update evidence",
+        "Build/deployment manifest",
+        "Mismatch rejection",
+        "Rollback rehearsal"
+      ],
+      "rollback_notes": "Deploy the prior complete immutable site artifact and manifest; do not rewrite data tags or mix artifact generations.",
+      "implementation_notes": "USCT-033 repairs the existing data-to-site handoff early. This ticket extends that working path with the complete new provenance, scope, dependency and deployment-manifest contract; it does not wait for every external enrichment adapter.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-021",
+      "title": "Explore verified legal relationships in a bounded static reader view",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-014",
+        "USCT-015",
+        "USCT-016",
+        "USCT-018"
+      ],
+      "delivers": "A reader can follow typed relationships from a section without downloading the entire corpus or confusing evidence with certainty.",
+      "acceptance_criteria": [
+        "Export bounded neighborhood/relationship shards with IDs, direction, type, source-version context and verification status.",
+        "Offer accessible list/table navigation with an optional graph view; unresolved or candidate edges remain distinguishable.",
+        "Load only the requested shard and preserve deep links, keyboard operation and a no-model static runtime.",
+        "A changed relationship rebuilds the relevant neighborhoods through the build DAG."
+      ],
+      "independent_validation": "Compare a manually enumerated small legal graph against exported neighborhoods and browser navigation; verify that unrelated shards remain unchanged.",
+      "demo": "Navigate section to public law, regulation and case evidence using both keyboard list view and optional graph view.",
+      "evidence_to_close": [
+        "Expected relationship graph",
+        "Shard/index evidence",
+        "Browser accessibility checks",
+        "Incremental shard comparison"
+      ],
+      "rollback_notes": "Disable the graph visualization while retaining the accessible list and stable evidence links; republish prior shards as a coherent bundle.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-022",
+      "title": "Audit corpus coverage locally with reproducible Parquet and DuckDB queries",
+      "milestone": "M4",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-018"
+      ],
+      "delivers": "A researcher can answer repeatable coverage and change questions offline without reading every source file or relying on the web interface.",
+      "acceptance_criteria": [
+        "Export versioned Parquet tables from the accepted local catalog with schema, source-snapshot and artifact hashes.",
+        "Provide bounded DuckDB query examples for changes by release/title, missing scopes, source freshness and unresolved evidence.",
+        "Query results agree with the PostgreSQL/file fixture path and distinguish missing data from a verified zero count.",
+        "Parquet is an analytics/export projection; it does not silently become a second conflicting source of record."
+      ],
+      "independent_validation": "Use independently calculated fixture counts and sampled rows; compare PostgreSQL and DuckDB results and reproduce exports from identical accepted inputs.",
+      "demo": "Run an offline query showing a missing release and the exact sections changed in the completed scopes.",
+      "evidence_to_close": [
+        "Parquet manifest",
+        "Independent expected counts",
+        "Cross-engine query parity",
+        "Reproduction transcript"
+      ],
+      "rollback_notes": "Regenerate exports from the accepted catalog/source bundle or restore the previous complete export set.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-023",
+      "title": "Search the local workbench lexically with optional vector ranking",
+      "milestone": "M4",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-009",
+        "USCT-011"
+      ],
+      "delivers": "A local researcher can retrieve provisions and supporting documents using required lexical search, with evidence, version and scope visible; vector ranking is an optional evaluated enhancement.",
+      "acceptance_criteria": [
+        "Provide PostgreSQL lexical retrieval through the local query interface as the required baseline; exact citation and historical-version filters work without embeddings or a model.",
+        "Evaluate pgvector ranking as an optional branch against the labeled query set. If adopted, version embedding model, chunking, normalization and index configuration and reject incompatible vector/source mixtures.",
+        "Results return exact evidence spans, citation/version context and explicit source/date filters; retrieval relevance is not legal authority.",
+        "Required acceptance, later core tickets and published static Astro operation do not depend on the optional vector branch, an embedding runtime or a local model."
+      ],
+      "independent_validation": "Use a small independently labeled query set with exact citation, concept, historical and out-of-scope queries. Require correct lexical behavior and source/version filtering; compare optional vector ranking only if that branch is selected.",
+      "demo": "Run a local lexical search, filter to a historical release and inspect original evidence. If optional vectors are evaluated, show their measured difference and disable them without breaking the baseline.",
+      "evidence_to_close": [
+        "Labeled query set",
+        "Required lexical retrieval results",
+        "Version/filter correctness",
+        "Optional vector evaluation and index manifest only if selected"
+      ],
+      "rollback_notes": "Disable optional vector ranking and use the validated lexical index; rebuild any selected vectors under a new index identity rather than mixing models.",
+      "implementation_notes": "Public-law amendment verification is not a prerequisite to exact-version retrieval. Existing canonical provisions, aliases and evidence from USCT-009/011 are sufficient for this bounded slice.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-024",
+      "title": "Optionally draft evidence-bound research notes with local Gemma",
+      "milestone": "M4",
+      "type": "optional",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-017",
+        "USCT-018",
+        "USCT-023"
+      ],
+      "delivers": "A researcher can request a bounded local draft that cites retrieved evidence and declines unsupported claims.",
+      "acceptance_criteria": [
+        "Make the local Gemma-compatible enrichment adapter opt-in, with pinned model/runtime/config, prompt identity, context limits and output schema.",
+        "Enforce explicit token/time/memory or job budgets, cancellation and deterministic input/output artifact recording; no model call runs in the published site.",
+        "Require every material draft claim to reference provided evidence; unsupported or conflicting points remain unknown/unresolved.",
+        "Store generated text as a derived draft with review status; do not promote it to authoritative text or rely on rerunning the model for byte reproducibility."
+      ],
+      "independent_validation": "Use a held-out independently reviewed evidence set with missing, conflicting and adversarial source text; measure unsupported-claim behavior and budget enforcement.",
+      "demo": "Generate a local research draft, inspect each citation, hit a configured budget and show safe cancellation without losing accepted data.",
+      "evidence_to_close": [
+        "Model/prompt/runtime manifest",
+        "Evaluation set and results",
+        "Budget/cancellation record",
+        "Reviewed draft artifact"
+      ],
+      "rollback_notes": "Disable the optional adapter and remove its draft projection from publication; preserve the immutable source and accepted non-model artifacts.",
+      "implementation_notes": "This ticket blocks no required core milestone and does not authorize downloading models or provisioning hardware during planning.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-025",
+      "title": "Publish a static topic and change feed backed by verified scope",
+      "milestone": "M4",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-021"
+      ],
+      "delivers": "A reader can follow a bounded topic across law, regulation and cases and subscribe to a reproducible change feed.",
+      "acceptance_criteria": [
+        "Provide one curated topic profile with an explicit citation/source scope and inclusion rationale.",
+        "Generate a static topic page and RSS/JSON changes from typed relationships, preserving source dates, verification and completeness.",
+        "Distinguish textual change, new related evidence, changed interpretation status and corrected metadata; no event claims automatic legal impact.",
+        "Any browser-local saved filters/watchlist stay local and require no hosted account service."
+      ],
+      "independent_validation": "Manually enumerate the expected topic members/events for the fixture and compare generated page/feed entries, duplicates and ordering.",
+      "demo": "Open the topic timeline, inspect an event evidence chain and read the feed with external APIs blocked.",
+      "evidence_to_close": [
+        "Curated topic profile",
+        "Expected event ledger",
+        "Static feed/page artifacts",
+        "Offline reader check"
+      ],
+      "rollback_notes": "Republish the prior topic/feed projection or disable the new topic; preserve all original legal documents and stable event identities.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-026",
+      "title": "Backfill a representative pilot while preserving current URLs and data",
+      "milestone": "M5",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-017",
+        "USCT-018"
+      ],
+      "delivers": "An operator can migrate a bounded historical title/release slice through the new contracts and compare it with the existing published corpus.",
+      "acceptance_criteria": [
+        "Expand the new representation alongside legacy artifacts, migrate a deliberately challenging pilot and keep existing readers functional.",
+        "Include historical gaps, renumbering, tables/notes and known source anomalies; record exact intended/completed scopes.",
+        "Produce parity and explained-difference reports rather than silently normalizing discrepancies away.",
+        "Resume the pilot after interruption and retain rollback-compatible legacy output until acceptance."
+      ],
+      "independent_validation": "Review a stratified sample against official raw sources and independently specified fidelity/history expectations; repeat clean and resumed runs.",
+      "demo": "Navigate old and new pages for the pilot, inspect an explained difference and recover an interrupted backfill.",
+      "evidence_to_close": [
+        "Pilot scope/manifest",
+        "Independent sample review",
+        "Parity and differences report",
+        "Resume/rollback evidence"
+      ],
+      "rollback_notes": "Keep the old publication pointer and legacy artifacts until acceptance; discard only unpromoted derived pilot output.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-027",
+      "title": "Scale historical backfill with complete scope accounting and bounded resources",
+      "milestone": "M5",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-022",
+        "USCT-026"
+      ],
+      "delivers": "An operator can process the intended corpus and history in batches with a truthful completeness report and controlled storage/compute use.",
+      "acceptance_criteria": [
+        "Enumerate the intended source/title/release scope from verified catalogs rather than hardcoded page/display caps.",
+        "Backfill newly introduced metadata, temporal endpoint and assertion/evidence fields across relevant public/already-authorized sources, acquiring/refetching missing documents as needed while retaining exact raw versions and provenance.",
+        "Run resumable batches with bounded concurrency, memory, disk and retry budgets; record failures per scope.",
+        "Measure artifact growth, ingest cost and query/export performance before setting production defaults; use Parquet/DuckDB reports to verify accounting.",
+        "Claim completeness only for an enumerated declared scope whose required partitions are all accepted. Exclusions and unavailable data remain visible and narrow the coverage claim; they cannot satisfy a missing required partition or be counted as successful completion.",
+        "Keep acquisition/processing completeness separate from semantic certainty: a fully processed source scope can contain explicit unknown, conditional or disputed legal facts, but unavailable required partitions cannot count as complete."
+      ],
+      "independent_validation": "Reconcile exact expected and completed identity sets, independently audit sampled titles/releases, and replay forced interruption/resource exhaustion.",
+      "demo": "Resume a multi-batch backfill and show the shrinking incomplete-scope report with measured resource use.",
+      "evidence_to_close": [
+        "Scope reconciliation",
+        "Resource benchmark",
+        "Sample audit",
+        "Interrupted-run recovery",
+        "Artifact inventory",
+        "Cross-source schema-field backfill and semantic-certainty report"
+      ],
+      "rollback_notes": "Pause workers and resume from committed accepted scopes; restore a known catalog checkpoint without deleting immutable sources.",
+      "implementation_notes": "Relevant source discovery, acquisition and schema backfills are authorized, including sources absent from the current repository. Respect per-source limits and license/reuse basis. Never fabricate a date, endpoint or assertion solely to fill a schema field.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-028",
+      "title": "Operate source refreshes and recover from corruption or credential failure",
+      "milestone": "M5",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-019",
+        "USCT-020",
+        "USCT-023",
+        "USCT-026"
+      ],
+      "delivers": "An operator can monitor freshness, recover local state and restore a publication without improvising during a failed refresh.",
+      "acceptance_criteria": [
+        "Provide runbooks and observable reports for stale sources, rate limits, corrupt downloads/artifacts, catalog restore, expired credentials and failed publication.",
+        "Test backup/restore of the local PostgreSQL catalog and replay from immutable sources; separate secrets from public exports and logs.",
+        "Apply scheduled complete validation as a backstop to incremental checks; track exception ownership/expiry and failure alarms without creating duplicate noise.",
+        "Document which jobs are optional and retain an ordinary local-runner recovery path."
+      ],
+      "independent_validation": "Conduct table-top and bounded fault-injection drills with independently specified recovery outcomes and no live credential disclosure.",
+      "demo": "Corrupt a disposable artifact, restore the catalog from backup and republish the prior validated static release.",
+      "evidence_to_close": [
+        "Operations runbook",
+        "Recovery drill records",
+        "Freshness/coverage report",
+        "Secret-redaction check",
+        "Backup restore receipt"
+      ],
+      "rollback_notes": "Stop refresh/promotion, restore the prior catalog/publication bundle and replay accepted immutable inputs; keep incident evidence.",
+      "implementation_notes": "Operational acceptance includes the independent source-refresh behavior delivered by USCT-019. Its failure, checkpoint and partial-scope handling must be exercised in the recovery drills before final cutover.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-029",
+      "title": "Verify the complete static reader and local workbench before cutover",
+      "milestone": "M5",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-025",
+        "USCT-027",
+        "USCT-028",
+        "USCT-036"
+      ],
+      "delivers": "Reviewers can accept the complete required experience using independently checked legal data, browser behavior and operational evidence.",
+      "acceptance_criteria": [
+        "Run end-to-end journeys for browse, current and exact-release historical search, historical comparison, citation continuity, explicit temporal query modes, evidence inspection, topic feed and local query/export.",
+        "Verify keyboard/screen-reader behavior, meaningful focus, responsive layouts and bounded page/shard sizes on representative real pages.",
+        "Block all browser API/model requests during the static-reader check; only published assets and optional user-followed links are needed.",
+        "Review spec fidelity, repository standards, security/data handling and evidence/temporal correctness independently; unresolved required failures block cutover."
+      ],
+      "independent_validation": "Use held-out independently reviewed pages/queries and an exact build/deployment manifest; do not validate only against snapshots produced by the implementation itself.",
+      "demo": "Perform the required user journeys from a clean offline-capable static deployment and a restored local workbench.",
+      "evidence_to_close": [
+        "Acceptance journey results",
+        "Accessibility/performance measurements",
+        "Network log",
+        "Separate review reports",
+        "Verified manifest"
+      ],
+      "rollback_notes": "Keep the previous production publication active and return failing capabilities to their owning tickets; no cutover occurs.",
+      "implementation_notes": "",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-030",
+      "title": "Cut over by immutable publication pointer and rehearse reversal",
+      "milestone": "M5",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-029"
+      ],
+      "delivers": "Users receive the accepted new publication while historical links and an immediate rollback remain intact.",
+      "acceptance_criteria": [
+        "Promote only the exact data/site bundle accepted by the final gate, recording deployment identity and coverage.",
+        "Verify legacy URLs, feeds, historical release links and current-page selection after cutover.",
+        "Rehearse switching to the prior complete immutable publication without force-moving historical refs or mixing manifests.",
+        "Contract/remove obsolete schema paths only after all consumers have migrated and a separate reviewed cleanup proves none remain."
+      ],
+      "independent_validation": "Compare the live publication manifest to the accepted bundle and independently check a fixed old/new URL set before and after rollback rehearsal.",
+      "demo": "Switch to the accepted publication, follow a legacy history link, then demonstrate restoration of the prior publication in a controlled environment.",
+      "evidence_to_close": [
+        "Cutover receipt",
+        "Accepted/deployed manifest comparison",
+        "URL compatibility result",
+        "Rollback receipt",
+        "Consumer migration inventory"
+      ],
+      "rollback_notes": "Restore the previous publication pointer and complete site artifact; keep new source/data identities available for investigation.",
+      "implementation_notes": "The plan does not authorize an actual external deployment now; execution follows the user-approved repository release process.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-031",
+      "title": "Optionally execute a bounded job through an HCK or ACQ adapter",
+      "milestone": "M6",
+      "type": "optional",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-022",
+        "USCT-028"
+      ],
+      "delivers": "An operator can run one existing accepted workload through a selected HCK or ACQ executor adapter while preserving the ordinary local execution path and evidence.",
+      "acceptance_criteria": [
+        "Verify and pin the current selected HCK or ACQ executor interface and any kit contract it actually requires before adapting one representative job.",
+        "Declare existing tools, capabilities, immutable inputs/outputs and resource limits; reuse available execution/scheduling mechanisms rather than building a scheduler.",
+        "The optional path emits the same accepted artifact, dependency and provenance contract and remains replaceable with the ordinary local runner.",
+        "Keep credentials outside artifacts, restrict source access to task needs and prevent optional executor availability from blocking core refresh or publication."
+      ],
+      "independent_validation": "Run the same immutable fixture through local and selected existing-tool execution paths; compare accepted output hashes, provenance and failure/cancellation behavior.",
+      "demo": "Execute one bounded export/rebuild job through the selected optional adapter and fall back locally after an injected runner failure.",
+      "evidence_to_close": [
+        "Verified and pinned executor/kit interface",
+        "Task capability manifest",
+        "Local/adapter parity",
+        "Resource/cancellation results"
+      ],
+      "rollback_notes": "Disable the optional executor adapter and replay the job locally from the same immutable inputs.",
+      "implementation_notes": "Optional interoperability after core operability, not a new orchestration platform or scheduler. Kit v3 or HyperQueue are evaluated only if the selected existing tool actually requires them; verify their current interfaces at that time. No infrastructure purchase, credential provisioning or skill installation is implied.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-032",
+      "title": "Optionally export an attributed RuleSpec-compatible evidence slice",
+      "milestone": "M6",
+      "type": "optional",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-030"
+      ],
+      "delivers": "An external consumer can inspect a small clearly scoped RuleSpec-compatible export or backlink without changing the authoritative tracker corpus.",
+      "acceptance_criteria": [
+        "Verify the current upstream schema/toolchain and export one reviewed provision/evidence slice with stable identity/version mappings.",
+        "Keep primary-law data, Axiom CC BY annotations and Apache-licensed tooling attribution separate; do not relabel imported encodings as CC0.",
+        "Include explicit coverage, unsupported constructs, provenance and interpretation status; no executable encoding is accepted solely because its schema validates.",
+        "Expose the export as an optional artifact/backlink and preserve the tracker static reader and local workbench when the integration is disabled."
+      ],
+      "independent_validation": "Independently compare the exported evidence and time semantics to the accepted source fixture, then validate against a pinned upstream reader without assuming legal correctness from a passing parser.",
+      "demo": "Open the export manifest, inspect its evidence/attribution and follow its backlink to the exact tracker version.",
+      "evidence_to_close": [
+        "Pinned upstream contract",
+        "Reviewed export fixture",
+        "License/attribution manifest",
+        "Compatibility and unsupported-scope report"
+      ],
+      "rollback_notes": "Withdraw the optional export/backlink while retaining source records and attributed imported material in its separate layer.",
+      "implementation_notes": "Rulespec-us is a reference/interoperability target, not a substitute authoritative corpus or a required runtime.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-033",
+      "title": "Repair the existing validated data-to-site publication handoff",
+      "milestone": "M0",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-002",
+        "USCT-006"
+      ],
+      "delivers": "A validated data-only change reaches a site built from that exact accepted data identity without waiting for the new enrichment architecture.",
+      "acceptance_criteria": [
+        "Use the current data/artifact validation seam to accept a bounded data update, then explicitly update the tracker submodule or equivalent artifact pin before building.",
+        "Document and exercise the data-promotion-to-pin-update-to-site-build trigger or queue; do not rely on a data-repository push automatically advancing a pinned submodule.",
+        "Record the accepted data commit/digest, tracker build commit and deployed site identity in a minimal publication receipt; reject an unvalidated candidate or stale/mismatched pin.",
+        "Keep historical refs immutable and retain the prior complete publication for reversal. This repair does not require new case, regulation, guidance, graph, database or model features."
+      ],
+      "independent_validation": "Against disposable repositories/pipeline fixtures, promote a validated data-only update, capture its exact identity independently, and verify the resulting pin and site receipt. Inject a failed candidate and a stale pin and verify neither is reported as successfully deployed.",
+      "demo": "Promote a small accepted data correction and show the updated page, exact data pin and site publication receipt; demonstrate restoration of the prior site.",
+      "evidence_to_close": [
+        "Current handoff map",
+        "Validated data promotion receipt",
+        "Exact pin update",
+        "Site identity comparison",
+        "Rejected failed/stale-pinned candidates",
+        "Rollback receipt"
+      ],
+      "rollback_notes": "Republish the previous complete site artifact and data pin; do not force-move historical release refs or claim success from a failed data candidate.",
+      "implementation_notes": "USCT-001 is inherited through USCT-002/006. This is the minimal repair to the existing publication path; USCT-020 later adds the richer provenance/coverage/cache contract. Current deploy-site checks out submodules, while its path-filtered push trigger does not by itself establish the data-only promotion handoff.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate.",
+      "source_references": [
+        {
+          "label": "Current data sync workflow",
+          "url": "https://github.com/civic-source/us-code-tracker/blob/822d2a5f904a874f107bcdf4c99f0e1fda4f5d51/.github/workflows/sync-law.yml"
+        },
+        {
+          "label": "Current site checkout, trigger and deployment workflow",
+          "url": "https://github.com/civic-source/us-code-tracker/blob/822d2a5f904a874f107bcdf4c99f0e1fda4f5d51/.github/workflows/deploy-site.yml"
+        }
+      ]
+    },
+    {
+      "id": "USCT-034",
+      "title": "Query publication, actual knowledge and evidence-backed applicability separately",
+      "milestone": "M2",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-009",
+        "USCT-011",
+        "USCT-013"
+      ],
+      "delivers": "A researcher can ask a bounded historical question in an explicit temporal mode and see a qualified answer with its source evidence.",
+      "acceptance_criteria": [
+        "Expose three explicit modes for one representative provision family: as-published by immutable release identity, known-as-of by the tracker’s actual recorded observation/acceptance time, and applicability-on by a requested legal date and any declared necessary facts.",
+        "A late backfill of an old publication does not fabricate earlier tracker knowledge. If actual historical observation evidence is unavailable, known-as-of returns an explicit unknown/incomplete result.",
+        "Return evidence-backed applicability as known, conditional, disputed or unknown, preserving conditions, competing readings and evidence; never substitute release date for effective/applicability date.",
+        "Represent each temporal endpoint with an explicit known, open, unknown or conditional state, its date precision, basis and source evidence. An absent/null date means neither an open endpoint nor ongoing validity; use open only where the evidence supports that state and retain the limits of that evidence.",
+        "The CLI/query output and one static evidence panel expose the chosen mode, source/version identities, relevant dates, status and supporting spans without introducing a general legal decision engine."
+      ],
+      "independent_validation": "Use an independently authored fixture with delayed effectiveness, retroactive applicability, a late backfill and conflicting applicability evidence. Fix expected answers for each mode/date before running the implementation; verify the same publication can differ between publication and actual knowledge timelines. Include known endpoints with differing precision, an evidence-supported open endpoint, an unknown/null endpoint and a conditional trigger; verify null never becomes a claim of continuing validity.",
+      "demo": "Ask the same two-version provision question in all three modes, then backfill an older source and show that its earlier known-as-of answer remains unknown.",
+      "evidence_to_close": [
+        "Independently reviewed temporal fixture",
+        "Mode-by-mode expected/result matrix",
+        "Backfill knowledge-time invariant",
+        "Conditional/disputed/unknown examples",
+        "Static panel and query transcript",
+        "Endpoint state/precision/basis/evidence fixture matrix"
+      ],
+      "rollback_notes": "Disable the new applicability projection or restore its prior accepted version; retain raw publication/observation history and return unknown where evidence is insufficient.",
+      "implementation_notes": "Scope this to one representative provision family and a small fixture. Mode selection and evidence-status semantics are required; a universal historical-law solver is outside this ticket. Endpoint state and overall applicability result are separate: endpoint states are known/open/unknown/conditional; applicability results remain known/conditional/disputed/unknown. Acquire relevant missing public/already-authorized source evidence where available, otherwise preserve explicit uncertainty.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-035",
+      "title": "Reject stale local task attempts before accepting their artifacts",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-018"
+      ],
+      "delivers": "An operator can retry or supersede a local processing job without an older worker later publishing stale output over the new accepted generation.",
+      "acceptance_criteria": [
+        "Implement a minimal local TaskAttempt lifecycle with stable task identity, input generation, attempt identity, lease, monotonically advancing fencing token and explicit terminal outcome.",
+        "Accept/promote an artifact only through an atomic compare-and-swap check against the current generation, required input identities and valid attempt/fencing ownership; expired or superseded attempts cannot win.",
+        "An identical accepted retry is idempotent; a changed input generation creates a new candidate and invalidates prior acceptance authority without rewriting immutable prior artifacts.",
+        "Expose attempt state and rejection reason through the existing local job/report interface; ordinary local execution remains available without a distributed scheduler or orchestration service."
+      ],
+      "independent_validation": "Use a controlled two-worker fixture: worker A stalls, its lease/generation is superseded, worker B accepts the new generation, then A completes. Assert independently that only B’s artifact is current. Also exercise duplicate acceptance, lease expiry and interruption before/after the atomic acceptance commit.",
+      "demo": "Run one small rebuild twice with a deliberate stale worker; show the new generation accepted, the old attempt fenced out and a duplicate retry safely treated as a no-op.",
+      "evidence_to_close": [
+        "TaskAttempt state-transition contract",
+        "Old-worker rejection transcript",
+        "Generation/fencing acceptance test",
+        "Idempotency/crash-recovery results",
+        "Accepted artifact identity report"
+      ],
+      "rollback_notes": "Stop affected attempts, retain the last accepted immutable artifact and resume with a fresh generation/fencing token; do not recover by allowing stale workers to promote.",
+      "implementation_notes": "This is a small local acceptance invariant used by USCT-019, not a distributed scheduler, queue platform or generalized workflow framework. Existing catalog/transaction facilities may supply the atomic compare-and-swap.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    },
+    {
+      "id": "USCT-036",
+      "title": "Search a selected historical release using bounded static shards",
+      "milestone": "M3",
+      "type": "delivery",
+      "status": "proposed",
+      "readiness": "blocked",
+      "blocked_by": [
+        "USCT-011",
+        "USCT-018"
+      ],
+      "delivers": "A reader can search one selected historical release and open results from that exact release while using only published static assets.",
+      "acceptance_criteria": [
+        "Publish bounded release/title search shards and their index manifest for a small representative historical slice, with canonical provision/version IDs and source-scope completeness.",
+        "A query preserves the exact selected release through filters, results and navigation; current text or a different release is never silently substituted.",
+        "Missing or incomplete historical coverage is visible instead of falling back to current results without consent; aliases resolve in the selected historical context.",
+        "The browser requires no live source API, hosted database, embedding runtime or model; load only the selected bounded shards and preserve accessible keyboard interaction."
+      ],
+      "independent_validation": "Create two independently labeled release fixtures where a distinctive term exists only in one version, plus a renumbered citation and an absent shard. With runtime APIs blocked, verify exact expected matches, result-version links and explicit incomplete states.",
+      "demo": "Search the distinctive term in each historical release, open a result that stays pinned to that release and show the missing-shard state without current-text leakage.",
+      "evidence_to_close": [
+        "Synthetic historical search fixture and expected matches",
+        "Release/title shard manifest",
+        "Exact-version navigation evidence",
+        "Blocked-API browser log",
+        "Shard size and accessibility check"
+      ],
+      "rollback_notes": "Disable the historical search mode or republish the preceding coherent shard/manifest bundle; retain explicit release selection and do not silently replace results with current search.",
+      "implementation_notes": "Scope the first delivery to two releases and a bounded title slice. Corpus-wide artifact sizing is handled by USCT-027; final reader acceptance consumes this behavior through USCT-029.",
+      "existing_work_policy": "Reconcile with current code, open/closed issues and PRs before implementation; reuse or amend matching work instead of opening a duplicate."
+    }
+  ],
+  "topological_order": [
+    "USCT-001",
+    "USCT-002",
+    "USCT-003",
+    "USCT-004",
+    "USCT-005",
+    "USCT-006",
+    "USCT-007",
+    "USCT-033",
+    "USCT-008",
+    "USCT-009",
+    "USCT-010",
+    "USCT-011",
+    "USCT-012",
+    "USCT-013",
+    "USCT-014",
+    "USCT-015",
+    "USCT-016",
+    "USCT-034",
+    "USCT-017",
+    "USCT-018",
+    "USCT-020",
+    "USCT-021",
+    "USCT-035",
+    "USCT-019",
+    "USCT-036",
+    "USCT-022",
+    "USCT-023",
+    "USCT-024",
+    "USCT-025",
+    "USCT-026",
+    "USCT-027",
+    "USCT-028",
+    "USCT-029",
+    "USCT-030",
+    "USCT-031",
+    "USCT-032"
+  ],
+  "revision_notes": [
+    "Added USCT-033 as an early minimal data-to-site handoff repair. USCT-020 adds the richer contract later and no longer waits for all external enrichment.",
+    "Corrected historical catalog observation: no 60-release cap was verified; current fallbacks request one page of 100 tags and 50 file commits. Proposed synthetic fixtures contain 103 releases and 53 commits.",
+    "Made pgvector optional and removed amendment verification from the local lexical retrieval critical path.",
+    "Kept optional executor work bounded to existing HCK/ACQ interoperability, with current interfaces verified only if selected.",
+    "USCT-028 depends on independent source refresh USCT-019, ensuring every required ticket gates USCT-030. Suggested topological order now prioritizes milestone then ID among ready nodes; optional work has a separate nonblocking list.",
+    "Added explicit required ownership for bounded temporal modes (USCT-034), local TaskAttempt fencing/CAS acceptance (USCT-035), and exact-release static historical search (USCT-036). Findings, refresh and final acceptance consume them respectively; all required work gates cutover.",
+    "Recorded user authorization for relevant public/already-authorized source discovery, acquisition/refetch and cross-source schema backfills. Added field/source coverage ownership, raw-version preservation and explicit temporal endpoint state/precision/basis evidence. No dependency or ticket-count changes; no production implementation, paid-service or deployment permission added."
+  ],
+  "required_topological_order": [
+    "USCT-001",
+    "USCT-002",
+    "USCT-003",
+    "USCT-004",
+    "USCT-005",
+    "USCT-006",
+    "USCT-007",
+    "USCT-033",
+    "USCT-008",
+    "USCT-009",
+    "USCT-010",
+    "USCT-011",
+    "USCT-012",
+    "USCT-013",
+    "USCT-014",
+    "USCT-015",
+    "USCT-016",
+    "USCT-034",
+    "USCT-017",
+    "USCT-018",
+    "USCT-020",
+    "USCT-021",
+    "USCT-035",
+    "USCT-019",
+    "USCT-036",
+    "USCT-022",
+    "USCT-023",
+    "USCT-025",
+    "USCT-026",
+    "USCT-027",
+    "USCT-028",
+    "USCT-029",
+    "USCT-030"
+  ],
+  "optional_topological_order": [
+    "USCT-024",
+    "USCT-031",
+    "USCT-032"
+  ],
+  "scheduling_semantics": {
+    "dependency_rule": "A ticket becomes eligible only when all its listed blockers are completed or reconciled as satisfied.",
+    "ready_order": "Among eligible tickets, prioritize earlier milestone, then stable ticket ID. This chooses a suggested presentation/pick order, not extra blocking edges.",
+    "parallelism": "Any independent eligible required tickets may run in parallel; priority order is not a serialization requirement.",
+    "optional_work": "Optional tickets are excluded from required_topological_order. Their position in the combined topological_order is illustrative eligibility only and never delays required milestones or cutover. Start one only when its optional experiment is selected.",
+    "early_repair": "USCT-033 is an M0 repair and therefore appears before M1 tasks once its existing blockers are satisfied, despite its later stable ID.",
+    "cutover_gate": "Every required ticket other than USCT-030 itself is a dependency ancestor of USCT-030; no optional ticket is a required ancestor."
+  },
+  "dependency_validation": {
+    "acyclic": true,
+    "tickets": 36,
+    "required_tickets": 33,
+    "optional_tickets": 3,
+    "direct_edges": 66,
+    "all_required_tickets_gate_cutover": true,
+    "required_ancestors_of_cutover": [
+      "USCT-001",
+      "USCT-002",
+      "USCT-003",
+      "USCT-004",
+      "USCT-005",
+      "USCT-006",
+      "USCT-007",
+      "USCT-008",
+      "USCT-009",
+      "USCT-010",
+      "USCT-011",
+      "USCT-012",
+      "USCT-013",
+      "USCT-014",
+      "USCT-015",
+      "USCT-016",
+      "USCT-017",
+      "USCT-018",
+      "USCT-019",
+      "USCT-020",
+      "USCT-021",
+      "USCT-022",
+      "USCT-023",
+      "USCT-025",
+      "USCT-026",
+      "USCT-027",
+      "USCT-028",
+      "USCT-029",
+      "USCT-033",
+      "USCT-034",
+      "USCT-035",
+      "USCT-036"
+    ],
+    "optional_tickets_do_not_gate_required_work": true,
+    "early_repair_position_1_based": 8,
+    "ordering_policy": "milestone priority, then stable ticket ID among currently ready nodes"
+  },
+  "data_acquisition_policy": {
+    "authorization": "Relevant source discovery, acquisition/refetch and cross-source backfills needed for the new schemas are authorized for public sources and sources the user is already authorized to access. Do not request repeated confirmation for ordinary in-scope collection.",
+    "purpose": "Fill evidenced schema-field and coverage gaps, including newly introduced metadata, temporal endpoints and assertion/evidence fields; collection is not restricted to data already in the repository.",
+    "source_preference": "Prefer official bulk downloads and documented APIs; use other relevant public/authorized sources with their authority and evidence role explicitly labeled.",
+    "preservation": "Preserve immutable raw source versions, retrieval/source identities, hashes, observation times, provenance and license/reuse basis; a refetch does not overwrite the prior raw version.",
+    "limits": "Respect per-source rate, access, retention/reuse and request limits; checkpoint resumable work and report unavailable or incomplete scopes explicitly.",
+    "scope_limit": "This authorization does not add permission for paid services, new restricted-account access or broad deployment. This artifact revision updates the plan and does not start production implementation."
+  }
+}

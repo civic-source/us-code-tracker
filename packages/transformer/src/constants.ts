@@ -50,6 +50,20 @@ export const USLM_ELEMENTS = {
   ref: 'ref',
   /** Table element */
   table: 'table',
+  /** Table header group */
+  thead: 'thead',
+  /** Table body group */
+  tbody: 'tbody',
+  /** Table row */
+  tr: 'tr',
+  /** Table header cell */
+  th: 'th',
+  /** Table data cell */
+  td: 'td',
+  /** Table caption */
+  caption: 'caption',
+  /** Appendix element */
+  appendix: 'appendix',
 } as const;
 
 /** Indentation per nesting level (in spaces) */

@@ -622,4 +622,92 @@ describe('reformatInlineLists', () => {
       expect(body).toContain('*([84 Stat. 1236](https://www.govinfo.gov/link/statute/84/1236).)*');
     });
   });
+
+  describe('USCT-010: Rich USLM structure preservation (tables, notes, unsupported element fallbacks, deterministic hashes)', () => {
+    const COMPLEX_TABLE_NOTE_XML = `
+<lawDoc>
+  <title identifier="/us/usc/t26">
+    <num>Title 26</num>
+    <chapter identifier="/us/usc/t26/ch1">
+      <num>Chapter 1</num>
+      <section identifier="/us/usc/t26/s1">
+        <num>1</num>
+        <heading>Tax imposed</heading>
+        <subsection identifier="/us/usc/t26/s1/a">
+          <num>(a)</num>
+          <content>There is hereby imposed on the taxable income of every married individual a tax determined in accordance with the following table:</content>
+          <table identifier="/us/usc/t26/s1/a/tbl1">
+            <caption>Married Individuals Filing Joint Returns</caption>
+            <thead>
+              <tr>
+                <th>If taxable income is:</th>
+                <th>The tax is:</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Not over $15,000</td>
+                <td>15% of taxable income</td>
+              </tr>
+              <tr>
+                <td>Over $15,000</td>
+                <td>$2,250, plus 28% of the excess over $15,000</td>
+              </tr>
+            </tbody>
+          </table>
+        </subsection>
+        <sourceCredit>(Aug. 16, 1954, ch. 736, 68A Stat. 5; Pub. L. 119-73, § 101.)</sourceCredit>
+        <note topic="amendments" identifier="/us/usc/t26/s1/note1">
+          <heading>Amendments</heading>
+          <p>2026—Subsec. (a). Pub. L. 119-73 amended table brackets generally.</p>
+        </note>
+        <note topic="effectiveDate" identifier="/us/usc/t26/s1/note2">
+          <heading>Effective Date of 2026 Amendment</heading>
+          <p>Amendment by Pub. L. 119-73 applicable to taxable years beginning after Dec. 31, 2025.</p>
+        </note>
+        <customExperimentalBox>Special uncodified schedule fallback text.</customExperimentalBox>
+      </section>
+    </chapter>
+  </title>
+</lawDoc>`;
+
+    it('preserves GFM tables, classified statutory notes, unsupported-structure fallbacks, and deterministic content hash', () => {
+      const adapter1 = new XmlToMarkdownAdapter('PL 119-73');
+      const res1 = adapter1.transformToFiles(COMPLEX_TABLE_NOTE_XML);
+      expect(res1.ok).toBe(true);
+      if (!res1.ok) return;
+
+      expect(res1.value).toHaveLength(1);
+      const file1 = res1.value[0]!;
+
+      // GFM Table preserved
+      expect(file1.tables).toHaveLength(1);
+      expect(file1.tables?.[0]?.caption).toBe('Married Individuals Filing Joint Returns');
+      expect(file1.tables?.[0]?.headers).toEqual(['If taxable income is:', 'The tax is:']);
+      expect(file1.tables?.[0]?.rows).toEqual([
+        ['Not over $15,000', '15% of taxable income'],
+        ['Over $15,000', '$2,250, plus 28% of the excess over $15,000'],
+      ]);
+      expect(file1.content).toContain('| If taxable income is: | The tax is: |');
+      expect(file1.content).toContain('| Not over $15,000 | 15% of taxable income |');
+
+      // Structured notes classified by role
+      expect(file1.notes).toHaveLength(2);
+      expect(file1.notes?.[0]?.role).toBe('amendment');
+      expect(file1.notes?.[1]?.role).toBe('effective_date');
+      expect(file1.notes?.[1]?.text).toContain('taxable years beginning after Dec. 31, 2025');
+
+      // Unsupported element produces explicit finding + fallback text without losing legal text
+      expect(file1.unsupportedStructures).toHaveLength(1);
+      expect(file1.unsupportedStructures?.[0]?.elementName).toBe('customExperimentalBox');
+      expect(file1.content).toContain('Special uncodified schedule fallback text.');
+
+      // Deterministic normalizedContentHash: changing only retrieval time or release label does not change hash (USCT-008)
+      const adapter2 = new XmlToMarkdownAdapter('PL 119-74');
+      const res2 = adapter2.transformToFiles(COMPLEX_TABLE_NOTE_XML);
+      expect(res2.ok).toBe(true);
+      if (!res2.ok) return;
+      expect(res2.value[0]?.normalizedContentHash).toBe(file1.normalizedContentHash);
+    });
+  });
 });

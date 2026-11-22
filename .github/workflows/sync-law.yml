@@ -265,11 +265,29 @@ jobs:
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Step 12: Push to us-code repo
-      - name: Push to us-code
-        if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true'
-        working-directory: us-code
-        run: git push
+      # Step 12: Validate and push to us-code repo, then promote submodule pin & receipt (USCT-033)
+      - name: Validate and push to us-code
+        if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true' && steps.transform.outputs.failed_titles == '0'
+        id: promote_data
+        run: |
+          DATA_SHA=$(git -C us-code rev-parse HEAD)
+          pnpm exec tsx scripts/promote-publication.ts --action promote --tracker-repo . --data-repo us-code --ref "$DATA_SHA"
+          git -C us-code push
+          echo "data_sha=$DATA_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Advance tracker submodule pin to accepted data commit (USCT-033)
+        if: steps.promote_data.outputs.data_sha != ''
+        env:
+          DATA_SHA: ${{ steps.promote_data.outputs.data_sha }}
+          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/web/content-data apps/web/public/publication-receipt.json apps/web/public/publication-history.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(data): Promote validated $PUBLIC_LAW ($DATA_SHA)"
+            git push
+          fi
 
       # Step 13: Write job summary
       - name: Write job summary

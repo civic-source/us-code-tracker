@@ -13,6 +13,11 @@ export {
   SectionStatusSchema,
   detectSectionStatus,
   formatSourceCredit,
+  classifyNoteRole,
+  extractStructuredNotes,
+  extractStructuredTables,
+  formatTableMarkdown,
+  detectUnsupportedStructures,
 } from './markdown-generator.js';
 export type { Frontmatter, MarkdownFile, SectionStatus } from './markdown-generator.js';
 export { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.js';

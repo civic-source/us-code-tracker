@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from 'astro:content';
 import { compareSectionNumbers } from '@civic-source/shared';
+import type { ImplementingRegulation, SourceRefreshMeta } from '@civic-source/types';
+import type { CaseAnnotation } from '../../lib/types';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DiffViewer from '../../components/DiffViewer.svelte';
 import StatuteInspector from '../../components/StatuteInspector.svelte';
@@ -10,15 +12,20 @@ import SummaryBox from '../../components/SummaryBox.astro';
 import ReadingToolbar from '../../components/ReadingToolbar.svelte';
 
 export async function getStaticPaths() {
-  const [entries, allAnnotations] = await Promise.all([
+  const [entries, allAnnotations, allRegulations] = await Promise.all([
     getCollection('statutes'),
     getCollection('annotations').catch(() => []),
+    getCollection('regulations').catch(() => []),
   ]);
 
-  // Pre-index annotations by targetSection id in an O(1) map
+  // Pre-index annotations and regulations by targetSection id in O(1) maps
   const annotationsMap = new Map<string, typeof allAnnotations[number]>();
   for (const ann of allAnnotations) {
     annotationsMap.set(ann.id, ann);
+  }
+  const regulationsMap = new Map<string, typeof allRegulations[number]>();
+  for (const reg of allRegulations) {
+    regulationsMap.set(reg.id, reg);
   }
 
   // Pre-compute chapter siblings for each entry
@@ -72,38 +79,70 @@ export async function getStaticPaths() {
       nextChapterFirst = nextEntries.length > 0 ? nextEntries[0] ?? null : null;
     }
 
-    const annotationId = `title-${entry.data.usc_title}/section-${entry.data.usc_section}`;
-    const annotation = annotationsMap.get(annotationId);
-    let precedentCases: Array<{
-      caseName: string;
-      citation: string;
-      court: 'SCOTUS' | 'Appellate' | 'District';
-      date: string;
-      holdingSummary: string;
-      sourceUrl: string;
-      impact: 'interpretation' | 'unconstitutional' | 'narrowed' | 'historical';
-    }> = [];
+    const sidecarId = `title-${entry.data.usc_title}/section-${entry.data.usc_section}`;
+    const annotation = annotationsMap.get(sidecarId);
+    const regulationSidecar = regulationsMap.get(sidecarId);
+    let precedentCases: CaseAnnotation[] = [];
 
     if (annotation) {
       precedentCases = annotation.data.cases.map(c => ({
         caseName: c.caseName,
         citation: c.citation ?? '',
-        court: (c.court === 'SCOTUS' || c.court === 'Appellate' ? c.court : 'District') as 'SCOTUS' | 'Appellate' | 'District',
+        court: (c.court === 'SCOTUS' || c.court === 'Appellate' ? c.court : 'District') as CaseAnnotation['court'],
         date: c.date,
         holdingSummary: c.holdingSummary ?? '',
+        retrievalExcerpt: c.retrievalExcerpt,
+        reviewedProposition: c.reviewedProposition,
+        supportingOpinionPassage: c.supportingOpinionPassage,
+        retrievalQuery: c.retrievalQuery,
+        retrievedAt: c.retrievedAt,
+        extractionState: c.extractionState,
+        editorialReview: c.editorialReview,
+        versionAlignmentState: c.versionAlignmentState,
         sourceUrl: c.sourceUrl ?? '',
-        impact: (c.impact === 'unconstitutional' || c.impact === 'narrowed' || c.impact === 'historical' ? c.impact : 'interpretation') as 'interpretation',
+        impact: (
+          c.impact === 'unconstitutional' ||
+          c.impact === 'narrowed' ||
+          c.impact === 'historical' ||
+          c.impact === 'interpretation'
+            ? c.impact
+            : 'unverified_mention'
+        ) as CaseAnnotation['impact'],
+        statuteVersionRef: c.statuteVersionRef,
+        statuteVersionNote: c.statuteVersionNote,
       }));
     }
 
+    const annotationRefreshStatus = annotation?.data.refreshStatus as SourceRefreshMeta | undefined;
+    const sectionRegulations: ImplementingRegulation[] = regulationSidecar?.data.regulations ?? [];
+    const regulationRefreshStatus = regulationSidecar?.data.refreshStatus as SourceRefreshMeta | undefined;
+
     return {
       params: { slug: entry.id },
-      props: { entry, chapterSiblings, prevChapterLast, nextChapterFirst, precedentCases },
+      props: {
+        entry,
+        chapterSiblings,
+        prevChapterLast,
+        nextChapterFirst,
+        precedentCases,
+        annotationRefreshStatus,
+        sectionRegulations,
+        regulationRefreshStatus,
+      },
     };
   });
 }
 
-const { entry, chapterSiblings, prevChapterLast, nextChapterFirst, precedentCases = [] } = Astro.props;
+const {
+  entry,
+  chapterSiblings,
+  prevChapterLast,
+  nextChapterFirst,
+  precedentCases = [],
+  annotationRefreshStatus,
+  sectionRegulations = [],
+  regulationRefreshStatus,
+} = Astro.props;
 const { Content } = await render(entry);
 
 // Compute prev/next section links (with cross-chapter fallback)
@@ -305,11 +344,16 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         <DiffViewer client:idle sectionPath={sectionPath} />
       </div>
 
-      <!-- Case law references -->
+      <!-- Case law references (USCT-004: distinguish retrieval excerpts from reviewed propositions) -->
       {precedentCases.length > 0 && (
         <div class="not-prose mt-8 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 font-sans shadow-2xs">
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-bold text-[var(--text-primary)]">Judicial Case Law Precedent</h3>
+            <div>
+              <h3 class="text-base font-bold text-[var(--text-primary)]">Judicial Case Law Citations &amp; Excerpts</h3>
+              <p class="text-xs text-[var(--text-muted)]">
+                CourtListener search hits are shown as unreviewed retrieval excerpts unless marked as a reviewed proposition.
+              </p>
+            </div>
             <a
               href={`https://www.courtlistener.com/?q=${encodeURIComponent(`"${usc_title} U.S.C. § ${usc_section}"`)}&type=o`}
               target="_blank"
@@ -320,7 +364,16 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
             </a>
           </div>
           <ul class="mt-4 space-y-2.5 text-sm">
-            {precedentCases.slice(0, 5).map((c) => (
+            {precedentCases.slice(0, 5).map((c) => {
+              const isVerified =
+                c.extractionState === 'verified' &&
+                c.editorialReview === 'accepted' &&
+                typeof c.reviewedProposition === 'string' &&
+                c.reviewedProposition.trim().length > 0;
+              const summaryText = isVerified
+                ? c.reviewedProposition
+                : (c.retrievalExcerpt ?? c.holdingSummary);
+              return (
               <li class="flex items-start gap-2.5">
                 <span class:list={[
                   'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
@@ -336,10 +389,20 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
                     class="font-medium text-[var(--text-primary)] underline-offset-2 hover:underline hover:text-[var(--civic-action)]"
                   >{c.caseName}</a>
                   {c.date && <span class="ml-2 text-xs text-[var(--text-muted)]">({c.date.slice(0, 4)})</span>}
-                  {c.holdingSummary && <p class="text-xs text-[var(--text-secondary)] mt-0.5">{c.holdingSummary}</p>}
+                  {isVerified ? (
+                    <span class="ml-2 rounded bg-[var(--legal-valid-bg)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--legal-valid)]">
+                      Reviewed Proposition
+                    </span>
+                  ) : (
+                    <span class="ml-2 rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+                      Retrieval Excerpt
+                    </span>
+                  )}
+                  {summaryText && <p class="text-xs text-[var(--text-secondary)] mt-0.5">{summaryText}</p>}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}
@@ -354,6 +417,9 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         uscTitle={usc_title}
         uscSection={usc_section}
         annotations={precedentCases}
+        annotationRefreshStatus={annotationRefreshStatus}
+        regulations={sectionRegulations}
+        regulationRefreshStatus={regulationRefreshStatus}
       />
 
       <!-- Article TOC (headings in section) -->

@@ -1,0 +1,26 @@
+{
+  "snapshotAsOf": "2026-11-21T00:00:00Z",
+  "coverageState": "complete",
+  "sections": {
+    "18/1001": [
+      {
+        "title": "Department of Justice Manual: False Statements Under 18 U.S.C. 1001 Notice",
+        "type": "Notice",
+        "agency_names": ["Department of Justice"],
+        "publication_date": "2026-05-14",
+        "html_url": "https://www.federalregister.gov/documents/search?conditions%5Bterm%5D=18+U.S.C.+1001",
+        "citation": "91 FR 24100"
+      }
+    ],
+    "1/1": [
+      {
+        "title": "Statutory Construction and Dictionary Act Definitions Alignment",
+        "type": "Rule",
+        "agency_names": ["Office of the Federal Register"],
+        "publication_date": "2026-03-10",
+        "html_url": "https://www.federalregister.gov/documents/search?conditions%5Bterm%5D=1+U.S.C.+1",
+        "citation": "91 FR 11205"
+      }
+    ]
+  }
+}

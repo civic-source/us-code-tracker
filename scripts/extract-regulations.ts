@@ -1,57 +1,153 @@
 #!/usr/bin/env npx tsx
 /**
- * eCFR Parallel Table of Authorities (PTOA) Sidecar Generator
+ * eCFR Candidate & Authority Sidecar Generator (USCT-002, USCT-003, USCT-014)
  *
- * Queries the official open eCFR API to discover administrative rules and CFR parts
- * derived from enabling U.S. Code sections, and outputs .regulations.json sidecars.
+ * Queries the open eCFR search API to discover administrative rules and CFR parts
+ * mentioning U.S. Code sections, and optionally verifies official authority citations
+ * against the CFR part's authority note / Parallel Table of Authorities (PTOA).
  *
- * Usage:
- *   npx tsx scripts/extract-regulations.ts --title 42 --section 7401 --output apps/web/content-data/regulations/
- *   npx tsx scripts/extract-regulations.ts --title 18 --output apps/web/content-data/regulations/ --limit 50
+ * Distinguishes:
+ * - Full-text search matches -> extractionState: 'candidate', relationshipType: 'text_match_candidate' (USCT-003)
+ * - Verified authority citations -> extractionState: 'verified', relationshipType: 'authority_citation' (USCT-014)
+ * - Source outages / HTTP errors / partial pagination -> typed SourceAcquisitionOutcome preserving prior snapshot (USCT-002)
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   SectionRegulationsSchema,
+  resolveRefreshWithFallback,
   type ImplementingRegulation,
+  type SectionRegulations,
+  type SourceAcquisitionOutcome,
+  type SourceFetchFailureKind,
 } from '@civic-source/types';
 
-interface ECFRSearchResult {
-  hierarchy: {
-    title: string;
-    part: string;
+export interface ECFRSearchResult {
+  hierarchy?: {
+    title?: string;
+    part?: string;
     chapter?: string;
   };
-  headings: {
-    title: string;
-    part: string;
+  headings?: {
+    title?: string;
+    part?: string;
     chapter?: string;
   };
+  full_text_excerpt?: string;
 }
 
-export async function fetchImplementingRegulations(
+export interface FetchRegulationsOptions {
+  /** Optional authority lookup map or callback for verifying official PTOA / CFR Part authority notes (USCT-014) */
+  verifyAuthority?: (cfrTitle: number, cfrPart: number) => Promise<string | null> | string | null;
+  /** Optional prior validated snapshot to preserve when refresh fails (USCT-002) */
+  priorSnapshot?: { data: ImplementingRegulation[]; lastSuccessAt: string } | null;
+  /** Custom timestamp for deterministic testing */
+  nowIso?: string;
+}
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Check whether an official CFR authority string actually cites the target USC title and section (USCT-003 / USCT-014).
+ * Example authority text: "Authority: 42 U.S.C. 7401-7671q." or "18 U.S.C. 111, 1114."
+ */
+export function authorityTextCitesSection(
+  authorityText: string,
   uscTitle: string | number,
   uscSection: string
-): Promise<ImplementingRegulation[]> {
+): boolean {
+  const t = escapeRegExp(String(uscTitle).trim());
+  const s = escapeRegExp(String(uscSection).trim());
+  // Match "{title} U.S.C. {section}" or "{title} U.S.C. § {section}" with word boundary after section
+  const directPattern = new RegExp(`\\b${t}\\s+U\\.?S\\.?C\\.?\\s*(?:§+|sec\\.?|sections?)?\\s*${s}(?![0-9a-zA-Z])`, 'i');
+  return directPattern.test(authorityText);
+}
+
+/**
+ * Fetch eCFR regulation candidates with full USCT-002 outcome semantics and USCT-003/014 candidate vs. verified classification.
+ */
+export async function fetchRegulationsWithOutcome(
+  uscTitle: string | number,
+  uscSection: string,
+  options?: FetchRegulationsOptions
+): Promise<SourceAcquisitionOutcome<ImplementingRegulation[]>> {
+  const scope = `${uscTitle} U.S.C. ${uscSection}`;
   const query = `"${uscTitle} U.S.C. ${uscSection}"`;
-  const url = `https://www.ecfr.gov/api/search/v1/results?query=${encodeURIComponent(query)}&per_page=10`;
+  const url = `https://www.ecfr.gov/api/search/v1/results?query=${encodeURIComponent(query)}&per_page=20`;
+  const observedAt = options?.nowIso ?? new Date().toISOString();
 
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      return [];
+      const failureKind: SourceFetchFailureKind =
+        res.status === 429 ? 'rate_limited' : 'http_error';
+      return resolveRefreshWithFallback(
+        {
+          status: 'failed',
+          source: 'ecfr',
+          scope,
+          observedAt,
+          data: [],
+          isEmpty: (d) => d.length === 0,
+          httpStatus: res.status,
+          failureKind,
+          errorMessage: `eCFR search API returned HTTP ${res.status}`,
+        },
+        options?.priorSnapshot
+      );
     }
 
-    const data = await res.json() as { results?: ECFRSearchResult[] };
-    if (!data.results || !Array.isArray(data.results)) {
-      return [];
+    let rawData: unknown;
+    try {
+      rawData = await res.json();
+    } catch (parseErr: unknown) {
+      return resolveRefreshWithFallback(
+        {
+          status: 'failed',
+          source: 'ecfr',
+          scope,
+          observedAt,
+          data: [],
+          isEmpty: (d) => d.length === 0,
+          httpStatus: res.status,
+          failureKind: 'malformed_payload',
+          errorMessage: `Malformed JSON from eCFR API: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+        },
+        options?.priorSnapshot
+      );
     }
 
+    if (
+      typeof rawData !== 'object' ||
+      rawData === null ||
+      !('results' in rawData) ||
+      !Array.isArray((rawData as { results?: unknown }).results)
+    ) {
+      return resolveRefreshWithFallback(
+        {
+          status: 'failed',
+          source: 'ecfr',
+          scope,
+          observedAt,
+          data: [],
+          isEmpty: (d) => d.length === 0,
+          httpStatus: res.status,
+          failureKind: 'malformed_payload',
+          errorMessage: 'eCFR payload missing results array',
+        },
+        options?.priorSnapshot
+      );
+    }
+
+    const items = (rawData as { results: ECFRSearchResult[]; meta?: { total_pages?: number; current_page?: number; page_failure?: boolean } }).results;
+    const meta = (rawData as { meta?: { total_pages?: number; current_page?: number; page_failure?: boolean } }).meta;
     const regulationsMap = new Map<string, ImplementingRegulation>();
 
-    for (const item of data.results) {
+    for (const item of items) {
       const cfrTitle = parseInt(item.hierarchy?.title ?? '', 10);
       const cfrPart = parseInt(item.hierarchy?.part ?? '', 10);
       if (isNaN(cfrTitle) || isNaN(cfrPart) || cfrTitle <= 0 || cfrPart <= 0) {
@@ -64,6 +160,22 @@ export async function fetchImplementingRegulations(
       const agency = item.headings?.chapter?.trim() || item.headings?.title?.trim() || 'Federal Agency';
       const description = item.headings?.part?.trim() || undefined;
       const ecfrUrl = `https://www.ecfr.gov/current/title-${cfrTitle}/part-${cfrPart}`;
+      const excerpt = item.full_text_excerpt?.trim().slice(0, 1000);
+
+      let extractionState: 'candidate' | 'verified' = 'candidate';
+      let editorialReview: 'unreviewed' | 'accepted' = 'unreviewed';
+      let relationshipType: 'text_match_candidate' | 'authority_citation' = 'text_match_candidate';
+      let verifiedAuthorityText: string | undefined;
+
+      if (options?.verifyAuthority) {
+        const authText = await options.verifyAuthority(cfrTitle, cfrPart);
+        if (authText && authorityTextCitesSection(authText, uscTitle, uscSection)) {
+          extractionState = 'verified';
+          editorialReview = 'accepted';
+          relationshipType = 'authority_citation';
+          verifiedAuthorityText = authText.trim().slice(0, 1000);
+        }
+      }
 
       regulationsMap.set(key, {
         cfrTitle,
@@ -71,12 +183,90 @@ export async function fetchImplementingRegulations(
         agency,
         description,
         ecfrUrl,
+        extractionState,
+        editorialReview,
+        relationshipType,
+        discoveryQuery: query,
+        matchingEvidence: excerpt ?? `Matched eCFR full-text search for ${query}`,
+        verifiedAuthorityText,
+        retrievedAt: observedAt,
       });
     }
 
-    return Array.from(regulationsMap.values());
+    const regulations = Array.from(regulationsMap.values());
+
+    if (meta?.page_failure) {
+      return resolveRefreshWithFallback(
+        {
+          status: 'partial',
+          source: 'ecfr',
+          scope,
+          observedAt,
+          data: regulations,
+          isEmpty: (d) => d.length === 0,
+          httpStatus: res.status,
+          failureKind: 'pagination_incomplete',
+          errorMessage: 'eCFR search pagination interrupted before all pages were collected',
+          completedPages: meta.current_page ?? 1,
+          expectedPages: meta.total_pages,
+        },
+        options?.priorSnapshot
+      );
+    }
+
+    return resolveRefreshWithFallback(
+      {
+        status: regulations.length === 0 ? 'success-empty' : 'success-nonempty',
+        source: 'ecfr',
+        scope,
+        observedAt,
+        data: regulations,
+        isEmpty: (d) => d.length === 0,
+        completedPages: 1,
+        expectedPages: meta?.total_pages ?? 1,
+      },
+      options?.priorSnapshot
+    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isTimeout = /timeout|abort/i.test(msg);
+    return resolveRefreshWithFallback(
+      {
+        status: 'failed',
+        source: 'ecfr',
+        scope,
+        observedAt,
+        data: [],
+        isEmpty: (d) => d.length === 0,
+        failureKind: isTimeout ? 'timeout' : 'network_error',
+        errorMessage: msg,
+      },
+      options?.priorSnapshot
+    );
+  }
+}
+
+/**
+ * Legacy helper returning the array of discovered regulation records.
+ * Each record resulting from full-text search is explicitly labeled `extractionState: 'candidate'`
+ * and `relationshipType: 'text_match_candidate'` unless verified via `options.verifyAuthority` (USCT-003).
+ */
+export async function fetchImplementingRegulations(
+  uscTitle: string | number,
+  uscSection: string,
+  options?: FetchRegulationsOptions
+): Promise<ImplementingRegulation[]> {
+  const outcome = await fetchRegulationsWithOutcome(uscTitle, uscSection, options);
+  return outcome.data;
+}
+
+/** Load an existing section regulations sidecar so a failed refresh preserves last-good data (USCT-002) */
+export async function loadExistingSectionRegulations(filePath: string): Promise<SectionRegulations | null> {
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    return SectionRegulationsSchema.parse(JSON.parse(raw));
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -95,25 +285,45 @@ async function main() {
   }
 
   const { title, section, output } = values;
-  console.log(`Extracting implementing regulations for ${title} U.S.C. § ${section}...`);
-
-  const regulations = await fetchImplementingRegulations(title, section);
-  console.log(`Found ${regulations.length} regulatory parts.`);
-
-  const sidecar = {
-    targetSection: `${title}-${section}`,
-    lastUpdated: new Date().toISOString(),
-    regulations,
-  };
-
-  // Validate with Zod schema
-  const parsed = SectionRegulationsSchema.parse(sidecar);
-
   const outDir = join(output, `title-${title}`);
-  await mkdir(outDir, { recursive: true });
-
   const outFile = join(outDir, `section-${section}.json`);
-  await writeFile(outFile, JSON.stringify(parsed, null, 2), 'utf-8');
+
+  const existing = await loadExistingSectionRegulations(outFile);
+  const priorSnapshot = existing
+    ? {
+        data: existing.regulations,
+        lastSuccessAt: existing.refreshStatus?.lastSuccessAt ?? existing.lastUpdated,
+      }
+    : null;
+
+  console.log(`Extracting eCFR regulation candidates for ${title} U.S.C. § ${section}...`);
+  const outcome = await fetchRegulationsWithOutcome(title, section, { priorSnapshot });
+  console.log(
+    `Outcome: ${outcome.status} (${outcome.data.length} parts, retainedPrior=${outcome.retainedPriorSnapshot})`
+  );
+
+  const sidecar: SectionRegulations = SectionRegulationsSchema.parse({
+    targetSection: `${title}-${section}`,
+    lastUpdated: outcome.observedAt,
+    refreshStatus: {
+      source: outcome.source,
+      scope: outcome.scope,
+      status: outcome.status,
+      observedAt: outcome.observedAt,
+      lastSuccessAt: outcome.lastSuccessAt,
+      retainedPriorSnapshot: outcome.retainedPriorSnapshot,
+      isStale: outcome.isStale,
+      httpStatus: outcome.httpStatus,
+      failureKind: outcome.failureKind,
+      errorMessage: outcome.errorMessage,
+      completedPages: outcome.completedPages,
+      expectedPages: outcome.expectedPages,
+    },
+    regulations: outcome.data,
+  });
+
+  await mkdir(outDir, { recursive: true });
+  await writeFile(outFile, JSON.stringify(sidecar, null, 2), 'utf-8');
   console.log(`Wrote sidecar to: ${outFile}`);
 }
 

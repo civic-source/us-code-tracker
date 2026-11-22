@@ -29,8 +29,19 @@ interface SectionDiff {
   lines: DiffLine[];
 }
 
+interface DiffManifestPair {
+  from: string;
+  to: string;
+  changedSections: number;
+  /** True when one or more incomplete/failed releases sit between `from` and `to` (USCT-005) */
+  spansIncompleteGap?: boolean;
+  /** Missing/incomplete release keys between `from` and `to` (USCT-005) */
+  missingReleasesBetween?: string[];
+}
+
 interface DiffManifest {
-  pairs: { from: string; to: string; changedSections: number }[];
+  pairs: DiffManifestPair[];
+  incompleteReleases?: string[];
   generatedAt: string;
 }
 
@@ -124,98 +135,141 @@ async function loadExistingManifest(outputDir: string): Promise<DiffManifest | n
   }
 }
 
+/** Read incompleteReleases from the repo's .import-state.json so diffs spanning a gap declare it (USCT-005) */
+export async function loadRepoIncompleteReleases(repoDir: string): Promise<string[]> {
+  try {
+    const raw = await readFile(join(repoDir, '.import-state.json'), 'utf8');
+    const state = JSON.parse(raw) as { incompleteReleases?: string[] };
+    return Array.isArray(state.incompleteReleases) ? state.incompleteReleases : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Return any incomplete release keys chronologically between `fromTag` and `toTag` (USCT-005) */
+export function findGapsBetweenTags(
+  fromTag: string,
+  toTag: string,
+  incompleteReleases: readonly string[]
+): string[] {
+  const [fc, fl] = parsePlTag(fromTag);
+  const [tc, tl] = parsePlTag(toTag);
+  if (fc === 0 || tc === 0) return [];
+
+  return incompleteReleases.filter((key) => {
+    const [kc, kl] = parsePlTag(`pl-${key}`);
+    if (kc === 0) return false;
+    const afterFrom = kc > fc || (kc === fc && kl > fl);
+    const beforeTo = kc < tc || (kc === tc && kl < tl);
+    return afterFrom && beforeTo;
+  });
+}
+
 // --- Main ---
 
-const { values } = parseArgs({
-  options: {
-    repo: { type: 'string' },
-    output: { type: 'string' },
-    full: { type: 'boolean', default: false },
-  },
-});
-const { repo, output, full } = values;
+async function runCli() {
+  const { values } = parseArgs({
+    options: {
+      repo: { type: 'string' },
+      output: { type: 'string' },
+      full: { type: 'boolean', default: false },
+    },
+  });
+  const { repo, output, full } = values;
 
-if (!repo || !output) {
-  console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full]');
-  process.exit(1);
-}
-
-const tags = getTags(repo);
-console.log(`Found ${tags.length} pl-* tags: ${tags[0]} \u2026 ${tags[tags.length - 1]}`);
-if (tags.length < 2) { console.error('Need at least 2 tags to generate diffs.'); process.exit(1); }
-
-// Load existing manifest for incremental mode
-const existingManifest = full ? null : await loadExistingManifest(output);
-const existingPairs = new Set(
-  existingManifest?.pairs.map(p => `${p.from}_${p.to}`) ?? []
-);
-
-const manifest: DiffManifest = {
-  pairs: existingManifest?.pairs ?? [],
-  generatedAt: new Date().toISOString(),
-};
-
-let skipped = 0;
-let computed = 0;
-
-for (let i = 0; i < tags.length - 1; i++) {
-  const from = tags[i] as string;
-  const to = tags[i + 1] as string;
-  const key = `${from}_${to}`;
-
-  // Incremental: skip already-computed pairs
-  if (existingPairs.has(key)) {
-    skipped++;
-    continue;
+  if (!repo || !output) {
+    console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full]');
+    process.exit(1);
   }
 
-  console.log(`  Diffing ${from} \u2192 ${to}\u2026`);
+  const tags = getTags(repo);
+  const incompleteReleases = await loadRepoIncompleteReleases(repo);
+  console.log(`Found ${tags.length} pl-* tags: ${tags[0]} \u2026 ${tags[tags.length - 1]}`);
+  if (tags.length < 2) { console.error('Need at least 2 tags to generate diffs.'); process.exit(1); }
 
-  const diffs = parseDiff(getRawDiff(repo, from, to), from, to);
-  let changedSections = 0;
-  const dir = join(output, key);
+  const existingManifest = full ? null : await loadExistingManifest(output);
+  const existingPairs = new Set(
+    existingManifest?.pairs.map(p => `${p.from}_${p.to}`) ?? []
+  );
 
-  for (const [filePath, diff] of diffs) {
-    const parts = pathToOutputParts(filePath);
-    if (!parts) continue;
-    const sectionDir = join(dir, parts.title);
-    await mkdir(sectionDir, { recursive: true });
-    await writeFile(join(sectionDir, `${parts.section}.json`), JSON.stringify(diff));
-    changedSections++;
-  }
+  const manifest: DiffManifest = {
+    pairs: existingManifest?.pairs ?? [],
+    ...(incompleteReleases.length > 0 ? { incompleteReleases } : {}),
+    generatedAt: new Date().toISOString(),
+  };
 
-  manifest.pairs.push({ from, to, changedSections });
-  computed++;
-  console.log(`    ${changedSections} sections with body changes (excluded frontmatter-only)`);
-}
+  let skipped = 0;
+  let computed = 0;
 
-// Re-sort manifest pairs by tag order
-manifest.pairs.sort((a, b) => {
-  const [ac, al] = parsePlTag(a.from);
-  const [bc, bl] = parsePlTag(b.from);
-  return ac !== bc ? ac - bc : al - bl;
-});
+  for (let i = 0; i < tags.length - 1; i++) {
+    const from = tags[i] as string;
+    const to = tags[i + 1] as string;
+    const key = `${from}_${to}`;
+    const gaps = findGapsBetweenTags(from, to, incompleteReleases);
 
-// Build per-section change index: { "title-18/section-111": ["pl-117-159", ...] }
-const sectionChanges: Record<string, string[]> = {};
-for (const pair of manifest.pairs) {
-  const pairDir = join(output, `${pair.from}_${pair.to}`);
-  try {
-    const titles = await readdir(pairDir).catch(() => [] as string[]);
-    for (const titleDir of titles) {
-      const sections = await readdir(join(pairDir, titleDir)).catch(() => [] as string[]);
-      for (const sectionFile of sections) {
-        const key = `${titleDir}/${sectionFile.replace('.json', '')}`;
-        if (!sectionChanges[key]) sectionChanges[key] = [];
-        sectionChanges[key].push(pair.to);
-      }
+    if (existingPairs.has(key)) {
+      skipped++;
+      continue;
     }
-  } catch {
-    // Pair dir may not exist for cached entries from previous runs
+
+    console.log(`  Diffing ${from} \u2192 ${to}\u2026`);
+
+    const diffs = parseDiff(getRawDiff(repo, from, to), from, to);
+    let changedSections = 0;
+    const dir = join(output, key);
+
+    for (const [filePath, diff] of diffs) {
+      const parts = pathToOutputParts(filePath);
+      if (!parts) continue;
+      const sectionDir = join(dir, parts.title);
+      await mkdir(sectionDir, { recursive: true });
+      await writeFile(join(sectionDir, `${parts.section}.json`), JSON.stringify(diff));
+      changedSections++;
+    }
+
+    manifest.pairs.push({
+      from,
+      to,
+      changedSections,
+      ...(gaps.length > 0 ? { spansIncompleteGap: true, missingReleasesBetween: gaps } : {}),
+    });
+    computed++;
+    console.log(`    ${changedSections} sections with body changes (excluded frontmatter-only)`);
   }
+
+  manifest.pairs.sort((a, b) => {
+    const [ac, al] = parsePlTag(a.from);
+    const [bc, bl] = parsePlTag(b.from);
+    return ac !== bc ? ac - bc : al - bl;
+  });
+
+  const sectionChanges: Record<string, string[]> = {};
+  for (const pair of manifest.pairs) {
+    const pairDir = join(output, `${pair.from}_${pair.to}`);
+    try {
+      const titles = await readdir(pairDir).catch(() => [] as string[]);
+      for (const titleDir of titles) {
+        const sections = await readdir(join(pairDir, titleDir)).catch(() => [] as string[]);
+        for (const sectionFile of sections) {
+          const key = `${titleDir}/${sectionFile.replace('.json', '')}`;
+          if (!sectionChanges[key]) sectionChanges[key] = [];
+          sectionChanges[key].push(pair.to);
+        }
+      }
+    } catch {
+      // Pair dir may not exist for cached entries from previous runs
+    }
+  }
+
+  await mkdir(output, { recursive: true });
+  await writeFile(join(output, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  await writeFile(join(output, 'changed-sections.json'), JSON.stringify(sectionChanges));
+  console.log(`Done. ${computed} new pairs computed, ${skipped} skipped (already cached). ${Object.keys(sectionChanges).length} sections with changes tracked. Manifest: ${output}/manifest.json`);
 }
 
-await mkdir(output, { recursive: true });
-await writeFile(join(output, 'manifest.json'), JSON.stringify(manifest, null, 2));
-await writeFile(join(output, 'changed-sections.json'), JSON.stringify(sectionChanges));
-console.log(`Done. ${computed} new pairs computed, ${skipped} skipped (already cached). ${Object.keys(sectionChanges).length} sections with changes tracked. Manifest: ${output}/manifest.json`);
+if (process.argv[1]?.endsWith('generate-diffs.ts')) {
+  runCli().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -1,0 +1,19 @@
+{
+  "title": "US Code Tracker End to End Implementation Plan",
+  "prepared_on": "2026-11-21",
+  "timezone": "America/New_York",
+  "status": "proposed",
+  "implementation_performed": false,
+  "tickets": 36,
+  "required_tickets": 33,
+  "optional_tickets": 3,
+  "dependency_edges": 66,
+  "source_revision": "822d2a5f904a874f107bcdf4c99f0e1fda4f5d51",
+  "entrypoint": "PLAN.md",
+  "implementation_handoff": "AGENT-START.md",
+  "backlog": "backlog/backlog.json",
+  "revision": 2,
+  "updated_on": "2026-11-21",
+  "source_acquisition_authorized": true,
+  "revision_summary": "Explicit source acquisition and schema backfill authorization; date endpoint states and field-to-source coverage."
+}
