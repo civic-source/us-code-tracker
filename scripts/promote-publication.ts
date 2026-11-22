@@ -219,18 +219,18 @@ export async function getCheckedOutSubmoduleHead(
 async function syncSubmoduleWorkingTree(
   trackerRepoPath: string,
   targetCommitSha: string,
-  dataRepoPath?: string,
   submoduleRelPath = 'apps/web/content-data'
 ): Promise<void> {
+  if (!/^[0-9a-f]{40}$/i.test(targetCommitSha)) {
+    return;
+  }
   const checkedOutHead = await getCheckedOutSubmoduleHead(trackerRepoPath, submoduleRelPath);
   if (!checkedOutHead) return;
   const subPath = join(trackerRepoPath, submoduleRelPath);
-  if (dataRepoPath && dataRepoPath !== subPath) {
-    try {
-      await gitExec(subPath, ['fetch', dataRepoPath, targetCommitSha]);
-    } catch {
-      // Commit may already be present locally in the submodule object store
-    }
+  try {
+    await gitExec(subPath, ['fetch', 'origin', targetCommitSha]);
+  } catch {
+    // Commit may already be present locally in the submodule object store
   }
   try {
     await gitExec(subPath, ['checkout', '--detach', '--force', targetCommitSha]);
@@ -290,8 +290,7 @@ export async function promoteValidatedDataCandidate(
   if (options.updateSubmoduleWorkingTree !== false) {
     await syncSubmoduleWorkingTree(
       options.trackerRepoPath,
-      candidate.commitSha,
-      options.dataRepoPath
+      candidate.commitSha
     );
     try {
       await gitExec(options.trackerRepoPath, [
