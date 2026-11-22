@@ -2,13 +2,12 @@
 /**
  * Import historical OLRC release points as git commits (delta-only).
  *
- * Usage:
- *   npx tsx scripts/import-history.ts --repo /path/to/us-code
- *   npx tsx scripts/import-history.ts --repo /path/to/us-code --start pl/119/1 --end pl/119/73
- *   npx tsx scripts/import-history.ts --repo /path/to/us-code --title 18 --dry-run
- *   npx tsx scripts/import-history.ts --repo /path/to/us-code --resume
- *
- * Requires: packages to be built first (`pnpm build`).
+ * USCT-005 & USCT-006:
+ * - Tracks completion per exact release point and title in `state.releaseLedger`
+ *   so an earlier failed release R2 remains retryable on `--resume` even after R3 succeeds.
+ * - Stages and validates all titles in a release BEFORE committing and tagging;
+ *   never commits or tags an incomplete release point.
+ * - Uses immutable release tagging (`publishImmutableReleaseTag`) without `git tag -f`.
  */
 
 import { writeFile, mkdir, rm } from 'node:fs/promises';
@@ -24,15 +23,21 @@ import {
   scrapeReleasePoints,
   filterRange,
   parseReleasePointStr,
+  releasePointKey,
+  releasePointTagName,
   type ReleasePointId,
 } from './lib/release-points.js';
 import {
   loadState,
   saveState,
   gitCommit,
-  gitTag,
+  publishImmutableReleaseTag,
   downloadAndExtractXml,
+  shouldProcessReleaseOnResume,
+  recordReleaseLedgerOutcome,
+  computeReleaseManifestHash,
   type ImportState,
+  type TitleScopeOutcome,
 } from './lib/import-helpers.js';
 
 const log = createLogger('import-history');
@@ -53,9 +58,11 @@ async function writeProgress(
   repoPath: string,
   progress: ImportProgress
 ): Promise<void> {
-  const { writeFile: wf } = await import('node:fs/promises');
-  const { join: pjoin } = await import('node:path');
-  await wf(pjoin(repoPath, '.import-progress.json'), JSON.stringify(progress, null, 2) + '\n', 'utf-8');
+  await writeFile(
+    join(repoPath, '.import-progress.json'),
+    JSON.stringify(progress, null, 2) + '\n',
+    'utf-8'
+  );
 }
 
 // --- Constants ---
@@ -64,87 +71,63 @@ const ALL_TITLES = Array.from({ length: 54 }, (_, i) => (i + 1).toString().padSt
 const MAX_CONCURRENT = 5;
 const INTER_TITLE_DELAY_MS = 1000;
 
-// --- Argument parsing ---
-
-const { values: args } = parseArgs({
-  options: {
-    repo: { type: 'string', short: 'r' },
-    start: { type: 'string' },
-    end: { type: 'string' },
-    title: { type: 'string', short: 't' },
-    'dry-run': { type: 'boolean', default: false },
-    resume: { type: 'boolean', default: false },
-    help: { type: 'boolean', short: 'h', default: false },
-  },
-  strict: true,
-});
-
-if (args.help || !args.repo) {
-  const msg = `
-Usage: npx tsx scripts/import-history.ts --repo <path> [options]
-
-Options:
-  --repo, -r     Path to the us-code git repository (required)
-  --start        Start release point, e.g. pl/119/1 (inclusive)
-  --end          End release point, e.g. pl/119/73 (inclusive)
-  --title, -t    Process only this title number (e.g. 18)
-  --dry-run      Show what would change without committing
-  --resume       Resume from last completed release point
-  --help, -h     Show this help message
-`;
-  process.stdout.write(msg + '\n');
-  process.exit(args.help ? 0 : 1);
-}
-
-const repoPath = args.repo;
-const dryRun = args['dry-run'] ?? false;
-const titleFilter = args.title?.padStart(2, '0');
-const titlesToProcess = titleFilter ? [titleFilter] : ALL_TITLES;
-
-// --- Core import logic ---
-
-interface ImportMetrics {
+export interface ImportMetrics {
   releasePointsProcessed: number;
   titlesChanged: number;
   sectionsChanged: number;
   startTime: number;
 }
 
-async function processBatch(
+export interface StagedTitleUpdate {
+  paddedTitle: string;
+  outcome: TitleScopeOutcome;
+  changedFiles: MarkdownFile[];
+  deletedPaths: string[];
+  newManifest?: Record<string, string>;
+}
+
+/**
+ * Fetch and transform a batch of titles into memory without mutating disk or state yet,
+ * so a release point can be accepted or rejected transactionally (USCT-005).
+ */
+export async function stageBatch(
   batch: string[],
   rp: ReleasePointId,
   state: ImportState,
-  rateLimiter: TokenBucket
-): Promise<{ titlesChanged: number; sectionsChanged: number; failedTitles: number }> {
-  let titlesChanged = 0;
-  let sectionsChanged = 0;
-  let failedTitles = 0;
-
-  const results = await Promise.all(
+  rateLimiter: TokenBucket,
+  fetcherFn: typeof downloadAndExtractXml = downloadAndExtractXml
+): Promise<StagedTitleUpdate[]> {
+  const fetchedResults = await Promise.all(
     batch.map(async (paddedTitle) => {
-      const fetched = await downloadAndExtractXml(rp, paddedTitle, rateLimiter, log);
-      // A transient failure (or a present-but-corrupt archive) must be counted
-      // so the caller does not advance the resume cursor past it (#236).
+      const fetched = await fetcherFn(rp, paddedTitle, rateLimiter, log);
       if (fetched.kind === 'failed') {
-        return { paddedTitle, files: [] as MarkdownFile[], failed: true };
+        return { paddedTitle, outcome: 'failed' as const, files: [] as MarkdownFile[] };
       }
       if (fetched.kind === 'absent') {
-        return { paddedTitle, files: [] as MarkdownFile[], failed: false };
+        return { paddedTitle, outcome: 'absent' as const, files: [] as MarkdownFile[] };
       }
 
       const transformer = new XmlToMarkdownAdapter(rp.label);
       const result = transformer.transformToFiles(fetched.xml);
       if (!result.ok) {
         log.warn('Transform failed', { title: paddedTitle, error: result.error.message });
-        return { paddedTitle, files: [] as MarkdownFile[], failed: true };
+        return { paddedTitle, outcome: 'failed' as const, files: [] as MarkdownFile[] };
       }
-      return { paddedTitle, files: result.value, failed: false };
+      return { paddedTitle, outcome: 'ok' as const, files: result.value };
     })
   );
 
-  for (const { paddedTitle, files, failed } of results) {
-    if (failed) failedTitles++;
-    if (files.length === 0) continue;
+  const staged: StagedTitleUpdate[] = [];
+  for (const { paddedTitle, outcome, files } of fetchedResults) {
+    if (outcome !== 'ok' || files.length === 0) {
+      staged.push({
+        paddedTitle,
+        outcome,
+        changedFiles: [],
+        deletedPaths: [],
+      });
+      continue;
+    }
 
     const currentManifest = buildManifest(files);
     const previousRaw = state.manifests[paddedTitle];
@@ -153,110 +136,195 @@ async function processBatch(
     );
     const delta = detectDelta(previousManifest, currentManifest);
 
-    if (delta.changed.length === 0 && delta.deleted.length === 0) continue;
-
-    titlesChanged++;
-    sectionsChanged += delta.changed.length;
-
-    if (!dryRun) {
-      for (const file of files) {
-        if (!delta.changed.includes(file.path)) continue;
-        const fullPath = join(repoPath, file.path);
-        await mkdir(dirname(fullPath), { recursive: true });
-        await writeFile(fullPath, file.content, 'utf-8');
-      }
-      for (const path of delta.deleted) {
-        await rm(join(repoPath, path), { force: true });
-      }
-    }
-
-    // Update manifest in state
     const manifestObj: Record<string, string> = {};
     for (const [k, v] of currentManifest) {
       manifestObj[k] = v;
     }
-    state.manifests[paddedTitle] = manifestObj;
 
-    log.info('Title delta', {
-      title: parseInt(paddedTitle, 10),
-      changed: delta.changed.length,
-      deleted: delta.deleted.length,
-      unchanged: delta.unchanged.length,
-      dryRun,
+    if (delta.changed.length === 0 && delta.deleted.length === 0) {
+      staged.push({
+        paddedTitle,
+        outcome: 'ok',
+        changedFiles: [],
+        deletedPaths: [],
+        newManifest: manifestObj,
+      });
+      continue;
+    }
+
+    const changedSet = new Set(delta.changed);
+    const changedFiles = files.filter((f) => changedSet.has(f.path));
+
+    staged.push({
+      paddedTitle,
+      outcome: 'ok',
+      changedFiles,
+      deletedPaths: delta.deleted,
+      newManifest: manifestObj,
     });
   }
 
-  return { titlesChanged, sectionsChanged, failedTitles };
+  return staged;
 }
 
-async function processReleasePoint(
+/**
+ * Process a single release point with transactional completeness (USCT-005)
+ * and immutable release tagging (USCT-006).
+ */
+export async function processReleasePoint(
   rp: ReleasePointId,
   state: ImportState,
   rateLimiter: TokenBucket,
   metrics: ImportMetrics,
-  totalPoints: number
-): Promise<{ failedTitles: number }> {
-  log.info('Processing release point', { label: rp.label });
-  let totalChanged = 0;
-  let totalTitlesChanged = 0;
-  let failedTitles = 0;
+  totalPoints: number,
+  options: {
+    repoPath: string;
+    titlesToProcess: string[];
+    dryRun: boolean;
+    allowCorrectionRevision?: boolean;
+    fetcherFn?: typeof downloadAndExtractXml;
+    interTitleDelayMs?: number;
+  }
+): Promise<{ failedTitles: number; collisionError?: string }> {
+  const {
+    repoPath,
+    titlesToProcess,
+    dryRun,
+    allowCorrectionRevision = false,
+    fetcherFn = downloadAndExtractXml,
+    interTitleDelayMs = INTER_TITLE_DELAY_MS,
+  } = options;
 
-  for (let i = 0; i < titlesToProcess.length; i += MAX_CONCURRENT) {
-    const batch = titlesToProcess.slice(i, i + MAX_CONCURRENT);
-    const result = await processBatch(batch, rp, state, rateLimiter);
-    totalChanged += result.sectionsChanged;
-    totalTitlesChanged += result.titlesChanged;
-    failedTitles += result.failedTitles;
+  log.info('Processing release point', { label: rp.label, key: releasePointKey(rp) });
 
-    if (i + MAX_CONCURRENT < titlesToProcess.length) {
-      await new Promise<void>((r) => setTimeout(r, INTER_TITLE_DELAY_MS));
+  const key = releasePointKey(rp);
+  const existingLedger = state.releaseLedger?.[key];
+
+  // On resume of a partially failed release, only fetch titles not already completed for this release
+  const titlesNeeded = titlesToProcess.filter((t) => {
+    const prior = existingLedger?.titleOutcomes[t];
+    return prior !== 'ok' && prior !== 'absent';
+  });
+
+  const allStaged: StagedTitleUpdate[] = [];
+  for (let i = 0; i < titlesNeeded.length; i += MAX_CONCURRENT) {
+    const batch = titlesNeeded.slice(i, i + MAX_CONCURRENT);
+    const stagedBatch = await stageBatch(batch, rp, state, rateLimiter, fetcherFn);
+    allStaged.push(...stagedBatch);
+
+    if (i + MAX_CONCURRENT < titlesNeeded.length && interTitleDelayMs > 0) {
+      await new Promise<void>((r) => setTimeout(r, interTitleDelayMs));
     }
   }
 
+  const titleOutcomes: Record<string, TitleScopeOutcome> = {};
+  let failedTitles = 0;
+  let totalChanged = 0;
+  let totalTitlesChanged = 0;
+
+  for (const s of allStaged) {
+    titleOutcomes[s.paddedTitle] = s.outcome;
+    if (s.outcome === 'failed') {
+      failedTitles++;
+    } else if (s.changedFiles.length > 0 || s.deletedPaths.length > 0) {
+      totalTitlesChanged++;
+      totalChanged += s.changedFiles.length;
+    }
+  }
+
+  // USCT-005: If ANY title failed at this release point, DO NOT write partial files as a committed release
+  // or create a release tag! Record the partial/failed outcome in the ledger so --resume retries it.
+  if (failedTitles > 0) {
+    log.error('Release point had failed titles; staging aborted and release remains retryable', {
+      label: rp.label,
+      failedTitles,
+    });
+    recordReleaseLedgerOutcome(state, rp, titleOutcomes);
+    if (!dryRun) {
+      await saveState(repoPath, state);
+    }
+    return { failedTitles };
+  }
+
+  // All requested titles succeeded or were legitimately absent: apply staged file changes and manifests
+  for (const s of allStaged) {
+    if (s.outcome === 'ok' && s.newManifest) {
+      state.manifests[s.paddedTitle] = s.newManifest;
+    }
+    if (!dryRun && (s.changedFiles.length > 0 || s.deletedPaths.length > 0)) {
+      for (const file of s.changedFiles) {
+        const fullPath = join(repoPath, file.path);
+        await mkdir(dirname(fullPath), { recursive: true });
+        await writeFile(fullPath, file.content, 'utf-8');
+      }
+      for (const path of s.deletedPaths) {
+        await rm(join(repoPath, path), { force: true });
+      }
+    }
+  }
+
+  const manifestHash = computeReleaseManifestHash(state.manifests);
+  let tagName = releasePointTagName(rp, 1);
+  let commitSha = '';
+  let revision = 1;
+  let supersedesTag: string | undefined;
+
   if (totalChanged > 0 || totalTitlesChanged > 0) {
     const commitMsg = `chore(law): Update to ${rp.label}`;
-    const tag = `pl-${rp.congress}-${rp.law}`;
     if (dryRun) {
-      log.info('Dry run: would commit', { message: commitMsg, tag });
+      log.info('Dry run: would commit', { message: commitMsg, tag: tagName });
     } else {
       await gitCommit(repoPath, commitMsg);
-      await gitTag(repoPath, tag);
-      log.info('Committed', { message: commitMsg, tag });
+      const tagRes = await publishImmutableReleaseTag(repoPath, rp, {
+        state,
+        manifestHash,
+        allowCorrectionRevision,
+      });
+
+      if (tagRes.kind === 'collision_error') {
+        log.error('Immutable release identity collision', {
+          tag: tagRes.tagName,
+          message: tagRes.message,
+        });
+        return { failedTitles: 1, collisionError: tagRes.message };
+      }
+
+      tagName = tagRes.tagName;
+      commitSha = tagRes.commitSha;
+      revision = tagRes.revision;
+      if (tagRes.kind === 'superseded_revision') {
+        supersedesTag = tagRes.supersedesTag;
+      }
+      log.info('Committed and published immutable release tag', {
+        message: commitMsg,
+        tag: tagName,
+        kind: tagRes.kind,
+      });
     }
   } else {
     log.info('No changes for release point', { label: rp.label });
   }
 
-  // Only advance the resume cursor when every title at this release point was
-  // accounted for (imported or legitimately absent). If any title hit a
-  // transient failure, leave the cursor where it was so --resume reprocesses
-  // this release point and retries the failed title — saved manifests make the
-  // already-imported titles no-ops, so the retry is cheap and idempotent (#236).
-  if (failedTitles > 0) {
-    log.error('Release point had failed titles; NOT advancing resume cursor', {
-      label: rp.label,
-      failedTitles,
-    });
-    if (!dryRun) {
-      await saveState(repoPath, state); // persist manifests, but not the cursor
-    }
-  } else {
-    state.lastCompletedReleasePoint = `${rp.congress}-${rp.law}`;
-    if (!dryRun) {
-      await saveState(repoPath, state);
-    }
+  recordReleaseLedgerOutcome(state, rp, titleOutcomes, {
+    tagName,
+    commitSha,
+    manifestHash,
+    revision,
+    supersedesTag,
+  });
+
+  if (!dryRun) {
+    await saveState(repoPath, state);
   }
 
   metrics.releasePointsProcessed++;
   metrics.titlesChanged += totalTitlesChanged;
   metrics.sectionsChanged += totalChanged;
 
-  // Write progress file for external monitoring
   if (!dryRun) {
     const elapsed = (performance.now() - metrics.startTime) / 1000;
-    const avgPerRp = metrics.releasePointsProcessed > 0
-      ? elapsed / metrics.releasePointsProcessed
-      : 0;
+    const avgPerRp =
+      metrics.releasePointsProcessed > 0 ? elapsed / metrics.releasePointsProcessed : 0;
     const memUsage = process.memoryUsage();
     const peakMB = Math.round(memUsage.rss / 1024 / 1024);
     await writeProgress(repoPath, {
@@ -266,18 +334,55 @@ async function processReleasePoint(
       sectionsChangedTotal: metrics.sectionsChanged,
       peakMemoryMB: peakMB,
       elapsedSeconds: Math.round(elapsed),
-      estimatedRemainingSeconds: avgPerRp > 0
-        ? Math.round(avgPerRp * (totalPoints - metrics.releasePointsProcessed))
-        : null,
+      estimatedRemainingSeconds:
+        avgPerRp > 0 ? Math.round(avgPerRp * (totalPoints - metrics.releasePointsProcessed)) : null,
     });
   }
 
-  return { failedTitles };
+  return { failedTitles: 0 };
 }
 
-// --- Main ---
+// --- CLI Entry Point ---
 
 async function main(): Promise<void> {
+  const { values: args } = parseArgs({
+    options: {
+      repo: { type: 'string', short: 'r' },
+      start: { type: 'string' },
+      end: { type: 'string' },
+      title: { type: 'string', short: 't' },
+      'dry-run': { type: 'boolean', default: false },
+      resume: { type: 'boolean', default: false },
+      'allow-correction-revision': { type: 'boolean', default: false },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+  });
+
+  if (args.help || !args.repo) {
+    const msg = `
+Usage: npx tsx scripts/import-history.ts --repo <path> [options]
+
+Options:
+  --repo, -r                   Path to the us-code git repository (required)
+  --start                      Start release point, e.g. pl/119/1 (inclusive)
+  --end                        End release point, e.g. pl/119/73 (inclusive)
+  --title, -t                  Process only this title number (e.g. 18)
+  --dry-run                    Show what would change without committing
+  --resume                     Resume and retry any incomplete/failed release points
+  --allow-correction-revision  Create a -revN superseding tag instead of failing on tag collision
+  --help, -h                   Show this help message
+`;
+    process.stdout.write(msg + '\n');
+    process.exit(args.help ? 0 : 1);
+  }
+
+  const repoPath = args.repo;
+  const dryRun = args['dry-run'] ?? false;
+  const allowCorrectionRevision = args['allow-correction-revision'] ?? false;
+  const titleFilter = args.title?.padStart(2, '0');
+  const titlesToProcess = titleFilter ? [titleFilter] : ALL_TITLES;
+
   const metrics: ImportMetrics = {
     releasePointsProcessed: 0,
     titlesChanged: 0,
@@ -310,19 +415,15 @@ async function main(): Promise<void> {
   let points = filterRange(allPoints, startRp ?? undefined, endRp ?? undefined);
   const state = await loadState(repoPath);
 
-  if (args.resume && state.lastCompletedReleasePoint) {
-    const lastRp = parseReleasePointStr(`pl/${state.lastCompletedReleasePoint.replace('-', '/')}`);
-    if (lastRp) {
-      const before = points.length;
-      points = points.filter(
-        (p) => p.congress > lastRp.congress ||
-          (p.congress === lastRp.congress && p.law > lastRp.law)
-      );
-      log.info('Resuming after', {
-        lastCompleted: state.lastCompletedReleasePoint,
-        skipped: before - points.length,
-      });
-    }
+  if (args.resume) {
+    const before = points.length;
+    points = points.filter((p) => shouldProcessReleaseOnResume(p, state, titlesToProcess));
+    log.info('Resuming historical import via release ledger', {
+      totalInRange: before,
+      toProcessOrRetry: points.length,
+      skippedComplete: before - points.length,
+      incompleteGaps: state.incompleteReleases ?? [],
+    });
   }
 
   log.info('Processing release points', {
@@ -334,17 +435,23 @@ async function main(): Promise<void> {
   let releasePointsWithFailures = 0;
   for (const rp of points) {
     try {
-      const { failedTitles } = await processReleasePoint(rp, state, rateLimiter, metrics, points.length);
+      const { failedTitles } = await processReleasePoint(rp, state, rateLimiter, metrics, points.length, {
+        repoPath,
+        titlesToProcess,
+        dryRun,
+        allowCorrectionRevision,
+      });
       if (failedTitles > 0) releasePointsWithFailures++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Do NOT advance the resume cursor here: a thrown release point is an
-      // unrecovered failure, so leaving the cursor lets --resume retry it on a
-      // later run rather than permanently skipping it (#236).
-      log.error('Release point failed, continuing to next (cursor not advanced)', {
+      log.error('Release point failed, continuing to next (recorded as failed in ledger)', {
         label: rp.label,
         error: msg,
       });
+      const failedOutcomes: Record<string, TitleScopeOutcome> = {};
+      for (const t of titlesToProcess) failedOutcomes[t] = 'failed';
+      recordReleaseLedgerOutcome(state, rp, failedOutcomes);
+      if (!dryRun) await saveState(repoPath, state);
       releasePointsWithFailures++;
     }
   }
@@ -355,21 +462,23 @@ async function main(): Promise<void> {
     titlesChanged: metrics.titlesChanged,
     sectionsChanged: metrics.sectionsChanged,
     releasePointsWithFailures,
+    incompleteReleases: state.incompleteReleases ?? [],
     elapsedSeconds: Math.round(elapsed),
     dryRun,
   });
 
-  // Exit non-zero when any release point had unrecovered failures, so CI and
-  // operators notice silent gaps rather than treating the run as fully successful.
-  if (releasePointsWithFailures > 0) {
-    log.error('Import finished with unrecovered failures; rerun with --resume to retry', {
+  if (releasePointsWithFailures > 0 || (state.incompleteReleases?.length ?? 0) > 0) {
+    log.error('Import finished with unrecovered failures or gaps; rerun with --resume to retry', {
       releasePointsWithFailures,
+      incompleteReleases: state.incompleteReleases,
     });
     process.exit(1);
   }
 }
 
-main().catch((error: unknown) => {
-  log.error('Fatal error', { error: error instanceof Error ? error.message : String(error) });
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith('import-history.ts')) {
+  main().catch((error: unknown) => {
+    log.error('Fatal error', { error: error instanceof Error ? error.message : String(error) });
+    process.exit(1);
+  });
+}

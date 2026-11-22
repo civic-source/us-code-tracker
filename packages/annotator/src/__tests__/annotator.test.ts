@@ -88,6 +88,39 @@ describe('Annotator', () => {
       'https://www.courtlistener.com/opinion/12345/doe-v-united-states/'
     );
     expect(firstCase?.impact).toBe('interpretation');
+    expect(firstCase?.retrievalExcerpt).toBe('The court held that the statute applies broadly.');
+    expect(firstCase?.extractionState).toBe('candidate');
+    expect(firstCase?.editorialReview).toBe('unreviewed');
+    expect(firstCase?.versionAlignmentState).toBe('unknown');
+    expect(firstCase?.retrievalQuery).toBe('"18 U.S.C. 111"');
+  });
+
+  it('preserves prior snapshot and labels stale when CourtListener fails (USCT-002 / USCT-004)', async () => {
+    const client = makeFailingClient(new Error('HTTP 503 Service Unavailable'));
+    const annotator = new Annotator({ client, logger });
+    const prior = {
+      targetSection: '18 U.S.C. 111',
+      lastSyncedET: '2025-05-01T00:00:00.000Z',
+      cases: [{
+        caseName: 'Prior Case v. United States',
+        citation: '500 U.S. 1',
+        court: 'SCOTUS' as const,
+        date: '2020-01-01',
+        holdingSummary: 'Prior snippet',
+        retrievalExcerpt: 'Prior snippet',
+        extractionState: 'candidate' as const,
+        editorialReview: 'unreviewed' as const,
+        sourceUrl: 'https://www.courtlistener.com/opinion/1/',
+        impact: 'interpretation' as const,
+      }],
+    };
+
+    const outcome = await annotator.annotateSectionWithOutcome('18 U.S.C. 111', prior);
+    expect(outcome.status).toBe('failed');
+    expect(outcome.retainedPriorSnapshot).toBe(true);
+    expect(outcome.isStale).toBe(true);
+    expect(outcome.data.cases).toHaveLength(1);
+    expect(outcome.data.cases[0]?.caseName).toBe('Prior Case v. United States');
   });
 
   it('returns valid empty annotation for no results', async () => {

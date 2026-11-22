@@ -1,8 +1,8 @@
 <script lang="ts">
   import {
-    getFileHistory, getFileDiff, getFileAtRef,
+    getPaginatedFileHistory, getPaginatedReleaseTags, getFileDiff, getFileAtRef,
     isRateLimited, formatTagName, extractYear,
-    type CommitInfo, type DiffLine, type ReleaseTag,
+    type CommitInfo, type DiffLine, type ReleaseTag, type CatalogCompletenessState,
   } from "../lib/github";
   import { computeWordDiff, type WordToken } from "../lib/word-diff";
 
@@ -12,8 +12,17 @@
     lines: { type: "add" | "del" | "context"; content: string }[];
   }
 
+  interface DiffManifestPair {
+    from: string;
+    to: string;
+    changedSections: number;
+    spansIncompleteGap?: boolean;
+    missingReleasesBetween?: string[];
+  }
+
   interface DiffManifest {
-    pairs: { from: string; to: string; changedSections: number }[];
+    pairs: DiffManifestPair[];
+    incompleteReleases?: string[];
     generatedAt: string;
   }
 
@@ -64,6 +73,9 @@
   let tagLoading = $state(false);
   let error = $state("");
   let copyFeedback = $state(false);
+  let tagCatalogCompleteness = $state<CatalogCompletenessState>("complete");
+  let commitHistoryCompleteness = $state<CatalogCompletenessState>("complete");
+  let catalogWarning = $state("");
 
   // Comparison State
   let compareFrom = $state("");
@@ -265,11 +277,16 @@
   async function loadHistory() {
     loading = true;
     error = "";
+    catalogWarning = "";
     try {
       const fetchedManifest = await fetchManifest();
       if (fetchedManifest && fetchedManifest.pairs.length > 0) {
         usingStaticDiffs = true;
         manifest = fetchedManifest;
+        tagCatalogCompleteness =
+          fetchedManifest.incompleteReleases && fetchedManifest.incompleteReleases.length > 0
+            ? "partial"
+            : "complete";
         tags = fetchedManifest.pairs
           .flatMap((p) => [p.from, p.to])
           .filter((v, i, a) => a.indexOf(v) === i)
@@ -283,39 +300,40 @@
         await buildSectionChangePairs();
 
         try {
-          const commitResult = await getFileHistory(repoOwner, repoName, sectionPath, githubToken);
+          const commitResult = await getPaginatedFileHistory(repoOwner, repoName, sectionPath, {
+            token: githubToken,
+          });
+          commitHistoryCompleteness = commitResult.completeness;
+          if (commitResult.errorMessage) {
+            catalogWarning = commitResult.errorMessage;
+          }
           const seen = new Set<string>();
-          commits = commitResult.filter((c) => !seen.has(c.message) && seen.add(c.message));
+          commits = commitResult.items.filter((c) => !seen.has(c.message) && seen.add(c.message));
         } catch {
-          // Optional
+          commitHistoryCompleteness = "failed";
         }
         return;
       }
 
       const [commitResult, tagResult] = await Promise.all([
-        getFileHistory(repoOwner, repoName, sectionPath, githubToken),
-        fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/tags?per_page=100`, {
-          headers: githubToken ? { Authorization: `token ${githubToken}` } : {},
-        }).then(async (r) => {
-          if (!r.ok) return [] as ReleaseTag[];
-          const data = (await r.json()) as { name: string }[];
-          const parseTag = (name: string): [number, number] => {
-            const m = /pl-(\d+)-(\d+)/.exec(name);
-            return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [0, 0];
-          };
-          return data
-            .filter((t) => t.name.startsWith("pl-"))
-            .map((t): ReleaseTag => ({ name: t.name, date: "" }))
-            .sort((a, b) => {
-              const [ac, al] = parseTag(a.name);
-              const [bc, bl] = parseTag(b.name);
-              return ac !== bc ? ac - bc : al - bl;
-            });
-        }),
+        getPaginatedFileHistory(repoOwner, repoName, sectionPath, { token: githubToken }),
+        getPaginatedReleaseTags(repoOwner, repoName, { token: githubToken }),
       ]);
+      commitHistoryCompleteness = commitResult.completeness;
+      tagCatalogCompleteness = tagResult.completeness;
+      if (tagResult.completeness === "failed" && commitResult.completeness === "failed") {
+        throw new Error(
+          tagResult.errorMessage ?? commitResult.errorMessage ?? "Failed to load statutory history"
+        );
+      }
+      if (tagResult.errorMessage || commitResult.errorMessage) {
+        catalogWarning = [tagResult.errorMessage, commitResult.errorMessage]
+          .filter(Boolean)
+          .join(" • ");
+      }
       const seen = new Set<string>();
-      commits = commitResult.filter((c) => !seen.has(c.message) && seen.add(c.message));
-      tags = tagResult;
+      commits = commitResult.items.filter((c) => !seen.has(c.message) && seen.add(c.message));
+      tags = tagResult.items;
       if (tags.length > 0) {
         compareTo = tags[tags.length - 1]?.name ?? "";
         if (tags.length > 1) compareFrom = tags[tags.length - 2]?.name ?? "";
@@ -481,6 +499,14 @@
             <span class="hidden sm:inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
               <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
               Static Verified
+            </span>
+          {/if}
+          {#if tagCatalogCompleteness !== "complete" || commitHistoryCompleteness !== "complete"}
+            <span
+              class="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
+              title={catalogWarning || "One or more historical catalog pages returned partial coverage"}
+            >
+              Catalog: {tagCatalogCompleteness === "complete" ? commitHistoryCompleteness : tagCatalogCompleteness}
             </span>
           {/if}
         </div>

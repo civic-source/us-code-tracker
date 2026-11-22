@@ -19,53 +19,43 @@
     citation: string;
   }
 
-  let { uscTitle, uscSection, cfrTitle, cfrPart }: Props = $props();
+  interface FederalRegisterSnapshotPayload {
+    snapshotAsOf?: string;
+    coverageState?: string;
+    sections?: Record<string, FederalRegisterDoc[]>;
+  }
+
+  let { uscTitle, uscSection }: Props = $props();
 
   let loading = $state(true);
-  let error = $state<string | null>(null);
+  let snapshotAsOf = $state<string | null>(null);
+  let coverageState = $state<string>('complete');
   let documents = $state<FederalRegisterDoc[]>([]);
+
+  const rawBase = import.meta.env.BASE_URL || '/';
+  const baseUrl = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
 
   onMount(async () => {
     try {
       loading = true;
-      error = null;
-
-      // Construct open Federal Register API query
-      // If CFR title/part is known, query by CFR condition; otherwise query citation text
-      const params = new URLSearchParams();
-      if (cfrTitle && cfrPart) {
-        params.append('conditions[cfr][title]', String(cfrTitle));
-        params.append('conditions[cfr][part]', String(cfrPart));
+      const key = `${uscTitle}/${uscSection}`;
+      const response = await fetch(`${baseUrl}context/federal-register.json`);
+      if (response.ok) {
+        const raw: unknown = await response.json();
+        if (raw && typeof raw === 'object') {
+          const data = raw as FederalRegisterSnapshotPayload;
+          snapshotAsOf = typeof data.snapshotAsOf === 'string' ? data.snapshotAsOf : null;
+          coverageState = typeof data.coverageState === 'string' ? data.coverageState : 'complete';
+          const sectionDocs = data.sections?.[key];
+          if (Array.isArray(sectionDocs)) {
+            documents = sectionDocs;
+          }
+        }
       } else {
-        params.append('conditions[term]', `${uscTitle} U.S.C. ${uscSection}`);
+        coverageState = 'not_collected';
       }
-      params.append('conditions[type][]', 'RULE');
-      params.append('conditions[type][]', 'PRORULE');
-      params.append('conditions[type][]', 'NOTICE');
-      params.append('order', 'newest');
-      params.append('per_page', '5');
-
-      const url = `https://www.federalregister.gov/api/v1/documents.json?${params.toString()}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data && Array.isArray(data.results)) {
-        documents = data.results.map((item: any) => ({
-          title: item.title,
-          type: item.type,
-          action: item.action,
-          agency_names: item.agency_names ?? [],
-          publication_date: item.publication_date,
-          comments_close_on: item.comments_close_on,
-          html_url: item.html_url,
-          citation: item.citation,
-        }));
-      }
-    } catch (e: any) {
-      error = e.message ?? 'Failed to load Federal Register data';
+    } catch {
+      coverageState = 'not_collected';
     } finally {
       loading = false;
     }
@@ -80,12 +70,14 @@
 
 <div class="space-y-3 font-sans text-xs">
   <div class="rounded bg-[var(--surface-raised)] border border-[var(--border-subtle)] p-3">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
       <span class="font-semibold text-[var(--text-primary)]">Federal Register Actions</span>
-      <span class="rounded bg-teal/15 text-teal text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">Live API</span>
+      <span class="rounded bg-teal/15 text-teal text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">
+        Static Snapshot ({coverageState})
+      </span>
     </div>
     <p class="mt-1 text-[var(--text-muted)] text-[11px]">
-      Recent proposed rules, final regulations, and public comment dockets.
+      Precomputed rulemaking notices, proposed rules, and comment dockets{snapshotAsOf ? ` (as of ${snapshotAsOf.slice(0, 10)})` : ''}.
     </p>
   </div>
 
@@ -95,30 +87,18 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
       </svg>
-      <span>Checking Federal Register...</span>
-    </div>
-  {:else if error}
-    <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-[11px] text-[var(--text-secondary)]">
-      <p>Could not load real-time notices ({error}).</p>
-      <a
-        href="https://www.federalregister.gov/documents/search?conditions%5Bterm%5D={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="mt-2 inline-block font-semibold text-[var(--civic-action)] hover:underline"
-      >
-        Search on FederalRegister.gov &rarr;
-      </a>
+      <span>Loading precomputed Federal Register snapshot...</span>
     </div>
   {:else if documents.length === 0}
     <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 text-center text-[var(--text-muted)]">
-      <p>No recent rulemaking notices found for § {uscSection}.</p>
+      <p>No precomputed rulemaking notices in the current snapshot for {uscTitle} U.S.C. § {uscSection}.</p>
       <a
         href="https://www.federalregister.gov/documents/search?conditions%5Bterm%5D={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}"
         target="_blank"
         rel="noopener noreferrer"
         class="mt-2 inline-block font-semibold text-[var(--civic-action)] hover:underline"
       >
-        Search all years on Federal Register &rarr;
+        Search all years on FederalRegister.gov &rarr;
       </a>
     </div>
   {:else}

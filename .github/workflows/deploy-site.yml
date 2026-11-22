@@ -9,6 +9,7 @@ on:
       - 'apps/web/**'
       - 'packages/**'
       - 'scripts/**'
+      - '.gitmodules'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -51,6 +52,14 @@ jobs:
       - name: Get submodule commit for cache key
         id: submodule-ref
         run: echo "sha=$(git -C apps/web/content-data rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Promote and verify publication receipt (USCT-033)
+        env:
+          SUBMODULE_SHA: ${{ steps.submodule-ref.outputs.sha }}
+        run: |
+          pnpm --filter '!@civic-source/web' build
+          pnpm exec tsx scripts/promote-publication.ts --action promote --tracker-repo . --data-repo apps/web/content-data --ref "$SUBMODULE_SHA"
+          pnpm exec tsx scripts/promote-publication.ts --action verify --tracker-repo . --expected-sha "$SUBMODULE_SHA"
 
       - name: Restore diff cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
