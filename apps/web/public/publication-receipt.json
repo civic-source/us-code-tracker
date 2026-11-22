@@ -1,14 +1,14 @@
 {
-  "receiptId": "pub-pl-116-220-8c0b1974c0d1",
-  "releaseTag": "pl-116-220",
-  "dataRepoCommitSha": "8c0b1974c0d137b9dc921c39a365f44df0175c65",
-  "predecessorCommitSha": "63ef0d59e894c26cf201d13303d6c436270e5684",
-  "promotedAt": "2026-11-21T00:00:00Z",
+  "schemaVersion": "usct.publication-receipt/v1",
+  "publicationId": "pub-pl-119-73-c2e2d792518c",
+  "acceptedDataCommitSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+  "acceptedDataTag": "pl-119-73",
+  "trackerSubmodulePinSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+  "trackerBuildCommitSha": "cf22b730886723312ecd958d48393be67b993f18",
+  "predecessorPublicationId": "pub-pl-116-220-c2e2d792518c",
+  "predecessorDataCommitSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+  "promotedAt": "2026-11-22T05:49:59.215Z",
   "validationPassed": true,
-  "coverageSummary": {
-    "totalTitles": 54,
-    "completeTitles": 54,
-    "failedTitles": 0,
-    "partialTitles": 0
-  }
+  "requiredScopesComplete": true,
+  "manifestDigest": "9c33f9b466186311d0379f010814c290e40962fa5ac63f3a0ddcd05df92fc32c"
 }

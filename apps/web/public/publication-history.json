@@ -1,0 +1,28 @@
+[
+  {
+    "schemaVersion": "usct.publication-receipt/v1",
+    "publicationId": "pub-pl-116-220-c2e2d792518c",
+    "acceptedDataCommitSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+    "acceptedDataTag": "pl-116-220",
+    "trackerSubmodulePinSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+    "trackerBuildCommitSha": "cf22b730886723312ecd958d48393be67b993f18",
+    "promotedAt": "2026-11-22T05:49:24.537Z",
+    "validationPassed": true,
+    "requiredScopesComplete": true,
+    "manifestDigest": "3e336084bfa22acee54cfee97c08f61cc5e3af71c5842da01d9d08ba97454145"
+  },
+  {
+    "schemaVersion": "usct.publication-receipt/v1",
+    "publicationId": "pub-pl-119-73-c2e2d792518c",
+    "acceptedDataCommitSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+    "acceptedDataTag": "pl-119-73",
+    "trackerSubmodulePinSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+    "trackerBuildCommitSha": "cf22b730886723312ecd958d48393be67b993f18",
+    "predecessorPublicationId": "pub-pl-116-220-c2e2d792518c",
+    "predecessorDataCommitSha": "c2e2d792518c46c6d4130e97c971410dde28dd2f",
+    "promotedAt": "2026-11-22T05:49:59.215Z",
+    "validationPassed": true,
+    "requiredScopesComplete": true,
+    "manifestDigest": "9c33f9b466186311d0379f010814c290e40962fa5ac63f3a0ddcd05df92fc32c"
+  }
+]

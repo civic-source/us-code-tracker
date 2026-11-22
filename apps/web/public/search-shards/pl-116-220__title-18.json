@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "usct.historical-search-shard/v1",
+  "shardId": "pl-116-220__title-18",
+  "releaseId": "pl-116-220",
+  "publisherReleaseLabel": "Public Law 116-220",
+  "uscTitle": "18",
+  "coverageState": "complete",
+  "entries": [
+    {
+      "provisionId": "prov-18-2",
+      "provisionVersionId": "pv-18-2-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "2",
+      "citation": "18 U.S.C. 2",
+      "aliases": [
+        "18 U.S.C. 2"
+      ],
+      "heading": "§ 2. Principals",
+      "excerpt": "- **(a)** Whoever commits an offense against the United States or aids, abets, counsels, commands, induces or procures its commission, is punishable as a principal. - **(b)** Whoever willfully causes an act to be done which if directly performed by him or another would be an offense against the United States, is punishable as a principal.",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-1/section-2/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-111",
+      "provisionVersionId": "pv-18-111-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "111",
+      "citation": "18 U.S.C. 111",
+      "aliases": [
+        "18 U.S.C. 111"
+      ],
+      "heading": "§ 111. Assaulting, resisting, or impeding certain officers or employees",
+      "excerpt": "- **(a)** Whoever— - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official duties during",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-7/section-111/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-371",
+      "provisionVersionId": "pv-18-371-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "371",
+      "citation": "18 U.S.C. 371",
+      "aliases": [
+        "18 U.S.C. 371"
+      ],
+      "heading": "§ 371. Conspiracy to commit offense or to defraud United States",
+      "excerpt": "If two or more persons conspire either to commit any offense against the United States, or to defraud the United States, or any agency thereof in any manner or for any purpose, and one or more of such persons do any act to effect the object of the conspiracy, each shall be fined under this title or imprisoned not more than five years, or both. If, however, the offense, the commission of which is t",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-19/section-371/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-1001",
+      "provisionVersionId": "pv-18-1001-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "1001",
+      "citation": "18 U.S.C. 1001",
+      "aliases": [
+        "18 U.S.C. 1001"
+      ],
+      "heading": "§ 1001. Statements or entries generally",
+      "excerpt": "- **(a)** Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully— - **(1)** falsifies, conceals, or covers up by any trick, scheme, or device a material fact; - **(2)** makes any materially false, fictitious, or fraudulent statement or representati",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-47/section-1001/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-1341",
+      "provisionVersionId": "pv-18-1341-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "1341",
+      "citation": "18 U.S.C. 1341",
+      "aliases": [
+        "18 U.S.C. 1341"
+      ],
+      "heading": "§ 1341. Frauds and swindles",
+      "excerpt": "Whoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, or to sell, dispose of, loan, exchange, alter, give away, distribute, supply, or furnish or procure for unlawful use any counterfeit or spurious coin, obligation, security, or other article, or anything represe",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-63/section-1341/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-1343",
+      "provisionVersionId": "pv-18-1343-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "1343",
+      "citation": "18 U.S.C. 1343",
+      "aliases": [
+        "18 U.S.C. 1343"
+      ],
+      "heading": "§ 1343. Fraud by wire, radio, or television",
+      "excerpt": "Whoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, transmits or causes to be transmitted by means of wire, radio, or television communication in interstate or foreign commerce, any writings, signs, signals, pictures, or sounds for the purpose of executing such ",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-63/section-1343/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-1951",
+      "provisionVersionId": "pv-18-1951-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "1951",
+      "citation": "18 U.S.C. 1951",
+      "aliases": [
+        "18 U.S.C. 1951"
+      ],
+      "heading": "§ 1951. Interference with commerce by threats or violence",
+      "excerpt": "- **(a)** Whoever in any way or degree obstructs, delays, or affects commerce or the movement of any article or commodity in commerce, by robbery or extortion or attempts or conspires so to do, or commits or threatens physical violence to any person or property in furtherance of a plan or purpose to do anything in violation of this section shall be fined under this title or imprisoned not more tha",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-95/section-1951/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-1962",
+      "provisionVersionId": "pv-18-1962-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscSection": "1962",
+      "citation": "18 U.S.C. 1962",
+      "aliases": [
+        "18 U.S.C. 1962"
+      ],
+      "heading": "§ 1962. Prohibited activities",
+      "excerpt": "- **(a)** It shall be unlawful for any person who has received any income derived, directly or indirectly, from a pattern of racketeering activity or through collection of an unlawful debt in which such person has participated as a principal within the meaning of section 2, title 18, United States Code, to use or invest, directly or indirectly, any part of such income, or the proceeds of such inco",
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-96/section-1962/?release=pl-116-220"
+    }
+  ],
+  "shardDigest": "69741013fce89e28a6c6b80d176e1d07745e033276bb7fee7f5cfcded5ae8142"
+}

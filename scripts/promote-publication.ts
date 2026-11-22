@@ -88,15 +88,32 @@ export async function validateDataCandidate(
       if (plTag) {
         tagName = plTag;
       } else {
-        const nearest = await gitExec(dataRepoPath, [
-          'describe',
-          '--tags',
-          '--match',
-          'pl-*',
-          '--abbrev=0',
-          commitSha,
-        ]).catch(() => '');
-        tagName = nearest || `commit-${commitSha.slice(0, 12)}`;
+        // Check if any pl-* tag has the exact same statutes/ subtree SHA (e.g. after non-statutory annotations/docs commits)
+        const statutesTreeSha = await gitExec(dataRepoPath, ['rev-parse', `${commitSha}:statutes`]).catch(() => '');
+        if (statutesTreeSha) {
+          const allPlTags = (await gitExec(dataRepoPath, ['tag', '--list', 'pl-*', '--sort=-version:refname']).catch(() => ''))
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          for (const candidateTag of allPlTags.slice(0, 25)) {
+            const tagStatutesSha = await gitExec(dataRepoPath, ['rev-parse', `${candidateTag}:statutes`]).catch(() => '');
+            if (tagStatutesSha && tagStatutesSha === statutesTreeSha) {
+              tagName = candidateTag;
+              break;
+            }
+          }
+        }
+        if (!tagName) {
+          const nearest = await gitExec(dataRepoPath, [
+            'describe',
+            '--tags',
+            '--match',
+            'pl-*',
+            '--abbrev=0',
+            commitSha,
+          ]).catch(() => '');
+          tagName = nearest || `commit-${commitSha.slice(0, 12)}`;
+        }
       }
     } catch {
       tagName = `commit-${commitSha.slice(0, 12)}`;

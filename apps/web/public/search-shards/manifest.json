@@ -1,6 +1,36 @@
 {
   "schemaVersion": "usct.historical-search-manifest/v1",
-  "generatedForPublicationId": "pub-pl-116-220-8c0b1974c0d1",
-  "availableReleases": [],
-  "shards": {}
+  "generatedForPublicationId": "pub-pl-119-73-c2e2d792518c",
+  "availableReleases": [
+    {
+      "releaseId": "pl-116-220",
+      "label": "Public Law 116-220",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
+      "coverageState": "complete"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "label": "Public Law 119-73",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
+      "coverageState": "complete"
+    }
+  ],
+  "shards": {
+    "pl-116-220__title-18": {
+      "shardPath": "search-shards/pl-116-220__title-18.json",
+      "shardDigest": "69741013fce89e28a6c6b80d176e1d07745e033276bb7fee7f5cfcded5ae8142",
+      "entryCount": 8
+    },
+    "pl-119-73__title-18": {
+      "shardPath": "search-shards/pl-119-73__title-18.json",
+      "shardDigest": "4f17c6ff262c8652b909b22fec12fe790d982df2b62fd15772b91f5c1683b33b",
+      "entryCount": 8
+    }
+  }
 }
