@@ -1,4 +1,6 @@
 {
-  "generatedAt": "2026-11-21T00:00:00Z",
-  "shards": []
+  "schemaVersion": "usct.historical-search-manifest/v1",
+  "generatedForPublicationId": "pub-pl-116-220-8c0b1974c0d1",
+  "availableReleases": [],
+  "shards": {}
 }

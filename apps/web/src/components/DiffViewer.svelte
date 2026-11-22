@@ -292,10 +292,24 @@
           .filter((v, i, a) => a.indexOf(v) === i)
           .map((name) => ({ name, date: "" }));
 
+        const urlRelease =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("release")
+            : null;
         const last = tags[tags.length - 1];
         const secondLast = tags[tags.length - 2];
-        if (last) compareTo = last.name;
-        if (secondLast) compareFrom = secondLast.name;
+        if (urlRelease && tags.some((t) => t.name === urlRelease)) {
+          compareTo = urlRelease;
+          const idx = tags.findIndex((t) => t.name === urlRelease);
+          if (idx > 0 && tags[idx - 1]) {
+            compareFrom = tags[idx - 1]!.name;
+          } else if (secondLast) {
+            compareFrom = secondLast.name;
+          }
+        } else {
+          if (last) compareTo = last.name;
+          if (secondLast) compareFrom = secondLast.name;
+        }
 
         await buildSectionChangePairs();
 

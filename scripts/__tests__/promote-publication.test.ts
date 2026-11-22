@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -11,6 +11,7 @@ import {
   verifyPublicationPinMatch,
   rollbackToPredecessorPublication,
   getTrackerSubmodulePin,
+  getCheckedOutSubmoduleHead,
 } from '../promote-publication.js';
 
 const execFileAsync = promisify(execFile);
@@ -63,6 +64,11 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
     const { stdout: sha1Out } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: dataRepo });
     const sha1 = sha1Out.trim();
 
+    // Clone dataRepo into trackerRepo/apps/web/content-data so we test a real checked-out submodule working tree!
+    const submoduleDir = join(trackerRepo, 'apps', 'web', 'content-data');
+    await mkdir(join(trackerRepo, 'apps', 'web'), { recursive: true });
+    await execFileAsync('git', ['clone', dataRepo, submoduleDir]);
+
     // Promote Release 1
     const promo1 = await promoteValidatedDataCandidate({
       trackerRepoPath: trackerRepo,
@@ -77,6 +83,7 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
     expect(promo1.value.trackerSubmodulePinSha).toBe(sha1);
     expect(promo1.value.acceptedDataTag).toBe('pl-119-1');
     expect(await getTrackerSubmodulePin(trackerRepo)).toBe(sha1);
+    expect(await getCheckedOutSubmoduleHead(trackerRepo)).toBe(sha1);
 
     const verify1 = await verifyPublicationPinMatch({
       trackerRepoPath: trackerRepo,
@@ -119,12 +126,30 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
     expect(promo2.value.predecessorPublicationId).toBe(promo1.value.publicationId);
     expect(promo2.value.predecessorDataCommitSha).toBe(sha1);
     expect(await getTrackerSubmodulePin(trackerRepo)).toBe(sha2);
+    expect(await getCheckedOutSubmoduleHead(trackerRepo)).toBe(sha2);
+    const checkedOutTextV2 = await readFile(
+      join(submoduleDir, 'statutes', 'title-18', 'chapter-7', 'section-111.md'),
+      'utf-8'
+    );
+    expect(checkedOutTextV2).toContain('Text v2 corrected');
 
     const verify2 = await verifyPublicationPinMatch({
       trackerRepoPath: trackerRepo,
       expectedDataCommitSha: sha2,
     });
     expect(verify2.ok).toBe(true);
+
+    // 2b. Simulate a stale submodule working tree (index at sha2, working tree checked out at sha1)
+    await execFileAsync('git', ['checkout', '--detach', '--force', sha1], { cwd: submoduleDir });
+    const staleWorktreeVerify = await verifyPublicationPinMatch({
+      trackerRepoPath: trackerRepo,
+    });
+    expect(staleWorktreeVerify.ok).toBe(false);
+    if (!staleWorktreeVerify.ok) {
+      expect(staleWorktreeVerify.error.message).toContain('Stale submodule working tree detected');
+    }
+    // Restore working tree to sha2
+    await execFileAsync('git', ['checkout', '--detach', '--force', sha2], { cwd: submoduleDir });
 
     // 3. Inject a failed/incomplete candidate (R3 with incompleteReleases: ['119-3']) -> promotion MUST reject it!
     await writeFile(
@@ -169,6 +194,12 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
     if (!rollbackRes.ok) return;
     expect(rollbackRes.value.acceptedDataCommitSha).toBe(sha1);
     expect(await getTrackerSubmodulePin(trackerRepo)).toBe(sha1);
+    expect(await getCheckedOutSubmoduleHead(trackerRepo)).toBe(sha1);
+    const checkedOutTextAfterRollback = await readFile(
+      join(submoduleDir, 'statutes', 'title-18', 'chapter-7', 'section-111.md'),
+      'utf-8'
+    );
+    expect(checkedOutTextAfterRollback).toContain('Text v1');
 
     const verifyAfterRollback = await verifyPublicationPinMatch({
       trackerRepoPath: trackerRepo,

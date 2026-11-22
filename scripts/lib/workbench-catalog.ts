@@ -652,6 +652,144 @@ COMMIT;
   }
 
   /**
+   * Transactional SQL persistence adapter (USCT-009):
+   * Applies the PostgreSQL schema migration and synchronizes the canonical catalog state
+   * inside an atomic BEGIN/COMMIT transaction (with automatic ROLLBACK on failure).
+   */
+  async syncToSqlAdapter(adapter: {
+    execute(sql: string, params?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  }): Promise<Result<{ tablesWritten: number; rowsUpserted: number }>> {
+    try {
+      await adapter.execute(CanonicalWorkbenchCatalog.getPostgresMigrationSql());
+      await adapter.execute('BEGIN');
+
+      let rowsUpserted = 0;
+      for (const a of this.state.artifacts) {
+        await adapter.execute(
+          `INSERT INTO source_artifacts (artifact_id, sha256, byte_length, media_type, storage_locator, license, attribution_required, attribution_text)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (artifact_id) DO UPDATE SET sha256 = EXCLUDED.sha256, byte_length = EXCLUDED.byte_length`,
+          [
+            a.artifactId,
+            a.sha256,
+            a.byteLength,
+            a.mediaType,
+            a.storageLocator,
+            a.license,
+            a.attributionRequired,
+            a.attributionText ?? null,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      for (const r of this.state.releases) {
+        await adapter.execute(
+          `INSERT INTO source_releases (release_id, publisher_release_label, release_segment, congress, law_identifier, manifest_digest, published_date, observed_at, legacy_derived)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (release_id) DO UPDATE SET manifest_digest = EXCLUDED.manifest_digest`,
+          [
+            r.releaseId,
+            r.publisherReleaseLabel,
+            r.releaseSegment,
+            r.congress,
+            r.lawIdentifier,
+            r.manifestDigest,
+            r.publishedDate ?? null,
+            r.observedAt,
+            r.legacyDerived,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      for (const p of this.state.provisions) {
+        await adapter.execute(
+          `INSERT INTO provisions (provision_id, jurisdiction, document_kind, creation_basis, identity_registry_version)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (provision_id) DO UPDATE SET identity_registry_version = EXCLUDED.identity_registry_version`,
+          [
+            p.provisionId,
+            p.jurisdiction,
+            p.documentKind,
+            p.creationBasis,
+            p.identityRegistryVersion,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      for (const pv of this.state.provisionVersions) {
+        await adapter.execute(
+          `INSERT INTO provision_versions (provision_version_id, provision_id, normalized_content_hash, normalization_version, usc_title, usc_chapter, usc_section, heading, status, body_markdown)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (provision_version_id) DO UPDATE SET normalized_content_hash = EXCLUDED.normalized_content_hash, body_markdown = EXCLUDED.body_markdown`,
+          [
+            pv.provisionVersionId,
+            pv.provisionId,
+            pv.normalizedContentHash,
+            pv.normalizationVersion,
+            pv.uscTitle,
+            pv.uscChapter,
+            pv.uscSection,
+            pv.heading,
+            pv.status,
+            pv.bodyMarkdown,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      for (const m of this.state.memberships) {
+        await adapter.execute(
+          `INSERT INTO snapshot_memberships (membership_id, source_release_id, provision_version_id, provision_id, source_order, hierarchy_path, source_locator)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (membership_id) DO UPDATE SET source_order = EXCLUDED.source_order`,
+          [
+            m.membershipId,
+            m.sourceReleaseId,
+            m.provisionVersionId,
+            m.provisionId,
+            m.sourceOrder,
+            m.hierarchyPath,
+            m.sourceLocator,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      for (const ac of this.state.applicabilityClaims) {
+        await adapter.execute(
+          `INSERT INTO applicability_claims (claim_id, target_provision_version_id, target_subdivision_locator, applicability_state, start_boundary, end_boundary, required_context_facts, editorial_review)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (claim_id) DO UPDATE SET applicability_state = EXCLUDED.applicability_state`,
+          [
+            ac.claimId,
+            ac.targetProvisionVersionId,
+            ac.targetSubdivisionLocator ?? null,
+            ac.applicabilityState,
+            JSON.stringify(ac.startBoundary),
+            JSON.stringify(ac.endBoundary),
+            JSON.stringify(ac.requiredContextFacts),
+            ac.editorialReview,
+          ]
+        );
+        rowsUpserted++;
+      }
+
+      await adapter.execute('COMMIT');
+      return ok({ tablesWritten: 6, rowsUpserted });
+    } catch (e: unknown) {
+      try {
+        await adapter.execute('ROLLBACK');
+      } catch {
+        // Ignore rollback failure on broken adapter
+      }
+      return err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+
+  /**
    * Resolve a citation across transfers, renumbering, citation reuse, and ambiguous splits (USCT-011).
    * Never merges distinct provisions merely because a section number was reused later!
    */
@@ -1853,14 +1991,31 @@ export async function runPilotParityAndRecoveryDrill(params: {
   catalog: CanonicalWorkbenchCatalog;
   publicationId: string;
   workDir: string;
+  incrementalBundles?: readonly Partial<CatalogStateSnapshot>[];
 }): Promise<PilotRecoveryDrillReport> {
   const startMs = Date.now();
-  const incrementalAudit = runAnalyticalCoverageAudit(params.catalog);
-  const incrementalShards = buildHistoricalSearchShards(params.catalog, params.publicationId);
+
+  let incrementalCatalog = params.catalog;
+  if (params.incrementalBundles && params.incrementalBundles.length > 0) {
+    incrementalCatalog = new CanonicalWorkbenchCatalog();
+    for (const step of params.incrementalBundles) {
+      const stepRes = incrementalCatalog.ingestBundle(step);
+      if (!stepRes.ok) throw stepRes.error;
+    }
+  }
+
+  const incrementalAudit = runAnalyticalCoverageAudit(incrementalCatalog);
+  const incrementalShards = buildHistoricalSearchShards(incrementalCatalog, params.publicationId);
+
+  // Build a fresh single-pass clean catalog from the merged snapshot
+  const mergedSnap = incrementalCatalog.getSnapshot();
+  const cleanSinglePassCatalog = new CanonicalWorkbenchCatalog();
+  const cleanIngestRes = cleanSinglePassCatalog.ingestBundle(mergedSnap);
+  if (!cleanIngestRes.ok) throw cleanIngestRes.error;
 
   // Persist canonical catalog to disk
   const catalogPath = join(params.workDir, 'canonical-catalog.json');
-  await params.catalog.saveToFile(catalogPath);
+  await cleanSinglePassCatalog.saveToFile(catalogPath);
 
   // Simulate corrupt derived index file on disk
   const derivedManifestPath = join(params.workDir, 'search-shards', 'manifest.json');

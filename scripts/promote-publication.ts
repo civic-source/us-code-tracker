@@ -180,13 +180,63 @@ export async function getTrackerSubmodulePin(
   }
 
   try {
-    const subHead = await gitExec(join(trackerRepoPath, submoduleRelPath), ['rev-parse', 'HEAD']);
-    if (/^[0-9a-f]{40}$/i.test(subHead)) return subHead;
+    const subPath = join(trackerRepoPath, submoduleRelPath);
+    const subTop = await gitExec(subPath, ['rev-parse', '--show-toplevel']);
+    const trackerTop = await gitExec(trackerRepoPath, ['rev-parse', '--show-toplevel']);
+    if (subTop !== trackerTop) {
+      const subHead = await gitExec(subPath, ['rev-parse', 'HEAD']);
+      if (/^[0-9a-f]{40}$/i.test(subHead)) return subHead;
+    }
   } catch {
     // Submodule not checked out
   }
 
   return null;
+}
+
+/**
+ * Return the checked-out HEAD commit of the submodule working tree when `apps/web/content-data`
+ * is a distinct checked-out Git repository, or null if not checked out.
+ */
+export async function getCheckedOutSubmoduleHead(
+  trackerRepoPath: string,
+  submoduleRelPath = 'apps/web/content-data'
+): Promise<string | null> {
+  try {
+    const subPath = join(trackerRepoPath, submoduleRelPath);
+    const subTop = await gitExec(subPath, ['rev-parse', '--show-toplevel']);
+    const trackerTop = await gitExec(trackerRepoPath, ['rev-parse', '--show-toplevel']);
+    if (subTop !== trackerTop) {
+      const subHead = await gitExec(subPath, ['rev-parse', 'HEAD']);
+      if (/^[0-9a-f]{40}$/i.test(subHead)) return subHead;
+    }
+  } catch {
+    // Not a checked-out submodule working tree
+  }
+  return null;
+}
+
+async function syncSubmoduleWorkingTree(
+  trackerRepoPath: string,
+  targetCommitSha: string,
+  dataRepoPath?: string,
+  submoduleRelPath = 'apps/web/content-data'
+): Promise<void> {
+  const checkedOutHead = await getCheckedOutSubmoduleHead(trackerRepoPath, submoduleRelPath);
+  if (!checkedOutHead) return;
+  const subPath = join(trackerRepoPath, submoduleRelPath);
+  if (dataRepoPath && dataRepoPath !== subPath) {
+    try {
+      await gitExec(subPath, ['fetch', dataRepoPath, targetCommitSha]);
+    } catch {
+      // Commit may already be present locally in the submodule object store
+    }
+  }
+  try {
+    await gitExec(subPath, ['checkout', '--detach', '--force', targetCommitSha]);
+  } catch {
+    // Ignore if commit is not reachable in synthetic unit tests without a clone
+  }
 }
 
 /** Load the existing active PublicationReceipt if present */
@@ -236,8 +286,13 @@ export async function promoteValidatedDataCandidate(
     // Disposable non-git fixture tracker dir fallback
   }
 
-  // Update the gitlink index entry in trackerRepoPath if it's a git repo with submodule
+  // Update the gitlink index entry AND checked-out submodule working tree in trackerRepoPath
   if (options.updateSubmoduleWorkingTree !== false) {
+    await syncSubmoduleWorkingTree(
+      options.trackerRepoPath,
+      candidate.commitSha,
+      options.dataRepoPath
+    );
     try {
       await gitExec(options.trackerRepoPath, [
         'update-index',
@@ -325,6 +380,15 @@ export async function verifyPublicationPinMatch(options: {
     );
   }
 
+  const checkedOutHead = await getCheckedOutSubmoduleHead(options.trackerRepoPath);
+  if (checkedOutHead && checkedOutHead !== receipt.trackerSubmodulePinSha) {
+    return err(
+      new Error(
+        `Stale submodule working tree detected: apps/web/content-data is checked out at ${checkedOutHead}, but receipt requires ${receipt.trackerSubmodulePinSha}`
+      )
+    );
+  }
+
   if (options.expectedDataCommitSha && receipt.acceptedDataCommitSha !== options.expectedDataCommitSha) {
     return err(
       new Error(
@@ -373,6 +437,10 @@ export async function rollbackToPredecessorPublication(options: {
     );
   }
 
+  await syncSubmoduleWorkingTree(
+    options.trackerRepoPath,
+    predecessor.trackerSubmodulePinSha
+  );
   try {
     await gitExec(options.trackerRepoPath, [
       'update-index',

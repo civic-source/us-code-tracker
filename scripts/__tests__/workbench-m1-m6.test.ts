@@ -530,10 +530,46 @@ describe('Canonical Workbench Catalog & M1-M6 Capabilities (USCT-008..USCT-036)'
       }),
     ).toEqual(appSubsecAFeb2027);
 
-    // 9. PostgreSQL DDL parity check
+    // 9. PostgreSQL DDL & Transactional SQL Adapter parity + rollback check (USCT-009)
     const ddl = CanonicalWorkbenchCatalog.getPostgresMigrationSql();
     expect(ddl).toContain('CREATE TABLE IF NOT EXISTS provision_versions');
     expect(ddl).toContain('CREATE TABLE IF NOT EXISTS applicability_claims');
+
+    const executedStatements: Array<{ sql: string; params?: readonly unknown[] }> = [];
+    const committedTables = new Map<string, number>();
+    const sqlAdapter = {
+      async execute(sql: string, params?: readonly unknown[]) {
+        executedStatements.push({ sql, ...(params ? { params } : {}) });
+        if (sql.startsWith('INSERT INTO ')) {
+          const table = sql.split(/\s+/)[2] ?? 'unknown';
+          committedTables.set(table, (committedTables.get(table) ?? 0) + 1);
+        }
+        return { rows: [] };
+      },
+    };
+    const sqlSyncRes = await catalog.syncToSqlAdapter(sqlAdapter);
+    expect(sqlSyncRes.ok).toBe(true);
+    if (sqlSyncRes.ok) {
+      expect(sqlSyncRes.value.tablesWritten).toBe(6);
+      expect(sqlSyncRes.value.rowsUpserted).toBe(17);
+    }
+    expect(executedStatements.some((s) => s.sql === 'BEGIN')).toBe(true);
+    expect(executedStatements.some((s) => s.sql === 'COMMIT')).toBe(true);
+
+    // Verify transactional ROLLBACK when an error occurs mid-transaction
+    const rollbackStatements: string[] = [];
+    const failingAdapter = {
+      async execute(sql: string) {
+        rollbackStatements.push(sql);
+        if (sql.includes('INSERT INTO provision_versions')) {
+          throw new Error('Simulated DB constraint failure');
+        }
+        return { rows: [] };
+      },
+    };
+    const failedSync = await catalog.syncToSqlAdapter(failingAdapter);
+    expect(failedSync.ok).toBe(false);
+    expect(rollbackStatements).toContain('ROLLBACK');
   });
 
   it('Fixture B (USCT-011, USCT-015): handles citation transfers, citation reuse, and ambiguous splits without overwriting prior provisions', () => {
@@ -1170,10 +1206,24 @@ describe('Canonical Workbench Catalog & M1-M6 Capabilities (USCT-008..USCT-036)'
     }
 
     // 7. M5 Pilot Parity & Corrupt-Index Recovery Drill (USCT-026, USCT-027, USCT-028)
+    // Compares a 2-step incremental ingestion against a single-pass clean replay AND corrupt-index recovery
+    const fullSnap = catalog.getSnapshot();
+    const step1Bundle: Partial<CatalogStateSnapshot> = {
+      releases: fullSnap.releases,
+      provisions: fullSnap.provisions,
+      evidenceSpans: fullSnap.evidenceSpans,
+    };
+    const step2Bundle: Partial<CatalogStateSnapshot> = {
+      provisionVersions: fullSnap.provisionVersions,
+      memberships: fullSnap.memberships,
+      assertions: fullSnap.assertions,
+      coverages: fullSnap.coverages,
+    };
     const drill = await runPilotParityAndRecoveryDrill({
       catalog,
       publicationId: 'pub-pilot-1',
       workDir: tmpDir,
+      incrementalBundles: [step1Bundle, step2Bundle],
     });
     expect(drill.cleanVsIncrementalDigestMatch).toBe(true);
     expect(drill.recoveredFromCorruptIndexMatch).toBe(true);
