@@ -14,9 +14,11 @@
  *   npx tsx scripts/workbench.ts --action audit --catalog data/catalog.json
  */
 
+import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
 import {
   CanonicalWorkbenchCatalog,
   buildHistoricalSearchShards,
@@ -24,12 +26,27 @@ import {
   type CatalogStateSnapshot,
 } from './lib/workbench-catalog.js';
 
+const execFileAsync = promisify(execFile);
+
+const DEFAULT_COHORT_PATHS = [
+  'statutes/title-18/chapter-1/section-2.md',
+  'statutes/title-18/chapter-7/section-111.md',
+  'statutes/title-18/chapter-19/section-371.md',
+  'statutes/title-18/chapter-47/section-1001.md',
+  'statutes/title-18/chapter-63/section-1341.md',
+  'statutes/title-18/chapter-63/section-1343.md',
+  'statutes/title-18/chapter-95/section-1951.md',
+  'statutes/title-18/chapter-96/section-1962.md',
+];
+
 async function main() {
   const { values } = parseArgs({
     options: {
       action: { type: 'string', default: 'migrate-sql' },
       catalog: { type: 'string', default: '.workbench/catalog.json' },
       bundle: { type: 'string' },
+      'data-repo': { type: 'string', default: 'apps/web/content-data' },
+      releases: { type: 'string', default: 'pl-116-220,pl-119-73' },
       release: { type: 'string' },
       citation: { type: 'string' },
       cutoff: { type: 'string' },
@@ -123,6 +140,131 @@ async function main() {
       await writeFile(shardFile, JSON.stringify(shard, null, 2) + '\n', 'utf-8');
     }
     console.log(`Built ${shards.size} historical search shards into ${values.output}`);
+  } else if (action === 'ingest-git-cohort') {
+    const dataRepo = values['data-repo'] ?? 'apps/web/content-data';
+    const releaseTags = (values.releases ?? 'pl-116-220,pl-119-73')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((t) => /^pl-\d+-[a-z0-9-]+$/i.test(t));
+
+    for (const relTag of releaseTags) {
+      const mRel = /^pl-(\d+)-(.+)$/i.exec(relTag);
+      if (!mRel) continue;
+      const congress = parseInt(mRel[1]!, 10);
+      const law = mRel[2]!;
+
+      catalog.ingestBundle({
+        releases: [
+          {
+            schemaVersion: 'usct.source-release/v1',
+            releaseId: relTag,
+            publisherReleaseLabel: `Public Law ${congress}-${law}`,
+            releaseSegment: `${congress}/${law}`,
+            congress,
+            lawIdentifier: law,
+            exclusions: [],
+            revisionNumber: 1,
+            snapshotIds: [],
+            coverageId: `cov-${relTag}`,
+            manifestDigest: createHash('sha256').update(relTag).digest('hex'),
+            observedAt: new Date().toISOString(),
+            legacyDerived: false,
+          },
+        ],
+      });
+
+      let order = 1;
+      for (const relPath of DEFAULT_COHORT_PATHS) {
+        let md = '';
+        try {
+          const { stdout } = await execFileAsync('git', ['show', `${relTag}:${relPath}`], {
+            cwd: dataRepo,
+          });
+          md = stdout;
+        } catch {
+          continue;
+        }
+
+        const mPath = /^statutes\/title-(\d+)\/chapter-([^/]+)\/section-([^.]+)\.md$/.exec(relPath);
+        if (!mPath) continue;
+        const [, title, chapter, section] = mPath;
+        const headingMatch = /^#\s+(.+)$/m.exec(md);
+        const heading = headingMatch ? headingMatch[1]!.trim() : `§ ${section}`;
+        const body = md.replace(/^---[\s\S]*?---\n*/m, '').trim();
+        const hash = createHash('sha256').update(body).digest('hex');
+        const provId = `prov-${title}-${section}`;
+        const pvId = `pv-${title}-${section}-${relTag}`;
+
+        const res = catalog.ingestBundle({
+          provisions: [
+            {
+              schemaVersion: 'usct.provision/v1',
+              provisionId: provId,
+              jurisdiction: 'US',
+              documentKind: 'usc_section',
+              creationBasis: `olrc_uslm_id:/us/usc/t${title}/s${section}`,
+              identityRegistryVersion: 1,
+            },
+          ],
+          provisionVersions: [
+            {
+              schemaVersion: 'usct.provision-version/v1',
+              provisionVersionId: pvId,
+              provisionId: provId,
+              normalizedContentHash: hash,
+              normalizationVersion: '1.0.0',
+              uscTitle: title!,
+              uscChapter: chapter!,
+              uscSection: section!,
+              heading,
+              status: 'active',
+              bodyMarkdown: body,
+              sourceCredits: [],
+              notes: [],
+              tables: [],
+              unsupportedStructures: [],
+              evidenceIds: [],
+              legacyDerived: false,
+            },
+          ],
+          memberships: [
+            {
+              schemaVersion: 'usct.snapshot-membership/v1',
+              membershipId: `mem-${relTag}-${provId}`,
+              sourceReleaseId: relTag,
+              provisionVersionId: pvId,
+              provisionId: provId,
+              sourceOrder: order++,
+              hierarchyPath: `title-${title}/chapter-${chapter}/section-${section}`,
+              sourceLocator: `/us/usc/t${title}/s${section}`,
+            },
+          ],
+          citationAssignments: [
+            {
+              schemaVersion: 'usct.citation-assignment/v1',
+              assignmentId: `ca-${provId}-${relTag}`,
+              provisionId: provId,
+              normalizedCitation: `${title} U.S.C. ${section}`,
+              legacySlug: `title-${title}/chapter-${chapter}/section-${section}`,
+              releaseIds: [relTag],
+              evidenceIds: [],
+              editorialReview: 'accepted',
+            },
+          ],
+        });
+        if (!res.ok) throw res.error;
+      }
+    }
+
+    const { manifest, shards } = buildHistoricalSearchShards(catalog, values.publication);
+    const manifestPath = join(values.output, 'manifest.json');
+    await mkdir(dirname(manifestPath), { recursive: true });
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
+    for (const [shardKey, shard] of shards.entries()) {
+      const shardFile = join(values.output, `${shardKey}.json`);
+      await writeFile(shardFile, JSON.stringify(shard, null, 2) + '\n', 'utf-8');
+    }
+    console.log(`Ingested cohort and built ${shards.size} historical search shards into ${values.output}`);
   } else if (action === 'audit') {
     console.log(JSON.stringify(runAnalyticalCoverageAudit(catalog), null, 2));
   } else {

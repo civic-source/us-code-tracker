@@ -173,16 +173,23 @@ async function runCli() {
       repo: { type: 'string' },
       output: { type: 'string' },
       full: { type: 'boolean', default: false },
+      recent: { type: 'string' },
     },
   });
-  const { repo, output, full } = values;
+  const { repo, output, full, recent } = values;
 
   if (!repo || !output) {
-    console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full]');
+    console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full] [--recent <n>]');
     process.exit(1);
   }
 
-  const tags = getTags(repo);
+  let tags = getTags(repo);
+  if (recent) {
+    const n = parseInt(recent, 10);
+    if (!Number.isNaN(n) && n >= 2 && tags.length > n) {
+      tags = tags.slice(-n);
+    }
+  }
   const incompleteReleases = await loadRepoIncompleteReleases(repo);
   console.log(`Found ${tags.length} pl-* tags: ${tags[0]} \u2026 ${tags[tags.length - 1]}`);
   if (tags.length < 2) { console.error('Need at least 2 tags to generate diffs.'); process.exit(1); }
