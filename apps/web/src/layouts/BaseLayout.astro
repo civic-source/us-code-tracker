@@ -8,6 +8,7 @@ import ThemeToggle from '../components/ThemeToggle.svelte';
 import SearchBar from '../components/SearchBar.svelte';
 import BackToTop from '../components/BackToTop.svelte';
 import { TITLE_NAMES } from '../data/title-names';
+import { getCurrentReleaseDisplay } from '../lib/release-currency';
 
 interface Props {
   title?: string;
@@ -22,6 +23,7 @@ const {
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
+const releaseDisplay = getCurrentReleaseDisplay();
 
 // Determine the current title number from the URL for highlighting
 const pathname = Astro.url.pathname;
@@ -87,7 +89,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
             </a>
           </div>
           <span class="hidden rounded bg-navy/10 px-2 py-0.5 text-[11px] font-medium text-navy dark:bg-amber/15 dark:text-amber lg:inline">
-            Current through PL 119-73
+            Current through {releaseDisplay.shortLabel}
           </span>
           <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch lg:pt-1">
             <ThemeToggle client:load />
@@ -121,13 +123,11 @@ const titleEntries = Object.entries(TITLE_NAMES)
           <ul id="title-list" class="space-y-0.5 overflow-y-auto text-xs lg:max-h-[calc(100vh-270px)]">
             {titleEntries.map(({ num, name }) => {
               const isActive = currentTitleNum === num;
-              const linkClass = isActive
-                ? 'block rounded-r border-l-3 border-state-blue bg-navy/10 px-2.5 py-1.5 font-semibold text-navy dark:border-amber dark:bg-amber/15 dark:text-amber'
-                : 'block rounded px-2.5 py-1 text-slate hover:bg-gray-200 hover:text-navy dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-amber';
+              const linkClass = isActive ? 'sidenav-link sidenav-link-active' : 'sidenav-link';
               return (
                 <li data-title-num={num} data-title-name={name.toLowerCase()}>
                   <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
-                    <span class="font-mono text-[11px] font-medium text-gray-500 dark:text-gray-400">{num}</span>
+                    <span class="sidenav-num">{num}</span>
                     <span class="mx-1">&mdash;</span>
                     <span>{name}</span>
                   </a>
@@ -189,42 +189,39 @@ const titleEntries = Object.entries(TITLE_NAMES)
               <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">Open Licensing</h2>
               <p class="leading-relaxed">Pipeline Code: Apache 2.0 License</p>
               <p class="mt-0.5 leading-relaxed">Statutory Text: CC0 1.0 Public Domain</p>
-              <p class="mt-1.5 font-medium text-navy dark:text-amber">Release Currency: Pub. L. 119-73</p>
+              <p class="mt-1.5 font-medium text-navy dark:text-amber">Release Currency: {releaseDisplay.formalLabel}</p>
             </div>
           </div>
         </footer>
       </main>
     </div>
 
-    <script is:inline>
-      (function () {
-        // Mobile menu toggle
-        var btn = document.getElementById('menu-toggle');
-        var nav = document.getElementById('main-nav');
-        if (!btn || !nav) return;
-        btn.addEventListener('click', function () {
-          var expanded = btn.getAttribute('aria-expanded') === 'true';
+    <script>
+      const btn = document.getElementById('menu-toggle');
+      const nav = document.getElementById('main-nav');
+      if (btn && nav) {
+        btn.addEventListener('click', () => {
+          const expanded = btn.getAttribute('aria-expanded') === 'true';
           btn.setAttribute('aria-expanded', String(!expanded));
           btn.setAttribute('aria-label', expanded ? 'Open menu' : 'Close menu');
           nav.classList.toggle('hidden', expanded);
         });
+      }
 
-        // Title filter
-        var filter = document.getElementById('title-filter');
-        var list = document.getElementById('title-list');
-        if (!filter || !list) return;
-        var items = list.querySelectorAll('li');
-        filter.addEventListener('input', function () {
-          var query = filter.value.toLowerCase().trim();
-          for (var i = 0; i < items.length; i++) {
-            var li = items[i];
-            var num = li.getAttribute('data-title-num') || '';
-            var name = li.getAttribute('data-title-name') || '';
-            var match = !query || num.indexOf(query) !== -1 || name.indexOf(query) !== -1;
+      const filter = document.getElementById('title-filter');
+      const list = document.getElementById('title-list');
+      if (filter instanceof HTMLInputElement && list) {
+        const items = list.querySelectorAll('li');
+        filter.addEventListener('input', () => {
+          const query = filter.value.toLowerCase().trim();
+          for (const li of items) {
+            const num = li.getAttribute('data-title-num') || '';
+            const name = li.getAttribute('data-title-name') || '';
+            const match = !query || num.includes(query) || name.includes(query);
             li.style.display = match ? '' : 'none';
           }
         });
-      })();
+      }
     </script>
     <BackToTop client:load />
   </body>

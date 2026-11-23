@@ -387,6 +387,54 @@ ins.diff-add {
   background: rgba(139, 105, 20, 0.25);
 }
 
+/* Compact sidebar navigation link styles (deduplicated across 58k static pages) */
+@layer components {
+  .sidenav-link {
+    display: block;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    color: var(--color-slate);
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .sidenav-link:hover {
+    background-color: #e5e7eb;
+    color: var(--color-navy);
+  }
+
+  .sidenav-link-active {
+    border-radius: 0 0.25rem 0.25rem 0;
+    border-left: 3px solid var(--color-state-blue);
+    background-color: rgba(26, 68, 128, 0.1);
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    font-weight: 600;
+    color: var(--color-navy);
+  }
+
+  .sidenav-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  :where(.dark, .dark *) .sidenav-link {
+    color: #d1d5db;
+  }
+
+  :where(.dark, .dark *) .sidenav-link:hover {
+    background-color: #1f2937;
+    color: var(--color-amber);
+  }
+
+  :where(.dark, .dark *) .sidenav-link-active {
+    border-left-color: var(--color-amber);
+    background-color: rgba(217, 119, 6, 0.15);
+    color: var(--color-amber);
+  }
+}
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

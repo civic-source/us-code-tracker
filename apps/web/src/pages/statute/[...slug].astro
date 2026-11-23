@@ -157,6 +157,16 @@ const nextSection = currentIdx < chapterSiblings.length - 1 ? chapterSiblings[cu
 const prevIsCrossChapter = currentIdx === 0 && !!prevChapterLast;
 const nextIsCrossChapter = currentIdx === chapterSiblings.length - 1 && !!nextChapterFirst;
 
+// Window chapter sibling navigation around the active section so huge chapters (~1,000 sections)
+// do not duplicate hundreds of KB of repeated anchor HTML across every generated page.
+const SIBLING_RADIUS = 10;
+const MAX_NEARBY_SIBLINGS = SIBLING_RADIUS * 2 + 1;
+const windowStart =
+  currentIdx < 0
+    ? 0
+    : Math.max(0, Math.min(currentIdx - SIBLING_RADIUS, chapterSiblings.length - MAX_NEARBY_SIBLINGS));
+const nearbySiblings = chapterSiblings.slice(windowStart, windowStart + MAX_NEARBY_SIBLINGS);
+
 const { usc_title, usc_section, chapter, classification, current_through, generated_at } = entry.data;
 
 // Build the file path in the us-code repo for DiffViewer
@@ -287,12 +297,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     </div>
   )}
 
-  <!-- Mobile TOC fallback -->
+  <!-- Mobile TOC fallback (windowed around current section) -->
   {chapterSiblings.length > 1 && (
     <details data-pagefind-ignore class="not-prose lg:hidden mb-4">
-      <summary class="font-sans text-sm font-medium cursor-pointer">Sections in this chapter</summary>
+      <summary class="font-sans text-sm font-medium cursor-pointer">
+        Sections in this chapter ({chapterSiblings.length})
+      </summary>
       <ul class="mt-2 space-y-0.5 text-xs font-sans">
-        {chapterSiblings.map((sibling) => {
+        {nearbySiblings.map((sibling) => {
           const isCurrent = sibling.id === entry.id;
           return (
             <li>
@@ -312,6 +324,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
           );
         })}
       </ul>
+      {chapterSiblings.length > nearbySiblings.length && (
+        <a
+          href={`${base}browse/title-${usc_title}/chapter-${chapter}/`}
+          class="mt-2 inline-block text-xs font-medium text-[var(--civic-action)] hover:underline"
+        >
+          Browse all {chapterSiblings.length} sections in Chapter {chapter} &rarr;
+        </a>
+      )}
     </details>
   )}
 
@@ -327,6 +347,9 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
       <div
         id="current-statute-body"
+        data-base={base}
+        data-title={String(usc_title)}
+        data-chapter={String(chapter)}
         data-chapter-sections={JSON.stringify(chapterSectionNums)}
         class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none"
       >
@@ -449,7 +472,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
             <span class="text-[11px] font-mono text-[var(--text-muted)]">{chapterSiblings.length} §</span>
           </div>
           <ul class="max-h-[calc(100vh-28rem)] space-y-1 overflow-y-auto text-xs">
-            {chapterSiblings.map((sibling) => {
+            {nearbySiblings.map((sibling) => {
               const isCurrent = sibling.id === entry.id;
               return (
                 <li>
@@ -470,97 +493,23 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
               );
             })}
           </ul>
+          {chapterSiblings.length > nearbySiblings.length && (
+            <a
+              href={`${base}browse/title-${usc_title}/chapter-${chapter}/`}
+              class="mt-3 block border-t border-[var(--border-subtle)] pt-2 text-xs font-medium text-[var(--civic-action)] hover:underline"
+            >
+              Browse all {chapterSiblings.length} sections in Chapter {chapter} &rarr;
+            </a>
+          )}
         </nav>
       )}
     </div>
   </div>
 
-  <!-- Auto-link cross-references: "section N of this title" → chapter page anchor (same chapter only) -->
-  <script is:inline define:vars={{ base, usc_title, chapter }}>
-    (function () {
-      var prose = document.querySelector('#current-statute-body');
-      if (!prose) return;
-      var chapterSectionMap = Object.create(null);
-      try {
-        var parsedSections = JSON.parse(prose.getAttribute('data-chapter-sections') || '[]');
-        if (Array.isArray(parsedSections)) {
-          parsedSections.forEach(function (sec) {
-            chapterSectionMap[String(sec).toLowerCase()] = String(sec);
-          });
-        }
-      } catch {
-        // Leave map empty if attribute is missing or malformed
-      }
-      var pattern = /\bsection (\d+[a-z]?)\b(?:\s+of this title)?/gi;
-      var chapterUrl = base + 'browse/title-' + usc_title + '/chapter-' + chapter + '/';
-      var walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT);
-      var textNodes = [];
-      while (walker.nextNode()) textNodes.push(walker.currentNode);
-      textNodes.forEach(function (node) {
-        if (!node.parentElement || node.parentElement.tagName === 'A' || node.parentElement.closest('h1,h2')) return;
-        var text = node.textContent || '';
-        if (!pattern.test(text)) return;
-        pattern.lastIndex = 0;
-        var frag = document.createDocumentFragment();
-        var lastIdx = 0;
-        var m;
-        while ((m = pattern.exec(text)) !== null) {
-          var canonicalSec = chapterSectionMap[m[1].toLowerCase()];
-          if (!canonicalSec) continue;
-          if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
-          var a = document.createElement('a');
-          a.href = chapterUrl + '#section-' + canonicalSec;
-          a.textContent = m[0];
-          a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
-          a.title = 'View section ' + canonicalSec;
-          frag.appendChild(a);
-          lastIdx = m.index + m[0].length;
-        }
-        if (lastIdx > 0 && lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
-        if (lastIdx > 0 && node.parentElement) node.parentElement.replaceChild(frag, node);
-      });
-    })();
-  </script>
-
-  <!-- Subsection anchor IDs: (a) → #subsec-a, (a)(1) → #subsec-a-1 -->
-  <script is:inline>
-    (function () {
-      var prose = document.querySelector('.prose');
-      if (!prose) return;
-      var items = prose.querySelectorAll('li');
-      var currentParent = '';
-      items.forEach(function (li) {
-        var strong = li.querySelector('strong');
-        if (!strong) return;
-        var marker = strong.textContent.trim().replace(/[()]/g, '');
-        if (!marker) return;
-        // Determine nesting: top-level (a-z), numeric (1-99), upper (A-Z), roman (i-xx)
-        if (/^[a-z]$/.test(marker)) {
-          currentParent = marker;
-          li.id = 'subsec-' + marker;
-        } else if (/^\d{1,2}$/.test(marker) && currentParent) {
-          li.id = 'subsec-' + currentParent + '-' + marker;
-        } else if (/^[A-Z]$/.test(marker) && currentParent) {
-          li.id = 'subsec-' + currentParent + '-' + marker;
-        }
-      });
-    })();
-  </script>
-
-  <!-- Keyboard shortcuts: j/k navigate sections -->
-  <script is:inline>
-    document.addEventListener('keydown', function (e) {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
-      var nav = document.querySelector('nav[aria-label="Section navigation"]');
-      if (!nav) return;
-      var links = nav.querySelectorAll('a');
-      if (e.key === 'k' || (e.key === 'ArrowLeft' && !e.metaKey)) {
-        if (links[0]) window.location.href = links[0].href;
-      } else if (e.key === 'j' || (e.key === 'ArrowRight' && !e.metaKey)) {
-        if (links[1]) window.location.href = links[1].href;
-        else if (links[0] && links.length === 1) window.location.href = links[0].href;
-      }
-    });
+  <!-- Bundled statute client enhancements: cross-refs, subsection anchors, keyboard nav -->
+  <script>
+    import { initStatutePage } from '../../lib/statute-client';
+    initStatutePage();
   </script>
 
   <!-- Keyboard hints (desktop only) -->
