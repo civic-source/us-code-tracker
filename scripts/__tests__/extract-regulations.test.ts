@@ -211,6 +211,35 @@ describe('USCT-002 & USCT-003: fetchRegulationsWithOutcome & fetchImplementingRe
     expect(authorityTextCitesSection('Authority: 42 U.S.C. 7401a.', 42, '7401')).toBe(false);
   });
 
+  it('routes removed/expired eCFR parts to historical /on/{date}/ URLs via ends_on', async () => {
+    const mockApiResponse = {
+      results: [
+        {
+          hierarchy: { title: '32', part: '584' },
+          headings: { chapter: 'Department of the Army', part: 'Family Support' },
+          ends_on: '2019-11-11',
+          full_text_excerpt: 'Section 13 reference...',
+        },
+        {
+          hierarchy: { title: '32', part: '999' },
+          headings: { chapter: 'Removed Without Date' },
+          removed: true,
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => mockApiResponse,
+    } as unknown as Response);
+
+    const outcome = await fetchRegulationsWithOutcome(18, '13', { nowIso: fixedNow });
+    expect(outcome.status).toBe('success-nonempty');
+    expect(outcome.data).toHaveLength(1);
+    expect(outcome.data[0]?.ecfrUrl).toBe('https://www.ecfr.gov/on/2019-11-10/title-32/part-584');
+  });
+
   it('legacy fetchImplementingRegulations returns empty array when API fails without prior snapshot', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,

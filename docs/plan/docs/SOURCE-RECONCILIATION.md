@@ -58,7 +58,7 @@ The [RuleSpec NOTICE](https://github.com/TheAxiomFoundation/rulespec-us/blob/25d
 
 | Priority | Source | Intended use | Boundary |
 | --- | --- | --- | --- |
-| Core | [OLRC downloads](https://uscode.house.gov/download/download.shtml) and [classification tables](https://uscode.house.gov/classification/tables.shtml) | U.S. Code snapshots, source credits, notes, amendment discovery | Published currency and classifications require their own evidence; a release label is not an effective date |
+| Core | [OLRC downloads](https://uscode.house.gov/download.html) and [classification tables](https://uscode.house.gov/classification/tables.html) | U.S. Code snapshots, source credits, notes, amendment discovery | Published currency and classifications require their own evidence; a release label is not an effective date |
 | Core context | [GovInfo bulk data](https://www.govinfo.gov/bulkdata) and [API](https://github.com/usgpo/api) | Enacted public laws, Statutes at Large and edition/package metadata where available | Version and verify exact documents; do not infer all amendment causality from release ordering |
 | Bounded regulation | [eCFR API](https://www.ecfr.gov/developers/documentation/api/v1) and [Parallel Table of Authorities](https://www.ecfr.gov/parallel-table-of-authorities/current) | Regulation text, version metadata, qualified authority citations | Part-level authority does not prove a subsection-level implementation relationship |
 | Bounded rulemaking | [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1) | Rules, notices, agency and CFR metadata | Distinguish document type and legal status; retain links to official publication evidence |

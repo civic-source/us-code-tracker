@@ -5,9 +5,17 @@
  * (e.g., `119/73not60` -> `pl-119-73not60`) per USCT-006.
  */
 
-import { OLRC_BASE_URL } from '../../packages/fetcher/src/index.js';
-
-const PRIOR_RELEASE_POINTS_URL = `${OLRC_BASE_URL}/download/releasepoints/`;
+import {
+  OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
+  OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
+  buildOlrcTitleZipUrl,
+} from '@civic-source/shared';
+import {
+  parseCurrentRelease,
+  parsePriorReleasePoints,
+} from '../../packages/fetcher/src/index.js';
 
 /** A parsed release point identifier */
 export interface ReleasePointId {
@@ -99,48 +107,98 @@ export function parseReleasePointStr(str: string): ReleasePointId | null {
  */
 export function titleZipUrl(rp: ReleasePointId, paddedTitle: string): string {
   const seg = rp.lawSegment ?? String(rp.law);
-  return `${PRIOR_RELEASE_POINTS_URL}us/pl/${rp.congress}/${seg}/xml_usc${paddedTitle}@${rp.congress}-${seg}.zip`;
+  return buildOlrcTitleZipUrl(rp.congress, seg, paddedTitle);
 }
 
 /**
- * Scrape the OLRC release points index page and extract all PL directories (including exclusions).
- * Returns release points sorted chronologically (oldest first).
- * Falls back to CACHED_RELEASE_POINTS if the index page is unavailable.
+ * Fetch an OLRC release index page, falling back to `legacyUrl` only on HTTP 404.
+ */
+async function fetchHtmlWith404Fallback(
+  fetchFn: typeof fetch,
+  primaryUrl: string,
+  legacyUrl: string
+): Promise<string | null> {
+  try {
+    let response = await fetchFn(primaryUrl);
+    if (response.status === 404) {
+      response = await fetchFn(legacyUrl);
+    }
+    return response.ok ? await response.text() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract ReleasePointId entries from modern or legacy OLRC release index HTML. */
+function extractReleasePointsFromHtml(html: string, pointsMap: Map<string, ReleasePointId>): void {
+  for (const parsedPrior of parsePriorReleasePoints(html)) {
+    const rp = parseReleasePointStr(`pl/${parsedPrior.congress}/${parsedPrior.law}`);
+    if (rp) {
+      pointsMap.set(releasePointKey(rp), rp);
+    }
+  }
+
+  const current = parseCurrentRelease(html);
+  if (current) {
+    const rp = parseReleasePointStr(`pl/${current.congress}/${current.law}`);
+    if (rp) {
+      pointsMap.set(releasePointKey(rp), rp);
+    }
+  }
+
+  // Fallback href scanner handles minimal HTML fixtures without date metadata
+  const legacyDirPattern = /href="[^"]*?us\/pl\/(\d{2,3})\/(\d+(?:not\d+(?:and\d+)*)?)\/?/gi;
+  let match: RegExpExecArray | null;
+  while ((match = legacyDirPattern.exec(html)) !== null) {
+    if (!match[1] || !match[2]) continue;
+    const rp = parseReleasePointStr(`pl/${match[1]}/${match[2].toLowerCase()}`);
+    if (rp) {
+      pointsMap.set(releasePointKey(rp), rp);
+    }
+  }
+
+  const modernHrefPattern = /href="(?:\/?download\/)?(\d{2,3})-(\d+(?:not\d+(?:and\d+)*)?)\.html"/gi;
+  while ((match = modernHrefPattern.exec(html)) !== null) {
+    if (!match[1] || !match[2]) continue;
+    const rp = parseReleasePointStr(`pl/${match[1]}/${match[2].toLowerCase()}`);
+    if (rp) {
+      pointsMap.set(releasePointKey(rp), rp);
+    }
+  }
+}
+
+/**
+ * Scrape OLRC prior and current release pages and extract all PL identifiers
+ * (including exclusions), sorted chronologically oldest first.
+ * Falls back to verified-release-points.txt or CACHED_RELEASE_POINTS if unavailable.
  */
 export async function scrapeReleasePoints(
   fetchFn: typeof fetch = fetch
 ): Promise<ReleasePointId[]> {
-  try {
-    const response = await fetchFn(PRIOR_RELEASE_POINTS_URL);
-    if (response.ok) {
-      const html = await response.text();
-      const points: ReleasePointId[] = [];
+  const pointsMap = new Map<string, ReleasePointId>();
 
-      // Match directory links like: us/pl/113/100/ or us/pl/119/73not60/
-      const pattern = /href="[^"]*?us\/pl\/(\d+)\/(\d+(?:not\d+(?:and\d+)*)?)\/?/gi;
-      let match: RegExpExecArray | null;
+  const priorHtml = await fetchHtmlWith404Fallback(
+    fetchFn,
+    OLRC_PRIOR_RELEASE_POINTS_PAGE,
+    OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE
+  );
+  if (priorHtml) {
+    extractReleasePointsFromHtml(priorHtml, pointsMap);
+  }
 
-      const seen = new Set<string>();
-      while ((match = pattern.exec(html)) !== null) {
-        const congress = match[1];
-        const lawSegment = match[2]?.toLowerCase();
-        if (!congress || !lawSegment) continue;
+  const currentHtml = await fetchHtmlWith404Fallback(
+    fetchFn,
+    OLRC_DOWNLOAD_PAGE,
+    OLRC_LEGACY_DOWNLOAD_PAGE
+  );
+  if (currentHtml) {
+    extractReleasePointsFromHtml(currentHtml, pointsMap);
+  }
 
-        const key = `${congress}-${lawSegment}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        const parsed = parseReleasePointStr(`pl/${congress}/${lawSegment}`);
-        if (parsed) {
-          points.push(parsed);
-        }
-      }
-
-      points.sort(compareReleasePoints);
-      return points;
-    }
-  } catch {
-    // Fall through to cached list
+  if (pointsMap.size > 0) {
+    const points = Array.from(pointsMap.values());
+    points.sort(compareReleasePoints);
+    return points;
   }
 
   // Try loading from verified release points file

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { buildGovInfoSearchUrl } from '@civic-source/shared';
 
   interface Props {
     uscTitle: string | number;
@@ -120,7 +121,7 @@
     <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 text-center text-[var(--text-muted)] space-y-1">
       <p>No precomputed guidance records matched "{query}".</p>
       <a
-        href="https://www.govinfo.gov/app/search/%7B%22query%22%3A%22%5C%22{encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}%5C%22%22%2C%22offset%22%3A0%7D"
+        href={buildGovInfoSearchUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="inline-block font-semibold text-[var(--civic-action)] hover:underline mt-1"

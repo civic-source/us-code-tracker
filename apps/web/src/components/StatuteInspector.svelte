@@ -1,4 +1,10 @@
 <script lang="ts">
+  import {
+    buildCornellSectionUrl,
+    buildCourtListenerSearchUrl,
+    buildEcfrAuthoritySearchUrl,
+    buildGovInfoSectionUrl,
+  } from '@civic-source/shared';
   import type { CaseAnnotation } from '../lib/types';
   import type { ImplementingRegulation, SourceRefreshMeta } from '@civic-source/types';
   import FederalRegisterActivity from './FederalRegisterActivity.svelte';
@@ -300,7 +306,7 @@
             <p>No judicial citation records on file for § {uscSection}.</p>
           {/if}
           <a
-            href="https://www.courtlistener.com/?q={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}"
+            href={buildCourtListenerSearchUrl(uscTitle, uscSection)}
             target="_blank"
             rel="noopener noreferrer"
             class="mt-2 inline-block text-[var(--civic-action)] underline hover:opacity-80"
@@ -449,7 +455,7 @@
             Inspect full text and authority citations referencing {uscTitle} U.S.C. § {uscSection}.
           </p>
           <a
-            href="https://www.ecfr.gov/search?query={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}&search_type=authority"
+            href={buildEcfrAuthoritySearchUrl(uscTitle, uscSection)}
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1 text-[var(--civic-action)] font-medium hover:underline text-xs"
@@ -535,7 +541,7 @@
     </div>
     <div class="grid grid-cols-2 gap-1.5 text-[11px]">
       <a
-        href="https://www.govinfo.gov/link/uscode/{uscTitle}/{uscSection}"
+        href={buildGovInfoSectionUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] hover:border-[var(--civic-action)] transition-colors"
@@ -545,7 +551,7 @@
         <span class="text-[9px] text-[var(--text-muted)] ml-auto">PDF &rarr;</span>
       </a>
       <a
-        href="https://www.law.cornell.edu/uscode/text/{uscTitle}/{uscSection}"
+        href={buildCornellSectionUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] hover:border-[var(--civic-action)] transition-colors"

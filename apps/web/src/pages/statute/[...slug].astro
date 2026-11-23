@@ -1,6 +1,10 @@
 ---
 import { getCollection, render } from 'astro:content';
-import { compareSectionNumbers } from '@civic-source/shared';
+import {
+  buildCourtListenerSearchUrl,
+  buildOlrcSectionUrl,
+  compareSectionNumbers,
+} from '@civic-source/shared';
 import type { ImplementingRegulation, SourceRefreshMeta } from '@civic-source/types';
 import type { CaseAnnotation } from '../../lib/types';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -160,8 +164,9 @@ const sectionPath = `statutes/title-${usc_title}/chapter-${chapter}/section-${us
 
 const base = import.meta.env.BASE_URL;
 
-// OLRC link — requires &num=0&edition=prelim to resolve correctly
-const olrcUrl = `https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title${usc_title}-section${usc_section}&num=0&edition=prelim`;
+// OLRC static section URL
+const olrcUrl = buildOlrcSectionUrl(usc_title, usc_section);
+const chapterSectionNums = chapterSiblings.map((s: typeof entry) => s.data.usc_section);
 
 // Format generated_at date
 const formattedDate = generated_at
@@ -319,7 +324,11 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 
       <!-- Main statute content -->
       <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
-      <div id="current-statute-body" class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none">
+      <div
+        id="current-statute-body"
+        data-chapter-sections={JSON.stringify(chapterSectionNums)}
+        class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none"
+      >
         <Content />
       </div>
 
@@ -357,7 +366,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
               </p>
             </div>
             <a
-              href={`https://www.courtlistener.com/?q=${encodeURIComponent(`"${usc_title} U.S.C. § ${usc_section}"`)}&type=o`}
+              href={buildCourtListenerSearchUrl(usc_title, usc_section, { exactSectionSymbol: true, opinionsOnly: true })}
               target="_blank"
               rel="noopener noreferrer"
               class="rounded bg-[var(--civic-action)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--civic-action)] transition-colors hover:bg-[var(--civic-action)]/20"
@@ -465,11 +474,22 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     </div>
   </div>
 
-  <!-- Auto-link cross-references: "section N of this title" → chapter page anchor -->
+  <!-- Auto-link cross-references: "section N of this title" → chapter page anchor (same chapter only) -->
   <script is:inline define:vars={{ base, usc_title, chapter }}>
     (function () {
-      var prose = document.querySelector('.prose');
+      var prose = document.querySelector('#current-statute-body');
       if (!prose) return;
+      var chapterSectionMap = Object.create(null);
+      try {
+        var parsedSections = JSON.parse(prose.getAttribute('data-chapter-sections') || '[]');
+        if (Array.isArray(parsedSections)) {
+          parsedSections.forEach(function (sec) {
+            chapterSectionMap[String(sec).toLowerCase()] = String(sec);
+          });
+        }
+      } catch {
+        // Leave map empty if attribute is missing or malformed
+      }
       var pattern = /\bsection (\d+[a-z]?)\b(?:\s+of this title)?/gi;
       var chapterUrl = base + 'browse/title-' + usc_title + '/chapter-' + chapter + '/';
       var walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT);
@@ -484,13 +504,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         var lastIdx = 0;
         var m;
         while ((m = pattern.exec(text)) !== null) {
-          var secNum = m[1];
+          var canonicalSec = chapterSectionMap[m[1].toLowerCase()];
+          if (!canonicalSec) continue;
           if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
           var a = document.createElement('a');
-          a.href = chapterUrl + '#section-' + secNum;
+          a.href = chapterUrl + '#section-' + canonicalSec;
           a.textContent = m[0];
           a.className = 'text-teal underline underline-offset-2 decoration-teal/30 hover:decoration-teal';
-          a.title = 'View section ' + secNum;
+          a.title = 'View section ' + canonicalSec;
           frag.appendChild(a);
           lastIdx = m.index + m[0].length;
         }

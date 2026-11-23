@@ -1,14 +1,14 @@
 {
   "schemaVersion": "usct.publication-receipt/v1",
-  "publicationId": "pub-pl-119-73-9650ca79cbc9",
-  "acceptedDataCommitSha": "9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14",
+  "publicationId": "pub-pl-119-73-9053858fbfbd",
+  "acceptedDataCommitSha": "9053858fbfbd9a7bb7dd505f24620aab7614fe88",
   "acceptedDataTag": "pl-119-73",
-  "trackerSubmodulePinSha": "9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14",
-  "trackerBuildCommitSha": "df4128e9cb03a2f7c6e8b47a068e1ae8aab90b31",
-  "predecessorPublicationId": "pub-pl-119-73-d2fd4df0d55d",
-  "predecessorDataCommitSha": "d2fd4df0d55de167f29c13dd5ea9195a90ce4fa7",
-  "promotedAt": "2026-11-23T04:51:23.811Z",
+  "trackerSubmodulePinSha": "9053858fbfbd9a7bb7dd505f24620aab7614fe88",
+  "trackerBuildCommitSha": "a6b9b9a2e5b15f4aa9427105d8da94d4afc45bcf",
+  "predecessorPublicationId": "pub-pl-119-73-9650ca79cbc9",
+  "predecessorDataCommitSha": "9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14",
+  "promotedAt": "2026-11-23T14:01:29.634Z",
   "validationPassed": true,
   "requiredScopesComplete": true,
-  "manifestDigest": "45063057e70f7c2f925c44a871db98938c3055916636a7b2f673b4b9994f5243"
+  "manifestDigest": "1d3e648978b36a507c16d6b67132770fe69b384c4f8f5c4cd62c668cb596fdf1"
 }

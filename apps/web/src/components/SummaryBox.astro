@@ -1,5 +1,7 @@
 ---
 // USWDS-aligned Statutory Summary Box (usa-summary-box)
+import { buildCornellSectionUrl, buildGovInfoSectionUrl } from '@civic-source/shared';
+
 interface Props {
   classification: string;
   uscTitle: number | string;
@@ -92,7 +94,7 @@ const statusBadge = isRepealed
       </a>
 
       <a
-        href={`https://www.govinfo.gov/link/uscode/${uscTitle}/${uscSection}`}
+        href={buildGovInfoSectionUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] hover:border-[var(--civic-action)] transition-colors"
@@ -106,7 +108,7 @@ const statusBadge = isRepealed
       </a>
 
       <a
-        href={`https://www.law.cornell.edu/uscode/text/${uscTitle}/${uscSection}`}
+        href={buildCornellSectionUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] px-2.5 py-1 text-xs font-medium text-[var(--civic-action)] border border-[var(--border-subtle)] hover:border-[var(--civic-action)] transition-colors"

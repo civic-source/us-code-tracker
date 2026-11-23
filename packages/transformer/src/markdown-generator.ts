@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
+import { buildGovInfoPublicLawUrl, buildGovInfoStatuteUrl } from '@civic-source/shared';
 import type { StructuredNote, StructuredTable } from '@civic-source/types';
 import { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.js';
 import { extractTextFromNodes, findElements, getAttributes, getElementName } from './xml-utils.js';
@@ -368,10 +369,10 @@ export function formatSourceCredit(children: unknown[]): string {
         const refText = extractTextFromNodes(obj[USLM_ELEMENTS.ref] as unknown[]).trim();
         const statMatch = /^\/us\/stat\/(\d+)\/(\d+)/.exec(href);
         const plMatch = /^\/us\/pl\/(\d+)\/(\d+)/.exec(href);
-        if (statMatch) {
-          parts.push(`[${refText}](https://www.govinfo.gov/link/statute/${statMatch[1]}/${statMatch[2]})`);
-        } else if (plMatch) {
-          parts.push(`[${refText}](https://www.govinfo.gov/link/plaw/${plMatch[1]}/public/${plMatch[2]})`);
+        if (statMatch?.[1] && statMatch[2]) {
+          parts.push(`[${refText}](${buildGovInfoStatuteUrl(statMatch[1], statMatch[2])})`);
+        } else if (plMatch?.[1] && plMatch[2]) {
+          parts.push(`[${refText}](${buildGovInfoPublicLawUrl(plMatch[1], plMatch[2])})`);
         } else {
           parts.push(refText);
         }
