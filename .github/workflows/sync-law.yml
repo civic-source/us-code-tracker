@@ -5,6 +5,22 @@ on:
     # Sunday 2:00 AM ET (07:00 UTC during EDT, 06:00 UTC during EST)
     - cron: '0 7 * * 0'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Detect pending OLRC releases without pushing branches/tags or opening PRs'
+        required: false
+        type: boolean
+        default: true
+      skip_annotations:
+        description: 'Skip CourtListener annotation updates for changed sections'
+        required: false
+        type: boolean
+        default: false
+      max_annotations:
+        description: 'Maximum changed sections to annotate per sync run'
+        required: false
+        type: string
+        default: '50'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -17,13 +33,13 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
-      actions: write
+      pull-requests: write
     steps:
-      # Step 1: Checkout pipeline code
       - name: Checkout us-code-tracker
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.SYNC_DISPATCH_TOKEN || github.token }}
 
-      # Step 2: Setup Node.js 24 + pnpm
       - name: Setup pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
@@ -33,315 +49,156 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      # Step 3: Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build
+      - name: Build workspace packages
+        run: pnpm --filter '!@civic-source/web' build
 
-      # Step 4: Run fetcher — check for new OLRC release
-      - name: Check for new OLRC release
-        id: fetch
-        run: |
-          node --input-type=module <<'SCRIPT'
-          import { OlrcFetcher, HashStore } from '@civic-source/fetcher';
-
-          const fetcher = new OlrcFetcher({ hashStore: new HashStore() });
-          const result = await fetcher.listReleasePoints();
-
-          if (!result.ok) {
-            console.error(`Fetch failed: ${result.error.message}`);
-            process.exit(1);
-          }
-
-          const points = result.value;
-          if (points.length === 0) {
-            console.log('No release points found');
-            process.exit(0);
-          }
-
-          const publicLaw = points[0]?.publicLaw ?? 'Unknown';
-          const titles = points.map(p => p.title).join(',');
-
-          // Write outputs for subsequent steps
-          const fs = await import('node:fs');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_changes=true\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `public_law=${publicLaw}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `titles=${titles}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `title_count=${points.length}\n`);
-
-          console.log(`Found ${points.length} release points for ${publicLaw}`);
-          SCRIPT
-
-      # Step 5: Exit gracefully if no changes
-      - name: Check for changes
-        if: steps.fetch.outputs.has_changes != 'true'
-        run: |
-          echo "## No Changes Detected" >> "$GITHUB_STEP_SUMMARY"
-          echo "OLRC release points are up to date. No new content to sync." >> "$GITHUB_STEP_SUMMARY"
-          echo "Run completed at: $(TZ='America/New_York' date)" >> "$GITHUB_STEP_SUMMARY"
-
-      # Step 6: Run transformer on changed titles
-      - name: Transform statutes
-        if: steps.fetch.outputs.has_changes == 'true'
-        id: transform
-        run: |
-          mkdir -p workspace/statutes
-          node --input-type=module <<'SCRIPT'
-          import { OlrcFetcher, HashStore, extractXmlFromZip } from '@civic-source/fetcher';
-          import { XmlToMarkdownAdapter } from '@civic-source/transformer';
-          import { writeFile, mkdir } from 'node:fs/promises';
-          import { join, dirname } from 'node:path';
-
-          const fetcher = new OlrcFetcher({ hashStore: new HashStore() });
-          const result = await fetcher.listReleasePoints();
-          if (!result.ok) process.exit(1);
-
-          let totalSections = 0;
-          let failedTitles = 0;
-          const outputDir = 'workspace/statutes';
-
-          for (const rp of result.value) {
-            try {
-              const xmlResult = await fetcher.fetchXml(rp);
-              if (!xmlResult.ok) {
-                console.error(`Title ${rp.title}: fetch failed — ${xmlResult.error.message}`);
-                failedTitles++;
-                continue;
-              }
-              if (xmlResult.value === '') {
-                console.log(`Title ${rp.title}: unchanged, skipping`);
-                continue;
-              }
-
-              const xml = extractXmlFromZip(Buffer.from(xmlResult.value, 'base64'));
-              if (xml === null) {
-                console.error(`Title ${rp.title}: no XML in archive`);
-                failedTitles++;
-                continue;
-              }
-
-              const transformer = new XmlToMarkdownAdapter(rp.publicLaw);
-              const transformResult = transformer.transformToFiles(xml);
-              if (!transformResult.ok) {
-                console.error(`Title ${rp.title}: transform failed — ${transformResult.error.message}`);
-                failedTitles++;
-                continue;
-              }
-
-              for (const file of transformResult.value) {
-                const fullPath = join(outputDir, file.path);
-                await mkdir(dirname(fullPath), { recursive: true });
-                await writeFile(fullPath, file.content, 'utf-8');
-              }
-
-              totalSections += transformResult.value.length;
-              console.log(`Title ${rp.title}: ${transformResult.value.length} sections`);
-            } catch (e) {
-              console.error(`Title ${rp.title}: unexpected error — ${e}`);
-              failedTitles++;
-            }
-          }
-
-          const fs = await import('node:fs');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `sections=${totalSections}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `failed_titles=${failedTitles}\n`);
-          console.log(`Transform complete: ${totalSections} sections, ${failedTitles} failures`);
-          SCRIPT
-
-      # Step 7: Checkout us-code data repo
       - name: Checkout us-code data repo
-        if: steps.fetch.outputs.has_changes == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: civic-source/us-code
           path: us-code
-          token: ${{ secrets.US_CODE_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.US_CODE_PAT || github.token }}
 
-      # Step 8: Copy transformed statutes to us-code repo
-      - name: Copy statutes to data repo
-        if: steps.fetch.outputs.has_changes == 'true'
-        run: |
-          cp -r workspace/statutes/* us-code/statutes/ 2>/dev/null || true
-          echo "Copied transformed statutes to us-code/statutes/"
-
-      # Step 9: Commit statutes (atomic — statutes only)
-      - name: Commit statutes
-        if: steps.fetch.outputs.has_changes == 'true'
-        id: commit_statutes
-        working-directory: us-code
-        # OLRC-derived values are passed via env (never interpolated into the
-        # shell) so a malicious public-law string cannot inject commands (#229).
+      - name: Determine sync mode and check/import OLRC releases
+        id: sync
         env:
-          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          SKIP_ANNOTATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_annotations || false }}
+          MAX_ANNOTATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_annotations || '50' }}
+          COURTLISTENER_API_TOKEN: ${{ secrets.COURTLISTENER_API_TOKEN }}
+          HAS_US_CODE_PAT: ${{ secrets.US_CODE_PAT != '' }}
+          HAS_SYNC_DISPATCH_TOKEN: ${{ secrets.SYNC_DISPATCH_TOKEN != '' }}
         run: |
+          if [ "$DRY_RUN" != "true" ]; then
+            if [ "$HAS_US_CODE_PAT" != "true" ]; then
+              echo "::error::Missing secrets.US_CODE_PAT (requires contents:write and pull_requests:write on civic-source/us-code)"
+              exit 1
+            fi
+            if [ "$HAS_SYNC_DISPATCH_TOKEN" != "true" ]; then
+              echo "::error::Missing secrets.SYNC_DISPATCH_TOKEN (requires contents:write and pull_requests:write on civic-source/us-code-tracker)"
+              exit 1
+            fi
+          fi
+          ARGS=(--repo us-code --output-env "$GITHUB_OUTPUT")
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          if [ "$SKIP_ANNOTATIONS" = "true" ]; then
+            ARGS+=(--skip-annotations)
+          fi
+          if [ -n "$MAX_ANNOTATIONS" ]; then
+            ARGS+=(--max-annotations "$MAX_ANNOTATIONS")
+          fi
+          git -C us-code config user.name "github-actions[bot]"
+          git -C us-code config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "effective_dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          pnpm exec tsx scripts/sync-latest-release.ts "${ARGS[@]}"
+
+      - name: Push sync branch and open PR in civic-source/us-code
+        if: steps.sync.outputs.has_changes == 'true' && steps.sync.outputs.effective_dry_run != 'true'
+        id: data_pr
+        working-directory: us-code
+        env:
+          GH_TOKEN: ${{ secrets.US_CODE_PAT }}
+          LATEST_RELEASE: ${{ steps.sync.outputs.latest_release }}
+          LATEST_SLUG: ${{ steps.sync.outputs.latest_slug }}
+          CREATED_TAGS: ${{ steps.sync.outputs.created_tags }}
+          DATA_SHA: ${{ steps.sync.outputs.data_sha }}
+          SECTIONS_CHANGED: ${{ steps.sync.outputs.sections_changed }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Missing secrets.US_CODE_PAT (requires contents:write and pull_requests:write on civic-source/us-code)"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add statutes/
-          if git diff --cached --quiet; then
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-            echo "No statute changes to commit"
+          BRANCH="chore/sync-${LATEST_SLUG}-${DATA_SHA:0:8}"
+          git checkout -B "$BRANCH"
+          git push -u origin "$BRANCH"
+
+          PR_TITLE="chore(law): sync statutes through ${LATEST_RELEASE}"
+          PR_BODY="Automated OLRC release sync through **${LATEST_RELEASE}** (\`${DATA_SHA}\`). Sections added/updated: ${SECTIONS_CHANGED}. Release tags generated locally: \`${CREATED_TAGS:-none}\` (kept unpushed until PR merge so unmerged tags never pollute \`origin\` or block reruns; merge via \`gh pr merge --merge\`, never squash, then tag merged commit(s) if publishing release refs)."
+          EXISTING=$(gh pr list --repo civic-source/us-code --head "$BRANCH" --state open --json url --jq '.[0].url // ""')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --repo civic-source/us-code --title "$PR_TITLE" --body "$PR_BODY"
+            DATA_PR_URL="$EXISTING"
           else
-            git commit -m "chore(law): Update to $PUBLIC_LAW"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
+            DATA_PR_URL=$(gh pr create --repo civic-source/us-code --base main --head "$BRANCH" --title "$PR_TITLE" --body "$PR_BODY")
           fi
+          echo "pr_url=$DATA_PR_URL" >> "$GITHUB_OUTPUT"
 
-      # Step 10: Run annotator on changed sections
-      - name: Annotate sections
-        if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true'
-        id: annotate
-        run: |
-          node --input-type=module <<'SCRIPT'
-          import { Annotator, annotationToYaml } from '@civic-source/annotator';
-          import { readdir, writeFile, mkdir } from 'node:fs/promises';
-          import { join, dirname } from 'node:path';
-
-          const statutesDir = 'us-code/statutes';
-          const annotationsDir = 'us-code/annotations';
-          const annotator = new Annotator();
-          let annotatedCount = 0;
-          let failedCount = 0;
-
-          // Walk statutes directory to find .md files and annotate them
-          async function walk(dir) {
-            let entries;
-            try {
-              entries = await readdir(dir, { withFileTypes: true });
-            } catch {
-              return;
-            }
-            for (const entry of entries) {
-              const fullPath = join(dir, entry.name);
-              if (entry.isDirectory()) {
-                await walk(fullPath);
-              } else if (entry.name.endsWith('.md') && !entry.name.endsWith('.annotations.md')) {
-                // Extract section ref from path pattern: title-N/.../section-N.md
-                const match = fullPath.match(/title-(\d+[a-zA-Z]?)\/.*\/section-(\d+[a-zA-Z-]*)\.md$/);
-                if (!match) continue;
-
-                const sectionRef = `${match[1]} U.S.C. ${match[2]}`;
-                try {
-                  const result = await annotator.annotateSection(sectionRef);
-                  if (result.ok) {
-                    const outputPath = join('us-code', result.value.path);
-                    await mkdir(dirname(outputPath), { recursive: true });
-                    await writeFile(outputPath, annotationToYaml(result.value.annotation), 'utf-8');
-                    annotatedCount++;
-                  } else {
-                    console.warn(`Annotation failed for ${sectionRef}: ${result.error.message}`);
-                    failedCount++;
-                  }
-                } catch (e) {
-                  console.warn(`Annotation error for ${sectionRef}: ${e}`);
-                  failedCount++;
-                }
-              }
-            }
-          }
-
-          await walk(statutesDir);
-
-          const fs = await import('node:fs');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `annotated=${annotatedCount}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `annotation_failures=${failedCount}\n`);
-          console.log(`Annotation complete: ${annotatedCount} sections, ${failedCount} failures`);
-          SCRIPT
-
-      # Step 11: Commit annotations separately (atomic)
-      - name: Commit annotations
-        if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true'
-        id: commit_annotations
-        working-directory: us-code
-        # OLRC-derived public-law passed via env, not interpolated (#229).
+      - name: Validate data candidate and open submodule pin PR in us-code-tracker
+        if: steps.data_pr.outputs.pr_url != ''
+        id: tracker_pr
         env:
-          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
+          GH_TOKEN: ${{ secrets.SYNC_DISPATCH_TOKEN }}
+          DATA_SHA: ${{ steps.sync.outputs.data_sha }}
+          LATEST_RELEASE: ${{ steps.sync.outputs.latest_release }}
+          LATEST_SLUG: ${{ steps.sync.outputs.latest_slug }}
+          DATA_PR_URL: ${{ steps.data_pr.outputs.pr_url }}
         run: |
-          git add 'annotations/'
-          if git diff --cached --quiet; then
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-            echo "No annotation changes to commit"
-          else
-            git commit -m "chore(annotations): Sync precedent for $PUBLIC_LAW"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Missing secrets.SYNC_DISPATCH_TOKEN (requires contents:write and pull_requests:write on civic-source/us-code-tracker)"
+            exit 1
           fi
-
-      # Step 12: Validate and push to us-code repo, then promote submodule pin & receipt (USCT-033)
-      - name: Validate and push to us-code
-        if: steps.fetch.outputs.has_changes == 'true' && steps.commit_statutes.outputs.committed == 'true' && steps.transform.outputs.failed_titles == '0'
-        id: promote_data
-        run: |
-          DATA_SHA=$(git -C us-code rev-parse HEAD)
           pnpm exec tsx scripts/promote-publication.ts --action promote --tracker-repo . --data-repo us-code --ref "$DATA_SHA"
-          git -C us-code push
-          echo "data_sha=$DATA_SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Advance tracker submodule pin to accepted data commit (USCT-033, AUD-016)
-        if: steps.promote_data.outputs.data_sha != ''
-        id: advance_pin
-        env:
-          DATA_SHA: ${{ steps.promote_data.outputs.data_sha }}
-          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="chore/promote-${LATEST_SLUG}-${DATA_SHA:0:8}"
+          git checkout -B "$BRANCH"
           git add apps/web/content-data apps/web/public/publication-receipt.json apps/web/public/publication-history.json
           if [ -e apps/web/public/search-shards/manifest.json ]; then
             git add apps/web/public/search-shards/manifest.json
           fi
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(data): Promote validated $PUBLIC_LAW ($DATA_SHA)"
-            git push
-            echo "pin_pushed=true" >> "$GITHUB_OUTPUT"
+          if git diff --cached --quiet; then
+            echo "No tracker pin changes to open PR for."
+            exit 0
           fi
+          git commit -m "chore(publication): promote us-code through ${LATEST_RELEASE}"
+          git push -u origin "$BRANCH"
 
-      - name: Trigger downstream Deploy Site workflow after pin promotion (AUD-016)
-        if: steps.advance_pin.outputs.pin_pushed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_DISPATCH_TOKEN || github.token }}
-          DATA_SHA: ${{ steps.promote_data.outputs.data_sha }}
-        run: |
-          # Pushes authenticated with default GITHUB_TOKEN do not trigger push-based downstream workflows;
-          # dispatch deploy-site.yml explicitly and fail visibly if workflow_dispatch lacks permission.
-          if gh workflow run deploy-site.yml --ref main; then
-            echo "Dispatched deploy-site.yml for accepted data commit $DATA_SHA"
+          PR_TITLE="chore(publication): promote us-code through ${LATEST_RELEASE}"
+          PR_BODY="Promotes validated data commit \`${DATA_SHA}\` (${LATEST_RELEASE}) from ${DATA_PR_URL}. Merge the companion \`civic-source/us-code\` PR using a merge commit (never squash) before merging this PR so \`${DATA_SHA}\` and its \`pl-*\` tags remain on \`main\`."
+          EXISTING=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url // ""')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --repo "$GITHUB_REPOSITORY" --title "$PR_TITLE" --body "$PR_BODY"
+            TRACKER_PR_URL="$EXISTING"
           else
-            echo "::error::Unable to dispatch deploy-site.yml automatically; configure secrets.SYNC_DISPATCH_TOKEN with actions:write or run deploy-site.yml manually for $DATA_SHA"
-            exit 1
+            TRACKER_PR_URL=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "$PR_TITLE" --body "$PR_BODY")
           fi
+          echo "pr_url=$TRACKER_PR_URL" >> "$GITHUB_OUTPUT"
 
-      # Step 13: Write job summary
       - name: Write job summary
         if: always()
-        # All step outputs (several OLRC-derived) are passed via env and
-        # referenced as shell vars; their expanded values are not re-scanned
-        # for command substitution, so they cannot inject commands (#229).
         env:
-          PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
-          TITLE_COUNT: ${{ steps.fetch.outputs.title_count }}
-          SECTIONS: ${{ steps.transform.outputs.sections }}
-          FAILED_TITLES: ${{ steps.transform.outputs.failed_titles }}
-          ANNOTATED: ${{ steps.annotate.outputs.annotated }}
-          ANNOTATION_FAILURES: ${{ steps.annotate.outputs.annotation_failures }}
-          STATUTES_COMMITTED: ${{ steps.commit_statutes.outputs.committed }}
-          ANNOTATIONS_COMMITTED: ${{ steps.commit_annotations.outputs.committed }}
-          TITLES: ${{ steps.fetch.outputs.titles }}
+          EFFECTIVE_DRY_RUN: ${{ steps.sync.outputs.effective_dry_run }}
+          HAS_CHANGES: ${{ steps.sync.outputs.has_changes }}
+          LATEST_RELEASE: ${{ steps.sync.outputs.latest_release }}
+          PENDING_RELEASES: ${{ steps.sync.outputs.pending_releases }}
+          CREATED_TAGS: ${{ steps.sync.outputs.created_tags }}
+          SECTIONS_CHANGED: ${{ steps.sync.outputs.sections_changed }}
+          ANNOTATED: ${{ steps.sync.outputs.annotated }}
+          ANNOTATION_FAILURES: ${{ steps.sync.outputs.annotation_failures }}
+          DATA_PR_URL: ${{ steps.data_pr.outputs.pr_url }}
+          TRACKER_PR_URL: ${{ steps.tracker_pr.outputs.pr_url }}
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## US Code Sync Summary
 
           | Metric | Value |
-          |--------|-------|
-          | Public Law | ${PUBLIC_LAW:-N/A} |
-          | Titles found | ${TITLE_COUNT:-0} |
-          | Sections transformed | ${SECTIONS:-0} |
-          | Transform failures | ${FAILED_TITLES:-0} |
-          | Sections annotated | ${ANNOTATED:-0} |
-          | Annotation failures | ${ANNOTATION_FAILURES:-0} |
-          | Statutes committed | ${STATUTES_COMMITTED:-false} |
-          | Annotations committed | ${ANNOTATIONS_COMMITTED:-false} |
-
-          **Titles:** ${TITLES:-none}
-
-          Run completed at: $(TZ='America/New_York' date)
+          | --- | --- |
+          | Dry Run | ${EFFECTIVE_DRY_RUN:-true} |
+          | Changes Detected | ${HAS_CHANGES:-false} |
+          | Latest Release | ${LATEST_RELEASE:-N/A} |
+          | Pending Releases | ${PENDING_RELEASES:-none} |
+          | Created Tags | ${CREATED_TAGS:-none} |
+          | Sections Changed | ${SECTIONS_CHANGED:-0} |
+          | Sections Annotated | ${ANNOTATED:-0} |
+          | Annotation Failures | ${ANNOTATION_FAILURES:-0} |
+          | Data Repo PR | ${DATA_PR_URL:-N/A} |
+          | Tracker Promotion PR | ${TRACKER_PR_URL:-N/A} |
           EOF
