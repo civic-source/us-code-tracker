@@ -1,13 +1,13 @@
 # Acceptance Ledger — Civic Source 36-Ticket Plan & Independent Audit Remediation
 
-**Updated:** 2026-11-22  
+**Updated:** 2026-11-23  
 **Repositories & Pins Evaluated:**
-- `civic-source/us-code-tracker` `main` (`#322` `2688b79cf43e`, `#323` `df4128e9cb03`) + branch `chore/promote-us-code-9650ca79cbc9` promoting submodule pin `9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14` (`pub-pl-119-73-9650ca79cbc9`, predecessor `pub-pl-119-73-d2fd4df0d55d`)
-- `civic-source/us-code` `main` (`#4` merged at `9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14`, `pl-119-73`)
+- `civic-source/us-code-tracker` `main` (`#322` `2688b79cf43e`, `#323` `df4128e9cb03`, `#324` `a6b9b9a2e5b1`, `#325` `aafe8d29679a`) — current production pin `9053858fbfbd9a7bb7dd505f24620aab7614fe88` (`pub-pl-119-73-9053858fbfbd`, predecessor `pub-pl-119-73-9650ca79cbc9`)
+- `civic-source/us-code` `main` (`#4` merged at `9650ca79cbc95c53fe7b3a2c38ab22a40ccddb14`, `#5` merged at `9053858fbfbd9a7bb7dd505f24620aab7614fe88`, `pl-119-73`)
 - `civic-source/cap-citation-pipeline` `main` (`#2` merged at `0df00b4fb6f9a52e3f2e2f1656036fbfad859b6b`)
 - `civic-source/.github` `main` (`#2` merged at `aee6f5d78baea277e1e9ce4860109f708edd7c4a`, solo-maintainer Allstar policy + `AGENTS.md`)
 
-> **Acceptance Policy:** Every status below separates `code-tested`, `data-accepted`, `build-completed`, and `deployment-verified` states truthfully and cites actual entry points, retained artifact digests, executed verification commands, and observed outputs. Production GitHub Pages deployment for `df4128e9cb03` (`pub-pl-119-73-d2fd4df0d55d`) is verified via `deploy-site.yml` run `45110955782`.
+> **Acceptance Policy:** Every status below separates `code-tested`, `data-accepted`, `build-completed`, and `deployment-verified` states truthfully and cites actual entry points, retained artifact digests, executed verification commands, and observed outputs. Production GitHub Pages deployment for `aafe8d29679a` (`pub-pl-119-73-9053858fbfbd`, incorporating `#324`, `#325`, OLRC `/us/usc/` URLs, and link validation) is verified via `deploy-site.yml` run `45196303302` and `link-check.yml` run `45196331260`.
 
 ---
 

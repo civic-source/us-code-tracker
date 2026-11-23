@@ -1,6 +1,8 @@
 # US Code Tracker implementation plan
 
-**Prepared for William · November 21, 2026 · Proposed work, not implemented features**
+> **Archival Note (2026-11-23):** The 36-ticket implementation plan in this directory (`USCT-001`–`USCT-036`) and independent audit remediation (`AUD-001`–`AUD-016`) have been executed and recorded in [`ACCEPTANCE-LEDGER.md`](ACCEPTANCE-LEDGER.md). Active issues, follow-on work, and live triage now reside in [GitHub Issues](https://github.com/civic-source/us-code-tracker/issues). `SHA256SUMS` verifies the 54 baseline plan files listed within it (including refreshed checksums for archival banners and living docs such as `docs/OPERATIONS.md` and `docs/SOURCE-RECONCILIATION.md`).
+
+**Prepared for William · November 21, 2026 · Historical implementation baseline**
 
 This package combines the recovered November 14 Civic Source design discussion, its companion Homelab Compute Kit planning documents, a read-only review of the current Civic Source repositories, and useful patterns from The Axiom Foundation's RuleSpec ecosystem. It is designed for incremental implementation in the existing repositories.
 
