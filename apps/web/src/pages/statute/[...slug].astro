@@ -227,6 +227,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
     readingTimeMin={readingTimeMin}
     lastUpdated={formattedDate}
     olrcUrl={olrcUrl}
+    authorityCount={precedentCases.length + sectionRegulations.length}
   />
 
   <!-- Repealed / Reserved / Omitted / Transferred / Renumbered notices -->
@@ -421,7 +422,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 
     <!-- Right Workbench Rail: Statute Authority Inspector & Navigation Outlines -->
     <div data-pagefind-ignore class="flex flex-col gap-6 xl:w-80 2xl:w-96 shrink-0 xl:sticky xl:top-6 xl:self-start w-full">
-      <!-- Authority & Precedent Inspector (Docked on XL+, Floating drawer below XL) -->
+      <!-- Authority & Precedent Inspector (Docked on XL+, Inline disclosure card below XL) -->
       <StatuteInspector
         client:idle
         sectionId={usc_section}

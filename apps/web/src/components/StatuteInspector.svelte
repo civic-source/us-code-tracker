@@ -32,8 +32,9 @@
 
   type TabId = 'precedents' | 'regulations' | 'relationships' | 'rulemaking' | 'guidance';
   let activeTab = $state<TabId>('precedents');
-  let open = $state(false); // Mobile drawer toggle
+  let open = $state(false);
   let expandedHoldings = $state<Set<number>>(new Set());
+  const authorityCount = $derived(annotations.length + regulations.length);
 
   interface RelationshipEdge {
     assertionId: string;
@@ -101,6 +102,30 @@
     }
   });
 
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    const syncOpenFromRequest = (): void => {
+      if (
+        window.location.hash === '#statute-inspector' ||
+        document.documentElement.dataset.inspectorRequested === '1'
+      ) {
+        open = true;
+        delete document.documentElement.dataset.inspectorRequested;
+      }
+    };
+    const handleOpenEvent = (): void => {
+      open = true;
+      delete document.documentElement.dataset.inspectorRequested;
+    };
+    syncOpenFromRequest();
+    window.addEventListener('hashchange', syncOpenFromRequest);
+    window.addEventListener('civic:open-inspector', handleOpenEvent);
+    return () => {
+      window.removeEventListener('hashchange', syncOpenFromRequest);
+      window.removeEventListener('civic:open-inspector', handleOpenEvent);
+    };
+  });
+
   function isVerifiedHolding(c: CaseAnnotation): boolean {
     return (
       c.extractionState === 'verified' &&
@@ -146,58 +171,83 @@
   }
 </script>
 
-<!-- Mobile Floating Trigger -->
-<div class="fixed right-0 top-1/2 z-40 -translate-y-1/2 xl:hidden">
-  <button
-    onclick={() => (open = !open)}
-    class="flex items-center gap-1.5 rounded-l-md bg-[var(--civic-navy)] px-2.5 py-3 text-xs font-semibold text-white shadow-lg hover:opacity-90 transition-opacity cursor-pointer"
-    aria-label={open ? 'Close inspector' : 'Open inspector'}
-    aria-expanded={open}
-  >
-    {#if hasInvalidation}
-      <span class="inline-block h-2 w-2 rounded-full bg-[var(--legal-invalid)] animate-pulse" title="Warning: Constitutional Challenge/Holding"></span>
-    {/if}
-    <span>{open ? '›' : '‹'} Inspector</span>
-  </button>
-</div>
-
-<!-- Inspector Container: Card widget on XL+, Overlay Drawer below XL -->
+<!-- Inline collapsible disclosure card below XL; docked sticky right rail on XL+ -->
 <aside
-  class:list={[
-    'font-sans transition-all z-30',
-    // Mobile Drawer vs Desktop Docked Rail
-    open
-      ? 'fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[var(--surface-raised)] border-l border-[var(--border-default)] shadow-2xl p-5 overflow-y-auto block xl:static xl:w-80 2xl:w-96 xl:p-0 xl:shadow-2xs xl:border xl:border-[var(--border-default)] xl:rounded-xl xl:bg-[var(--surface-raised)]'
-      : 'hidden xl:block xl:w-80 2xl:w-96 xl:border xl:border-[var(--border-default)] xl:rounded-xl xl:bg-[var(--surface-raised)] shadow-2xs overflow-hidden sticky top-6 self-start shrink-0'
-  ]}
+  id="statute-inspector"
+  tabindex="-1"
+  class="font-sans w-full border border-[var(--border-default)] rounded-xl bg-[var(--surface-raised)] shadow-2xs overflow-hidden scroll-mt-20 focus:outline-none xl:w-80 2xl:w-96 xl:sticky xl:top-6 xl:self-start xl:shrink-0"
   aria-label="Statutory Authority & Precedent Inspector"
 >
-  <div class="sticky top-0 z-10 bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] p-3">
-    <!-- Header with Pinpoint Title and Close on Mobile -->
-    <div class="flex items-center justify-between pb-2">
+  <div
+    class={`xl:sticky xl:top-0 xl:z-10 bg-[var(--surface-sunken)] p-3 ${
+      open ? 'border-b border-[var(--border-subtle)]' : 'xl:border-b xl:border-[var(--border-subtle)]'
+    }`}
+  >
+    <button
+      type="button"
+      onclick={() => (open = !open)}
+      aria-expanded={open}
+      aria-controls="statute-inspector-panel"
+      class="flex w-full items-center justify-between gap-2 rounded text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--civic-action)] xl:hidden"
+    >
+      <span class="flex flex-wrap items-center gap-1.5 min-w-0">
+        {#if hasInvalidation}
+          <span class="inline-flex items-center gap-1 rounded-full bg-[var(--legal-invalid-bg)] text-[var(--legal-invalid)] px-2 py-0.5 text-[10px] font-bold">
+            <span aria-hidden="true">&#9888;</span> Unconstitutional
+          </span>
+        {:else if hasNarrowing}
+          <span class="inline-flex items-center gap-1 rounded-full bg-[var(--legal-caution-bg)] text-[var(--legal-caution)] px-2 py-0.5 text-[10px] font-semibold">
+            <span aria-hidden="true">&#9670;</span> Narrowed
+          </span>
+        {/if}
+        <span class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Authority Inspector</span>
+        <span class="font-mono text-xs font-semibold text-[var(--text-primary)]">§ {uscSection}</span>
+        {#if authorityCount > 0}
+          <span class="rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]">
+            {#if annotations.length > 0}{annotations.length} {annotations.length === 1 ? 'precedent' : 'precedents'}{/if}{#if annotations.length > 0 && regulations.length > 0}{' · '}{/if}{#if regulations.length > 0}{regulations.length} CFR{/if}
+          </span>
+        {:else}
+          <span class="rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+            Research tools
+          </span>
+        {/if}
+      </span>
+      <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--civic-action)]">
+        <span>{open ? 'Hide' : 'Expand'}</span>
+        <svg
+          class={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </span>
+    </button>
+
+    <div class="hidden xl:flex items-center justify-between">
       <div class="flex items-center gap-1.5">
         <span class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Authority Inspector</span>
         <span class="font-mono text-xs font-semibold text-[var(--text-primary)]">§ {uscSection}</span>
       </div>
-      {#if open}
-        <button
-          onclick={() => (open = false)}
-          class="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] xl:hidden cursor-pointer"
-          aria-label="Close inspector"
-        >✕</button>
-      {/if}
     </div>
+  </div>
 
-    <!-- Tab Navigation -->
-    <nav class="flex gap-1 overflow-x-auto text-xs" aria-label="Inspector tabs">
+  <div id="statute-inspector-panel" class={open ? 'block' : 'hidden xl:block'}>
+    <div class="bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] px-3 py-2">
+      <!-- Tab Navigation -->
+      <nav class="flex gap-1 overflow-x-auto text-xs" aria-label="Inspector tabs">
       <button
+        type="button"
+        aria-current={activeTab === 'precedents' ? 'true' : undefined}
         onclick={() => (activeTab = 'precedents')}
-        class:list={[
-          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+        class={`px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
           activeTab === 'precedents'
             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        ]}
+        }`}
       >
         <span>Precedents</span>
         {#if annotations.length > 0}
@@ -206,59 +256,63 @@
       </button>
 
       <button
+        type="button"
+        aria-current={activeTab === 'regulations' ? 'true' : undefined}
         onclick={() => (activeTab = 'regulations')}
-        class:list={[
-          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+        class={`px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
           activeTab === 'regulations'
             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        ]}
+        }`}
       >
         <span>CFR Rules</span>
         <span class="rounded-full bg-[var(--legal-valid-bg)] text-[var(--legal-valid)] px-1.5 py-0.2 text-[9px] font-bold">eCFR</span>
       </button>
 
       <button
+        type="button"
+        aria-current={activeTab === 'relationships' ? 'true' : undefined}
         onclick={() => (activeTab = 'relationships')}
-        class:list={[
-          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+        class={`px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
           activeTab === 'relationships'
             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        ]}
+        }`}
       >
         <span>Relationships</span>
       </button>
 
       <button
+        type="button"
+        aria-current={activeTab === 'rulemaking' ? 'true' : undefined}
         onclick={() => (activeTab = 'rulemaking')}
-        class:list={[
-          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+        class={`px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
           activeTab === 'rulemaking'
             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        ]}
+        }`}
       >
         <span>Federal Register</span>
       </button>
 
       <button
+        type="button"
+        aria-current={activeTab === 'guidance' ? 'true' : undefined}
         onclick={() => (activeTab = 'guidance')}
-        class:list={[
-          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+        class={`px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
           activeTab === 'guidance'
             ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        ]}
+        }`}
       >
         <span>Guidance</span>
         <span class="rounded-full bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber px-1.5 py-0.2 text-[9px] font-bold">Gov</span>
       </button>
-    </nav>
-  </div>
+      </nav>
+    </div>
 
-  <!-- Tab Content Panel -->
-  <div class="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
+    <!-- Tab Content Panel -->
+    <div class="p-4 space-y-4 xl:overflow-y-auto xl:max-h-[calc(100vh-140px)]">
     <!-- TAB 1: PRECEDENTS & RETRIEVAL EVIDENCE (USCT-002 & USCT-004) -->
     {#if activeTab === 'precedents'}
       {#if annotationRefreshStatus && (annotationRefreshStatus.isStale || annotationRefreshStatus.status === 'failed' || annotationRefreshStatus.status === 'partial')}
@@ -493,12 +547,11 @@
                   <span class="font-mono text-[10px] uppercase font-bold text-[var(--civic-action)]">
                     {edge.direction === 'outbound' ? '→' : '←'} {edge.relationType}
                   </span>
-                  <span class:list={[
-                    'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                  <span class={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
                     edge.extractionState === 'verified' && edge.editorialReview === 'accepted'
                       ? 'bg-[var(--legal-valid-bg)] text-[var(--legal-valid)]'
                       : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
-                  ]}>
+                  }`}>
                     {edge.extractionState}/{edge.editorialReview}
                   </span>
                 </div>
@@ -561,5 +614,6 @@
         <span class="text-[9px] text-[var(--text-muted)] ml-auto">&rarr;</span>
       </a>
     </div>
+  </div>
   </div>
 </aside>
