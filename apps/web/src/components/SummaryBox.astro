@@ -12,6 +12,7 @@ interface Props {
   readingTimeMin?: number;
   lastUpdated?: string;
   olrcUrl: string;
+  authorityCount?: number;
 }
 
 const {
@@ -24,6 +25,7 @@ const {
   readingTimeMin,
   lastUpdated,
   olrcUrl,
+  authorityCount = 0,
 } = Astro.props;
 
 const isRepealed = status === 'repealed';
@@ -68,7 +70,7 @@ const statusBadge = isRepealed
         {statusBadge.label}
       </span>
     </div>
-    <div class="flex items-center gap-1.5 text-xs">
+    <div class="flex flex-wrap items-center gap-1.5 text-xs">
       <button
         id="copy-cite-btn"
         data-citation={classification}
@@ -117,6 +119,19 @@ const statusBadge = isRepealed
       >
         <span>Cornell LII</span>
         <span aria-hidden="true">&rarr;</span>
+      </a>
+
+      <a
+        id="jump-to-inspector-link"
+        href="#statute-inspector"
+        data-pagefind-ignore
+        class="xl:hidden inline-flex items-center gap-1 rounded bg-[var(--civic-navy)] px-2.5 py-1 text-xs font-medium text-[var(--text-inverse)] shadow-2xs hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--civic-action)] transition-opacity"
+        aria-label={authorityCount > 0
+          ? `Authorities (${authorityCount}), jump to Statutory Authority Inspector for § ${uscSection}`
+          : `Research, jump to Statutory Authority Inspector for § ${uscSection}`}
+      >
+        <span>{authorityCount > 0 ? `Authorities (${authorityCount})` : 'Research'}</span>
+        <span aria-hidden="true">&darr;</span>
       </a>
 
       <button
@@ -176,6 +191,14 @@ const statusBadge = isRepealed
     if (printBtn) {
       printBtn.addEventListener('click', function() {
         window.print();
+      });
+    }
+
+    var jumpLink = document.getElementById('jump-to-inspector-link');
+    if (jumpLink) {
+      jumpLink.addEventListener('click', function() {
+        document.documentElement.dataset.inspectorRequested = '1';
+        window.dispatchEvent(new CustomEvent('civic:open-inspector'));
       });
     }
   })();
