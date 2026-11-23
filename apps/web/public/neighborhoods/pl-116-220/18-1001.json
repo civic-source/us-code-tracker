@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "usct.relationship-neighborhood/v1",
+  "provisionId": "prov-18-1001",
+  "citation": "18 U.S.C. 1001",
+  "releaseId": "pl-116-220",
+  "edges": [
+    {
+      "assertionId": "assert-cfr-19-162-authority-18-1001",
+      "direction": "inbound",
+      "relationType": "authority_citation",
+      "peerId": "prov-cfr-19-162",
+      "peerLabel": "prov-cfr-19-162",
+      "authorityKind": "regulation",
+      "extractionState": "verified",
+      "editorialReview": "accepted",
+      "versionAlignmentState": "verified",
+      "propositionText": "19 CFR Part 162 (Inspection, Search, and Seizure) explicitly cites 18 U.S.C. 1001 in its statutory authority note.",
+      "evidenceExcerpts": [
+        "Authority: 5 U.S.C. 301; 19 U.S.C. 66, 1592, 1593a, 1624; 18 U.S.C. 1001."
+      ]
+    }
+  ]
+}

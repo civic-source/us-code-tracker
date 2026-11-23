@@ -87,7 +87,7 @@ describe('Annotator', () => {
     expect(firstCase?.sourceUrl).toBe(
       'https://www.courtlistener.com/opinion/12345/doe-v-united-states/'
     );
-    expect(firstCase?.impact).toBe('interpretation');
+    expect(firstCase?.impact).toBe('unverified_mention');
     expect(firstCase?.retrievalExcerpt).toBe('The court held that the statute applies broadly.');
     expect(firstCase?.extractionState).toBe('candidate');
     expect(firstCase?.editorialReview).toBe('unreviewed');

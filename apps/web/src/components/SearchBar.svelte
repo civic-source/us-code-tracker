@@ -49,6 +49,7 @@
     aliases: string[];
     heading: string;
     excerpt: string;
+    bodyMarkdown?: string;
     historicalUrl: string;
   }
 
@@ -77,6 +78,26 @@
   const shardCache = new Map<string, HistoricalSearchShard>();
 
   let citationJump = $derived(parseCitation(query));
+
+  function resolveCitationJumpUrl(jump: { title: string; section: string }): string {
+    const base = getBaseUrl();
+    if (selectedRelease !== 'current') {
+      const shard = shardCache.get(`${selectedRelease}__title-${jump.title}`);
+      const match = shard?.entries.find(
+        (e) => e.uscTitle === jump.title && e.uscSection === jump.section
+      );
+      if (match) return match.historicalUrl;
+      return `${base}browse/title-${jump.title}/?release=${encodeURIComponent(selectedRelease)}#section-${jump.section}`;
+    }
+    return `${base}browse/title-${jump.title}/#section-${jump.section}`;
+  }
+
+  let citationJumpHref = $derived(
+    citationJump
+      ? (results.find((r) => r.url.includes(`/section-${citationJump.section}/`))?.url ??
+          resolveCitationJumpUrl(citationJump))
+      : '#'
+  );
 
   function getBaseUrl(): string {
     if (typeof document !== 'undefined') {
@@ -199,28 +220,42 @@
       return;
     }
 
-    const qLower = q.toLowerCase().trim();
+    const qTokens = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (qTokens.length === 0) {
+      loading = false;
+      return;
+    }
     const matched: PagefindResultData[] = [];
+    const failedShards: string[] = [];
 
     try {
       for (const title of relMeta.titlesAvailable) {
         const shardKey = `${releaseId}__title-${title}`;
         const shardMeta = historicalManifest.shards[shardKey];
-        if (!shardMeta) continue;
+        if (!shardMeta) {
+          failedShards.push(`title-${title} (missing manifest entry)`);
+          continue;
+        }
 
         let shard = shardCache.get(shardKey);
         if (!shard) {
           const res = await fetch(`${getBaseUrl()}${shardMeta.shardPath}`);
-          if (res.ok) {
-            shard = (await res.json()) as HistoricalSearchShard;
-            shardCache.set(shardKey, shard);
+          if (!res.ok) {
+            failedShards.push(`title-${title} (HTTP ${res.status})`);
+            continue;
           }
+          const loadedShard = (await res.json()) as HistoricalSearchShard;
+          if (shardMeta.shardDigest && (!loadedShard.shardDigest || shardMeta.shardDigest !== loadedShard.shardDigest)) {
+            failedShards.push(`title-${title} (digest mismatch or missing digest)`);
+            continue;
+          }
+          shard = loadedShard;
+          shardCache.set(shardKey, shard);
         }
-        if (!shard) continue;
 
         for (const entry of shard.entries) {
-          const hay = `${entry.citation} ${entry.aliases.join(' ')} ${entry.heading} ${entry.excerpt}`.toLowerCase();
-          if (hay.includes(qLower)) {
+          const hay = `${entry.citation} ${entry.aliases.join(' ')} ${entry.heading} ${entry.excerpt} ${entry.bodyMarkdown ?? ''}`.toLowerCase();
+          if (qTokens.every((token) => hay.includes(token))) {
             matched.push({
               url: entry.historicalUrl,
               meta: { title: `${entry.citation} — ${entry.heading} (${relMeta.label})` },
@@ -230,7 +265,9 @@
         }
       }
 
-      if (relMeta.coverageState !== 'complete') {
+      if (failedShards.length > 0) {
+        historicalWarning = `Incomplete historical shards for ${relMeta.label} (${failedShards.join(', ')}); current law is not substituted.`;
+      } else if (relMeta.coverageState !== 'complete') {
         historicalWarning = `Historical release ${relMeta.label} coverage is ${relMeta.coverageState}.`;
       }
       results = matched.slice(0, 10);
@@ -270,9 +307,7 @@
         window.location.href = results[activeIndex].url;
       } else if (citationJump) {
         event.preventDefault();
-        const base = getBaseUrl();
-        const releaseParam = selectedRelease !== 'current' ? `?release=${encodeURIComponent(selectedRelease)}` : '';
-        window.location.href = `${base}browse/title-${citationJump.title}/${releaseParam}#section-${citationJump.section}`;
+        window.location.href = citationJumpHref;
       }
     }
   }
@@ -336,7 +371,7 @@
       {#if citationJump}
         <li role="presentation" class="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-850">
           <a
-            href="{getBaseUrl()}browse/title-{citationJump.title}/{selectedRelease !== 'current' ? `?release=${encodeURIComponent(selectedRelease)}` : ''}#section-{citationJump.section}"
+            href={citationJumpHref}
             class="flex items-center justify-between rounded bg-white px-2.5 py-1.5 text-xs font-semibold text-teal shadow-2xs hover:bg-gray-50 dark:bg-gray-800 dark:text-teal-bright dark:hover:bg-gray-700"
           >
             <span class="flex items-center gap-1.5">

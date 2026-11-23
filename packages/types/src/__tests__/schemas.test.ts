@@ -382,7 +382,17 @@ describe('Canonical Data Contracts (M1–M5 schemas)', () => {
       mediaType: 'application/xml',
       storageLocator: 'artifacts/sha256/' + hex64,
     });
-    expect(artifact.license).toBe('CC0-1.0');
+    expect(artifact.license).toBe('unknown');
+
+    const cc0Artifact = SourceArtifactSchema.parse({
+      artifactId: 'art-cc0',
+      sha256: hex64,
+      byteLength: 512,
+      mediaType: 'application/xml',
+      storageLocator: 'artifacts/sha256/' + hex64,
+      license: 'CC0-1.0',
+    });
+    expect(cc0Artifact.license).toBe('CC0-1.0');
 
     const snapshot = SourceSnapshotSchema.parse({
       snapshotId: 'snap-1',

@@ -1,0 +1,60 @@
+---
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+
+const base = import.meta.env.BASE_URL;
+const indexPath = join(process.cwd(), 'public/topics/index.json');
+const indexData = JSON.parse(readFileSync(indexPath, 'utf-8')) as {
+  topics: Array<{
+    topicSlug: string;
+    title: string;
+    summary: string;
+    curator: string;
+    lastReviewedAt: string;
+    memberCount: number;
+    eventCount: number;
+  }>;
+};
+---
+
+<BaseLayout
+  title="Curated Legal Topics & Typed Change Feeds"
+  description="Curated statutory topics linking verified U.S. Code slices, implementing regulations, and judicial holdings with typed change feeds."
+>
+  <Breadcrumbs items={[{ label: 'Home', href: base }, { label: 'Topics' }]} />
+
+  <h1>Curated Legal Topics &amp; Change Feeds</h1>
+  <p>
+    Non-authoritative editorial navigation profiles anchored to verified U.S. Code release slices, CFR authority citations, and reviewed Supreme Court propositions (USCT-025).
+  </p>
+
+  <div class="not-prose mt-6 space-y-4 font-sans">
+    {indexData.topics.map((topic) => (
+      <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 shadow-2xs space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+          <span>Curator: {topic.curator}</span>
+          <span>Reviewed: {topic.lastReviewedAt.slice(0, 10)}</span>
+        </div>
+        <h2 class="text-lg font-bold text-[var(--text-primary)]">
+          <a href={`${base}topics/${topic.topicSlug}/`} class="text-[var(--civic-action)] hover:underline">
+            {topic.title}
+          </a>
+        </h2>
+        <p class="text-sm text-[var(--text-secondary)]">{topic.summary}</p>
+        <div class="flex flex-wrap items-center gap-3 pt-2 text-xs">
+          <a href={`${base}topics/${topic.topicSlug}/`} class="font-semibold text-[var(--civic-action)] hover:underline">
+            Open Topic Explorer ({topic.memberCount} sections, {topic.eventCount} typed events) &rarr;
+          </a>
+          <a href={`${base}topics/${topic.topicSlug}/feed.json`} class="rounded bg-[var(--surface-sunken)] px-2 py-0.5 font-mono hover:underline">
+            JSON Feed
+          </a>
+          <a href={`${base}topics/${topic.topicSlug}/feed.xml`} class="rounded bg-[var(--surface-sunken)] px-2 py-0.5 font-mono hover:underline">
+            RSS Feed
+          </a>
+        </div>
+      </div>
+    ))}
+  </div>
+</BaseLayout>

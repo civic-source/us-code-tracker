@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "usct.relationship-neighborhood-manifest/v1",
+  "shardCount": 16,
+  "shards": [
+    "pl-116-220/18-1001.json",
+    "pl-116-220/18-111.json",
+    "pl-116-220/18-1341.json",
+    "pl-116-220/18-1343.json",
+    "pl-116-220/18-1951.json",
+    "pl-116-220/18-1962.json",
+    "pl-116-220/18-2.json",
+    "pl-116-220/18-371.json",
+    "pl-119-73/18-1001.json",
+    "pl-119-73/18-111.json",
+    "pl-119-73/18-1341.json",
+    "pl-119-73/18-1343.json",
+    "pl-119-73/18-1951.json",
+    "pl-119-73/18-1962.json",
+    "pl-119-73/18-2.json",
+    "pl-119-73/18-371.json"
+  ]
+}

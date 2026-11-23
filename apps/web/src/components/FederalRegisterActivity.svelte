@@ -9,6 +9,7 @@
   }
 
   interface FederalRegisterDoc {
+    document_number?: string;
     title: string;
     type: string;
     action?: string;
@@ -17,6 +18,8 @@
     comments_close_on?: string;
     html_url: string;
     citation: string;
+    sourceSha256?: string;
+    extractionState?: string;
   }
 
   interface FederalRegisterSnapshotPayload {
@@ -77,7 +80,7 @@
       </span>
     </div>
     <p class="mt-1 text-[var(--text-muted)] text-[11px]">
-      Precomputed rulemaking notices, proposed rules, and comment dockets{snapshotAsOf ? ` (as of ${snapshotAsOf.slice(0, 10)})` : ''}.
+      Precomputed candidate rulemaking notices, proposed rules, and rules{snapshotAsOf ? ` (captured ${snapshotAsOf.slice(0, 10)})` : ''} — association does not establish statutory applicability.
     </p>
   </div>
 
@@ -125,6 +128,12 @@
           >
             {doc.title}
           </a>
+
+          <div class="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-muted)] font-mono">
+            {#if doc.document_number}<span>Doc: {doc.document_number}</span>{/if}
+            {#if doc.citation}<span>· {doc.citation}</span>{/if}
+            <span class="rounded bg-[var(--surface-sunken)] px-1 py-0.2 text-[9px] uppercase font-sans">{doc.extractionState ?? 'candidate'}</span>
+          </div>
 
           {#if doc.agency_names.length > 0}
             <div class="text-[10px] text-[var(--text-muted)] truncate">

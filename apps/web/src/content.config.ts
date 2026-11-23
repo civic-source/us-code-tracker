@@ -107,7 +107,13 @@ const legislativeHistory = defineCollection({
       congress: z.number(),
       billNumber: z.string().optional(),
       enactedDate: z.string().optional(),
+      effectiveDateNote: z.string().optional(),
+      applicabilityState: z.enum(['known', 'conditional', 'disputed', 'unknown']).optional(),
       crsSummary: z.string().optional(),
+      enactedTextExcerpt: z.string().optional(),
+      sourceCreditText: z.string().optional(),
+      extractionState: z.enum(['candidate', 'verified', 'rejected']).optional(),
+      editorialReview: z.enum(['unreviewed', 'accepted', 'disputed', 'superseded']).optional(),
       statutesAtLargeCitation: z.string().optional(),
       statutesAtLargeUrl: z.string().optional(),
       committeeReports: z.array(z.object({

@@ -18,7 +18,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { promisify, parseArgs } from 'node:util';
 
 import {
@@ -120,25 +120,74 @@ export async function validateDataCandidate(
     }
   }
 
-  // Check .import-state.json for incomplete releases or failed titles
-  let incompleteReleases: string[] = [];
+  // Check .import-state.json for incomplete releases or failed titles (AUD-004 / USCT-033)
+  let stateRaw: string | null = null;
   try {
-    const stateRaw = await gitExec(dataRepoPath, ['show', `${commitSha}:.import-state.json`]);
-    const state = JSON.parse(stateRaw) as {
-      incompleteReleases?: string[];
-      releaseLedger?: Record<string, { status: string }>;
-    };
-    if (Array.isArray(state.incompleteReleases)) {
-      incompleteReleases = state.incompleteReleases;
-    } else if (state.releaseLedger) {
-      incompleteReleases = Object.entries(state.releaseLedger)
-        .filter(([, v]) => v.status !== 'complete')
-        .map(([k]) => k);
+    await gitExec(dataRepoPath, ['cat-file', '-e', `${commitSha}:.import-state.json`]);
+    stateRaw = await gitExec(dataRepoPath, ['show', `${commitSha}:.import-state.json`]);
+  } catch (e: unknown) {
+    // Only skip if .import-state.json does not exist in this commit; fail if present but unreadable
+    const blobExists = await gitExec(dataRepoPath, ['cat-file', '-e', `${commitSha}:.import-state.json`])
+      .then(() => true)
+      .catch(() => false);
+    if (blobExists) {
+      return err(
+        new Error(
+          `Failed to read .import-state.json from candidate ${commitSha}: ${e instanceof Error ? e.message : String(e)}`
+        )
+      );
     }
-  } catch {
-    // .import-state.json is optional if repository was populated via sync-law.yml
   }
 
+  const incompleteSet = new Set<string>();
+  if (stateRaw !== null) {
+    let state: {
+      incompleteReleases?: unknown;
+      releaseLedger?: unknown;
+    };
+    try {
+      const parsed: unknown = JSON.parse(stateRaw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return err(new Error(`Malformed .import-state.json in candidate ${commitSha}: expected JSON object`));
+      }
+      state = parsed as { incompleteReleases?: unknown; releaseLedger?: unknown };
+    } catch (e: unknown) {
+      return err(
+        new Error(
+          `Malformed .import-state.json in candidate ${commitSha}: ${e instanceof Error ? e.message : String(e)}`
+        )
+      );
+    }
+
+    if (state.incompleteReleases !== undefined) {
+      if (!Array.isArray(state.incompleteReleases)) {
+        return err(
+          new Error(`Malformed .import-state.json in candidate ${commitSha}: incompleteReleases must be an array`)
+        );
+      }
+      for (const item of state.incompleteReleases) {
+        if (typeof item === 'string' && item.trim().length > 0) {
+          incompleteSet.add(item.trim());
+        }
+      }
+    }
+
+    if (state.releaseLedger !== undefined) {
+      if (!state.releaseLedger || typeof state.releaseLedger !== 'object' || Array.isArray(state.releaseLedger)) {
+        return err(
+          new Error(`Malformed .import-state.json in candidate ${commitSha}: releaseLedger must be an object`)
+        );
+      }
+      for (const [k, v] of Object.entries(state.releaseLedger as Record<string, unknown>)) {
+        const status = (v as { status?: unknown } | null)?.status;
+        if (status !== 'complete') {
+          incompleteSet.add(k);
+        }
+      }
+    }
+  }
+
+  const incompleteReleases = [...incompleteSet].sort();
   if (incompleteReleases.length > 0) {
     return err(
       new Error(
@@ -147,21 +196,57 @@ export async function validateDataCandidate(
     );
   }
 
-  // Verify statutes tree exists at commitSha and has at least one title-* directory
+  // Verify statutes tree exists at commitSha, every title-* entry is a directory tree (040000),
+  // and each title directory contains at least one .md statute file (AUD-004)
   let statuteTitleCount = 0;
   try {
-    const treeEntries = await gitExec(dataRepoPath, ['ls-tree', '--name-only', `${commitSha}:statutes`]);
-    const titles = treeEntries
+    const treeEntries = await gitExec(dataRepoPath, ['ls-tree', `${commitSha}:statutes`]);
+    const lines = treeEntries
       .split('\n')
       .map((s) => s.trim())
-      .filter((name) => name.startsWith('title-'));
-    statuteTitleCount = titles.length;
+      .filter(Boolean);
+
+    for (const line of lines) {
+      // Format: "<mode> <type> <object>\t<name>"
+      const tabIdx = line.indexOf('\t');
+      if (tabIdx < 0) continue;
+      const meta = line.slice(0, tabIdx).trim().split(/\s+/);
+      const name = line.slice(tabIdx + 1).trim();
+      if (!name.startsWith('title-')) continue;
+
+      const mode = meta[0];
+      const objType = meta[1];
+      if (mode !== '040000' || objType !== 'tree') {
+        return err(
+          new Error(
+            `Data candidate ${commitSha} contains invalid non-directory entry 'statutes/${name}' (mode=${mode}, type=${objType})`
+          )
+        );
+      }
+
+      const filesInTitle = await gitExec(dataRepoPath, [
+        'ls-tree',
+        '-r',
+        '--name-only',
+        `${commitSha}:statutes/${name}`,
+      ]);
+      const mdFiles = filesInTitle
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((f) => f.endsWith('.md'));
+      if (mdFiles.length === 0) {
+        return err(
+          new Error(`Data candidate ${commitSha} title directory 'statutes/${name}' contains zero .md statute files`)
+        );
+      }
+      statuteTitleCount++;
+    }
   } catch {
     return err(new Error(`Data candidate ${commitSha} is missing a valid 'statutes/' directory tree`));
   }
 
   if (statuteTitleCount === 0) {
-    return err(new Error(`Data candidate ${commitSha} contains zero 'statutes/title-*' partitions`));
+    return err(new Error(`Data candidate ${commitSha} contains zero valid 'statutes/title-*' directories`));
   }
 
   const manifestDigest = createHash('sha256')
@@ -278,6 +363,31 @@ export async function loadPublicationHistory(historyPath: string): Promise<Publi
   }
 }
 
+async function syncSearchManifestPublicationId(
+  trackerRepoPath: string,
+  publicationId: string
+): Promise<void> {
+  const searchManifestPath = join(
+    trackerRepoPath,
+    'apps/web/public/search-shards/manifest.json'
+  );
+  try {
+    const rawSearchManifest = await readFile(searchManifestPath, 'utf-8');
+    const parsedSearchManifest = JSON.parse(rawSearchManifest) as Record<string, unknown>;
+    if (
+      parsedSearchManifest &&
+      typeof parsedSearchManifest === 'object' &&
+      parsedSearchManifest['schemaVersion'] === 'usct.historical-search-manifest/v1' &&
+      parsedSearchManifest['generatedForPublicationId'] !== publicationId
+    ) {
+      parsedSearchManifest['generatedForPublicationId'] = publicationId;
+      await writeFile(searchManifestPath, JSON.stringify(parsedSearchManifest, null, 2) + '\n', 'utf-8');
+    }
+  } catch {
+    // Search manifest is optional in minimal test fixtures
+  }
+}
+
 /**
  * Promote a validated data candidate into the tracker's submodule pin and emit a verified PublicationReceipt (USCT-033).
  */
@@ -325,6 +435,39 @@ export async function promoteValidatedDataCandidate(
   const history = await loadPublicationHistory(historyPath);
 
   const publicationId = `pub-${candidate.tagName}-${candidate.commitSha.slice(0, 12)}`;
+
+  // AUD-005 / USCT-030: If the exact same publicationId and acceptedDataCommitSha is already promoted,
+  // treat repeat promotion as an idempotent no-op! Never set predecessorPublicationId to self
+  // and never overwrite the original promotedAt or predecessor chain, while ensuring search-shards/manifest.json stays synced.
+  if (
+    previousReceipt &&
+    previousReceipt.publicationId === publicationId &&
+    previousReceipt.acceptedDataCommitSha === candidate.commitSha &&
+    previousReceipt.validationPassed
+  ) {
+    // Ensure history file contains the existing receipt
+    if (!history.some((h) => h.publicationId === previousReceipt.publicationId)) {
+      await mkdir(dirname(historyPath), { recursive: true });
+      await writeFile(historyPath, JSON.stringify([...history, previousReceipt], null, 2) + '\n', 'utf-8');
+    }
+    await syncSearchManifestPublicationId(options.trackerRepoPath, previousReceipt.publicationId);
+    return ok(previousReceipt);
+  }
+
+  // Find the most recent distinct predecessor (never self!)
+  const distinctPredecessor =
+    previousReceipt &&
+    previousReceipt.publicationId !== publicationId &&
+    previousReceipt.acceptedDataCommitSha !== candidate.commitSha
+      ? previousReceipt
+      : [...history]
+          .reverse()
+          .find(
+            (h) =>
+              h.publicationId !== publicationId &&
+              h.acceptedDataCommitSha !== candidate.commitSha
+          );
+
   const receipt: PublicationReceipt = PublicationReceiptSchema.parse({
     schemaVersion: 'usct.publication-receipt/v1',
     publicationId,
@@ -332,10 +475,10 @@ export async function promoteValidatedDataCandidate(
     acceptedDataTag: candidate.tagName,
     trackerSubmodulePinSha: candidate.commitSha,
     trackerBuildCommitSha,
-    ...(previousReceipt
+    ...(distinctPredecessor
       ? {
-          predecessorPublicationId: previousReceipt.publicationId,
-          predecessorDataCommitSha: previousReceipt.acceptedDataCommitSha,
+          predecessorPublicationId: distinctPredecessor.publicationId,
+          predecessorDataCommitSha: distinctPredecessor.acceptedDataCommitSha,
         }
       : {}),
     promotedAt: nowIso,
@@ -346,6 +489,9 @@ export async function promoteValidatedDataCandidate(
 
   await mkdir(dirname(receiptPath), { recursive: true });
   await writeFile(receiptPath, JSON.stringify(receipt, null, 2) + '\n', 'utf-8');
+
+  // Synchronize search-shards/manifest.json generatedForPublicationId if present on disk
+  await syncSearchManifestPublicationId(options.trackerRepoPath, receipt.publicationId);
 
   const updatedHistory = [
     ...history.filter((h) => h.publicationId !== receipt.publicationId),
@@ -413,11 +559,120 @@ export async function verifyPublicationPinMatch(options: {
     );
   }
 
+  if (
+    receipt.predecessorPublicationId &&
+    receipt.predecessorPublicationId === receipt.publicationId
+  ) {
+    return err(
+      new Error(
+        `Invalid self-predecessor on publication receipt ${receipt.publicationId}`
+      )
+    );
+  }
+
+  // AUD-005 / USCT-020: Verify search-shards/manifest.json alignment and shard integrity when present
+  const searchManifestPath = join(
+    options.trackerRepoPath,
+    'apps/web/public/search-shards/manifest.json'
+  );
+  let rawManifest: string | null = null;
+  try {
+    rawManifest = await readFile(searchManifestPath, 'utf-8');
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      return err(
+        new Error(
+          `Failed to read historical search manifest at ${searchManifestPath}: ${e instanceof Error ? e.message : String(e)}`
+        )
+      );
+    }
+  }
+
+  if (rawManifest !== null) {
+    try {
+      const shardsRoot = resolve(options.trackerRepoPath, 'apps/web/public/search-shards');
+      const parsed = JSON.parse(rawManifest) as {
+        schemaVersion?: unknown;
+        generatedForPublicationId?: unknown;
+        shards?: unknown;
+      };
+      if (parsed.schemaVersion !== 'usct.historical-search-manifest/v1') {
+        return err(
+          new Error(
+            `Invalid historical search manifest schemaVersion: ${String(parsed.schemaVersion)}`
+          )
+        );
+      }
+      if (parsed.generatedForPublicationId !== receipt.publicationId) {
+        return err(
+          new Error(
+            `Historical search manifest publicationId (${String(parsed.generatedForPublicationId)}) does not match receipt publicationId (${receipt.publicationId})`
+          )
+        );
+      }
+      if (!parsed.shards || typeof parsed.shards !== 'object' || Array.isArray(parsed.shards)) {
+        return err(new Error('Historical search manifest shards field must be an object map'));
+      }
+      for (const [shardKey, meta] of Object.entries(
+        parsed.shards as Record<string, { shardPath?: string; shardDigest?: string }>
+      )) {
+        if (!meta?.shardPath) {
+          return err(new Error(`Historical search shard '${shardKey}' is missing shardPath`));
+        }
+        const shardFullPath = resolve(options.trackerRepoPath, 'apps/web/public', meta.shardPath);
+        if (!shardFullPath.startsWith(shardsRoot + sep)) {
+          return err(
+            new Error(`Historical search shard '${shardKey}' path escapes search-shards directory: ${meta.shardPath}`)
+          );
+        }
+        const shardRaw = await readFile(shardFullPath, 'utf-8');
+        const shardJson = JSON.parse(shardRaw) as { shardDigest?: unknown; entries?: unknown[] };
+        if (meta.shardDigest) {
+          if (typeof shardJson.shardDigest !== 'string' || shardJson.shardDigest.length === 0) {
+            return err(
+              new Error(`Historical search shard '${shardKey}' is missing required shardDigest`)
+            );
+          }
+          if (meta.shardDigest !== shardJson.shardDigest) {
+            return err(
+              new Error(
+                `Historical search shard '${shardKey}' digest mismatch: manifest=${meta.shardDigest} !== file=${shardJson.shardDigest}`
+              )
+            );
+          }
+        }
+        const expectedContentDigest =
+          meta.shardDigest ||
+          (typeof shardJson.shardDigest === 'string' && shardJson.shardDigest.length > 0
+            ? shardJson.shardDigest
+            : undefined);
+        if (expectedContentDigest && Array.isArray(shardJson.entries)) {
+          const computedDigest = createHash('sha256')
+            .update(JSON.stringify(shardJson.entries), 'utf8')
+            .digest('hex');
+          if (computedDigest !== expectedContentDigest) {
+            return err(
+              new Error(
+                `Historical search shard '${shardKey}' content digest mismatch: computed=${computedDigest} !== expected=${expectedContentDigest}`
+              )
+            );
+          }
+        }
+      }
+    } catch (e: unknown) {
+      return err(
+        new Error(
+          `Failed to verify historical search manifest at ${searchManifestPath}: ${e instanceof Error ? e.message : String(e)}`
+        )
+      );
+    }
+  }
+
   return ok(receipt);
 }
 
 /**
- * Roll back the publication receipt and submodule pin to the predecessor publication without rewriting data history (USCT-033).
+ * Roll back the publication receipt and submodule pin to the predecessor publication without rewriting data history (USCT-033, AUD-005).
  */
 export async function rollbackToPredecessorPublication(options: {
   trackerRepoPath: string;
@@ -438,12 +693,25 @@ export async function rollbackToPredecessorPublication(options: {
     return err(new Error(`Publication ${current.publicationId} has no recorded predecessor to roll back to`));
   }
 
+  if (
+    current.predecessorPublicationId === current.publicationId &&
+    current.predecessorDataCommitSha === current.acceptedDataCommitSha
+  ) {
+    return err(
+      new Error(`Publication ${current.publicationId} points to itself as predecessor; cannot roll back`)
+    );
+  }
+
   const history = await loadPublicationHistory(historyPath);
-  const predecessor = history.find(
-    (h) =>
-      h.publicationId === current.predecessorPublicationId ||
-      h.acceptedDataCommitSha === current.predecessorDataCommitSha
-  );
+  const predecessor = [...history]
+    .reverse()
+    .find(
+      (h) =>
+        h.publicationId !== current.publicationId &&
+        h.acceptedDataCommitSha !== current.acceptedDataCommitSha &&
+        (h.publicationId === current.predecessorPublicationId ||
+          h.acceptedDataCommitSha === current.predecessorDataCommitSha)
+    );
 
   if (!predecessor) {
     return err(
@@ -469,6 +737,7 @@ export async function rollbackToPredecessorPublication(options: {
   }
 
   await writeFile(receiptPath, JSON.stringify(predecessor, null, 2) + '\n', 'utf-8');
+  await syncSearchManifestPublicationId(options.trackerRepoPath, predecessor.publicationId);
   return ok(predecessor);
 }
 

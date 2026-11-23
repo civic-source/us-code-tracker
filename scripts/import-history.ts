@@ -10,7 +10,8 @@
  * - Uses immutable release tagging (`publishImmutableReleaseTag`) without `git tag -f`.
  */
 
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { writeFile, readFile, mkdir, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -81,6 +82,7 @@ export interface ImportMetrics {
 export interface StagedTitleUpdate {
   paddedTitle: string;
   outcome: TitleScopeOutcome;
+  allFiles: MarkdownFile[];
   changedFiles: MarkdownFile[];
   deletedPaths: string[];
   newManifest?: Record<string, string>;
@@ -123,6 +125,7 @@ export async function stageBatch(
       staged.push({
         paddedTitle,
         outcome,
+        allFiles: [],
         changedFiles: [],
         deletedPaths: [],
       });
@@ -145,6 +148,7 @@ export async function stageBatch(
       staged.push({
         paddedTitle,
         outcome: 'ok',
+        allFiles: files,
         changedFiles: [],
         deletedPaths: [],
         newManifest: manifestObj,
@@ -158,6 +162,7 @@ export async function stageBatch(
     staged.push({
       paddedTitle,
       outcome: 'ok',
+      allFiles: files,
       changedFiles,
       deletedPaths: delta.deleted,
       newManifest: manifestObj,
@@ -199,23 +204,67 @@ export async function processReleasePoint(
 
   const key = releasePointKey(rp);
   const existingLedger = state.releaseLedger?.[key];
+  const stagingDir = join(repoPath, '.import-staging', key);
 
-  // On resume of a partially failed release, only fetch titles not already completed for this release
-  const titlesNeeded = titlesToProcess.filter((t) => {
+  // Load any previously retained staged title snapshots for this release (AUD-001 / USCT-005)
+  const retainedStaged = new Map<string, StagedTitleUpdate>();
+  for (const t of titlesToProcess) {
     const prior = existingLedger?.titleOutcomes[t];
-    return prior !== 'ok' && prior !== 'absent';
-  });
+    const cacheFile = join(stagingDir, `${t}.json`);
+    if (prior === 'ok' && existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(await readFile(cacheFile, 'utf-8')) as {
+          paddedTitle: string;
+          allFiles: MarkdownFile[];
+          newManifest: Record<string, string>;
+        };
+        const currentManifest = buildManifest(cached.allFiles);
+        const previousRaw = state.manifests[t];
+        const previousManifest = new Map<string, string>(
+          previousRaw ? Object.entries(previousRaw) : []
+        );
+        const delta = detectDelta(previousManifest, currentManifest);
+        const changedSet = new Set(delta.changed);
+        retainedStaged.set(t, {
+          paddedTitle: t,
+          outcome: 'ok',
+          allFiles: cached.allFiles,
+          changedFiles: cached.allFiles.filter((f) => changedSet.has(f.path)),
+          deletedPaths: delta.deleted,
+          newManifest: cached.newManifest,
+        });
+      } catch {
+        // Corrupted cache file; will re-fetch below
+      }
+    } else if (prior === 'absent') {
+      retainedStaged.set(t, {
+        paddedTitle: t,
+        outcome: 'absent',
+        allFiles: [],
+        changedFiles: [],
+        deletedPaths: [],
+      });
+    }
+  }
 
-  const allStaged: StagedTitleUpdate[] = [];
+  // Fetch every title not already retained with verified bytes for this release
+  const titlesNeeded = titlesToProcess.filter((t) => !retainedStaged.has(t));
+
+  const freshlyStaged: StagedTitleUpdate[] = [];
   for (let i = 0; i < titlesNeeded.length; i += MAX_CONCURRENT) {
     const batch = titlesNeeded.slice(i, i + MAX_CONCURRENT);
     const stagedBatch = await stageBatch(batch, rp, state, rateLimiter, fetcherFn);
-    allStaged.push(...stagedBatch);
+    freshlyStaged.push(...stagedBatch);
 
     if (i + MAX_CONCURRENT < titlesNeeded.length && interTitleDelayMs > 0) {
       await new Promise<void>((r) => setTimeout(r, interTitleDelayMs));
     }
   }
+
+  const allStaged: StagedTitleUpdate[] = [
+    ...retainedStaged.values(),
+    ...freshlyStaged,
+  ];
 
   const titleOutcomes: Record<string, TitleScopeOutcome> = {};
   let failedTitles = 0;
@@ -232,13 +281,30 @@ export async function processReleasePoint(
     }
   }
 
-  // USCT-005: If ANY title failed at this release point, DO NOT write partial files as a committed release
-  // or create a release tag! Record the partial/failed outcome in the ledger so --resume retries it.
+  // USCT-005 & AUD-001: If ANY title failed at this release point, DO NOT write partial files to statutes/
+  // or create a release tag! Persist successful titles' bytes in `.import-staging/<key>/` so resuming R2
+  // reconstructs the complete R2 tree even after a later release R3 has modified the working tree.
   if (failedTitles > 0) {
     log.error('Release point had failed titles; staging aborted and release remains retryable', {
       label: rp.label,
       failedTitles,
     });
+    if (!dryRun) {
+      for (const s of freshlyStaged) {
+        if (s.outcome === 'ok' && s.allFiles.length > 0 && s.newManifest) {
+          await mkdir(stagingDir, { recursive: true });
+          await writeFile(
+            join(stagingDir, `${s.paddedTitle}.json`),
+            JSON.stringify({
+              paddedTitle: s.paddedTitle,
+              allFiles: s.allFiles,
+              newManifest: s.newManifest,
+            }),
+            'utf-8'
+          );
+        }
+      }
+    }
     recordReleaseLedgerOutcome(state, rp, titleOutcomes);
     if (!dryRun) {
       await saveState(repoPath, state);
@@ -246,19 +312,36 @@ export async function processReleasePoint(
     return { failedTitles };
   }
 
-  // All requested titles succeeded or were legitimately absent: apply staged file changes and manifests
+  // All requested titles succeeded or were legitimately absent:
+  // Clean up the staging directory for THIS completed release only (preserving any other incomplete release's staging cache!)
+  if (!dryRun) {
+    await rm(stagingDir, { recursive: true, force: true });
+  }
+
+  // Apply ALL files for every title in this release so resuming an earlier release R2 after R3
+  // never leaves R3 bytes in R2's committed tree (AUD-001)
   for (const s of allStaged) {
     if (s.outcome === 'ok' && s.newManifest) {
+      const priorPaths = Object.keys(state.manifests[s.paddedTitle] ?? {});
+      const newPathSet = new Set(s.allFiles.map((f) => f.path));
       state.manifests[s.paddedTitle] = s.newManifest;
-    }
-    if (!dryRun && (s.changedFiles.length > 0 || s.deletedPaths.length > 0)) {
-      for (const file of s.changedFiles) {
-        const fullPath = join(repoPath, file.path);
-        await mkdir(dirname(fullPath), { recursive: true });
-        await writeFile(fullPath, file.content, 'utf-8');
+      if (!dryRun) {
+        for (const file of s.allFiles) {
+          const fullPath = join(repoPath, file.path);
+          await mkdir(dirname(fullPath), { recursive: true });
+          await writeFile(fullPath, file.content, 'utf-8');
+        }
+        for (const p of [...s.deletedPaths, ...priorPaths.filter((oldP) => !newPathSet.has(oldP))]) {
+          await rm(join(repoPath, p), { force: true });
+        }
       }
-      for (const path of s.deletedPaths) {
-        await rm(join(repoPath, path), { force: true });
+    } else if (s.outcome === 'absent') {
+      const priorPaths = Object.keys(state.manifests[s.paddedTitle] ?? {});
+      delete state.manifests[s.paddedTitle];
+      if (!dryRun) {
+        for (const p of priorPaths) {
+          await rm(join(repoPath, p), { force: true });
+        }
       }
     }
   }
@@ -301,6 +384,21 @@ export async function processReleasePoint(
         kind: tagRes.kind,
       });
     }
+  } else if (!dryRun) {
+    // Even if a release point had 0 changed files relative to the current tree, ensure it receives
+    // its immutable release tag on the current tree so the ledger's tagName is valid (AUD-001).
+    const tagRes = await publishImmutableReleaseTag(repoPath, rp, {
+      state,
+      manifestHash,
+      allowCorrectionRevision,
+    });
+    if (tagRes.kind === 'collision_error') {
+      return { failedTitles: 1, collisionError: tagRes.message };
+    }
+    tagName = tagRes.tagName;
+    commitSha = tagRes.commitSha;
+    revision = tagRes.revision;
+    log.info('Tagged release point with no text changes', { label: rp.label, tag: tagName });
   } else {
     log.info('No changes for release point', { label: rp.label });
   }

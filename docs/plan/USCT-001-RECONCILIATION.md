@@ -84,6 +84,21 @@
 5. **Single-Host Fenced Task Acceptance Before External Executors (`ADR-006`)**:
    - Accepted: Implement local `TaskAttempt` leases, generations, and monotonic fencing tokens (`USCT-035`) first; keep `USCT-024` (local Gemma), `USCT-031` (HCK/ACQ adapter), and `USCT-032` (RuleSpec export) modular and non-blocking.
 
+### 3.1 Field-Level Schema-to-Evidence Acquisition & Uncertainty Disposition Matrix (Audit Reconciliation)
+
+| Schema Entity | Exact Field | Evidence Source | Disposition When Source Lacks Evidence |
+| --- | --- | --- | --- |
+| `SourceArtifact` | `sha256`, `byteLength`, `mediaType`, `storageLocator` | Content-addressed byte capture (`data/canonical-slice/cas/sha256/`) | Required for non-legacy artifacts; legacy Markdown uses git blob SHA with `legacyDerived: true` |
+| `SourceArtifact` | `license`, `attributionRequired`, `attributionText` | Official publisher terms (`CC0-1.0` for USLM/GovInfo/OFR/federal opinions) | Defaults to `'unknown'` (never inferred as `CC0-1.0` per `AUD-015`) |
+| `SourceSnapshot` | `requestedUrl`, `finalUrl`, `retrievedAt`, `publishedDate`, `publishedDatePrecision` | HTTP response URL + capture clock UTC + publisher release header | Historical Markdown lacks `retrievedAt` -> `legacyDerived: true`, never backdated |
+| `SourceRelease` | `releaseSegment`, `congress`, `lawIdentifier`, `exclusions`, `manifestDigest`, `observedAt` | OLRC release point index + sorted tree digest | `manifestDigest` computed over actual member tree; `exclusions` (`not60`) preserved verbatim |
+| `ProvisionVersion` | `normalizedContentHash`, `uslmIdentifier`, `notes`, `tables`, `unsupportedStructures` | `@civic-source/transformer` USLM 2.0/1.0 parser | Unsupported tags produce `unsupportedStructures` entry + plain-text fallback |
+| `TemporalBoundary` | `state`, `value`, `precision`, `basis`, `conditions`, `evidenceIds` | USLM `<note topic="effectiveDate">` & GovInfo Public Law text | Missing date with `state: 'known'` rejected by schema; missing end stays `unknown` (never implied `open`) |
+| `ApplicabilityClaim` | `applicabilityState`, `editorialReview`, `competingClaimIds`, `requiredContextFacts` | Enacted effective-date clauses + editorial review | `disputed` / `unreviewed` / evidenceless claims never return `'known'` in `queryLegallyApplicable` |
+| `LegalAssertion` | `relationType`, `extractionState`, `editorialReview`, `versionAlignmentState`, `evidenceIds` | USLM `<ref>`, eCFR PTOA authority note, CourtListener opinion passage, GovInfo PL | Unreviewed search hits stay `candidate` + `unreviewed` + `versionAlignmentState: 'unknown'` |
+| `CollectionCoverage` | `expectedPartitions`, `completedPartitions`, `absentPartitions`, `failedPartitions`, `coverageState` | Declared cohort/release partition manifest | Partial/missing scope stays `'partial'`/`'failed'` and cannot be masked as complete |
+| `PublicationReceipt` | `publicationId`, `acceptedDataCommitSha`, `predecessorPublicationId`, `manifestDigest` | `promote-publication.ts` atomic promotion + `search-shards/manifest.json` | Repeat promotion is an idempotent no-op (never self-predecessor) |
+
 ---
 
 ## 4. Schema-Field-to-Source Coverage & Acquisition-Gap Matrix

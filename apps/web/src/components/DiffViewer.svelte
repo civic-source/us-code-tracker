@@ -183,12 +183,10 @@
         const index = (await res.json()) as Record<string, string[]>;
         const key = `${parts.title}/${parts.section}`;
         const changedList = index[key];
-        if (changedList && Array.isArray(changedList)) {
-          const set = new Set(changedList);
-          if (tags.length > 0 && tags[0]) set.add(tags[0].name);
-          sectionChangePairs = set;
-          return;
-        }
+        const set = new Set(Array.isArray(changedList) ? changedList : []);
+        if (tags.length > 0 && tags[0]) set.add(tags[0].name);
+        sectionChangePairs = set;
+        return;
       }
     } catch {
       // Fall through to manifest probe
@@ -312,20 +310,7 @@
         }
 
         await buildSectionChangePairs();
-
-        try {
-          const commitResult = await getPaginatedFileHistory(repoOwner, repoName, sectionPath, {
-            token: githubToken,
-          });
-          commitHistoryCompleteness = commitResult.completeness;
-          if (commitResult.errorMessage) {
-            catalogWarning = commitResult.errorMessage;
-          }
-          const seen = new Set<string>();
-          commits = commitResult.items.filter((c) => !seen.has(c.message) && seen.add(c.message));
-        } catch {
-          commitHistoryCompleteness = "failed";
-        }
+        // Do not auto-fetch external GitHub API commits when static diffs are active (keeps offline/blocked-API browsing zero-network); users can opt in via loadLiveCommitLedger()
         return;
       }
 
@@ -346,7 +331,7 @@
           .join(" • ");
       }
       const seen = new Set<string>();
-      commits = commitResult.items.filter((c) => !seen.has(c.message) && seen.add(c.message));
+      commits = commitResult.items.filter((c) => !seen.has(c.sha) && seen.add(c.sha));
       tags = tagResult.items;
       if (tags.length > 0) {
         compareTo = tags[tags.length - 1]?.name ?? "";
@@ -369,6 +354,15 @@
     error = "";
     try {
       if (usingStaticDiffs) {
+        if (
+          sectionChangePairs.size > 0 &&
+          !sectionChangePairs.has(compareFrom) &&
+          !sectionChangePairs.has(compareTo)
+        ) {
+          diffLines = [];
+          hasCompared = true;
+          return;
+        }
         const staticDiff = await fetchStaticDiff(compareFrom, compareTo);
         diffLines = staticDiff ? staticDiff.lines : [];
         hasCompared = true;
@@ -477,6 +471,26 @@
     const m = msg.match(/(\d{3})-(\d+)/);
     if (m) return `${2013 + (parseInt(m[1]!, 10) - 113) * 2}`;
     return gitDate ? new Date(gitDate).toLocaleDateString() : "";
+  }
+
+  let loadingLiveCommits = $state(false);
+  async function loadLiveCommitLedger(): Promise<void> {
+    loadingLiveCommits = true;
+    try {
+      const commitResult = await getPaginatedFileHistory(repoOwner, repoName, sectionPath, {
+        token: githubToken,
+      });
+      commitHistoryCompleteness = commitResult.completeness;
+      if (commitResult.errorMessage) {
+        catalogWarning = commitResult.errorMessage;
+      }
+      const seen = new Set<string>();
+      commits = commitResult.items.filter((c) => !seen.has(c.sha) && seen.add(c.sha));
+    } catch {
+      commitHistoryCompleteness = "failed";
+    } finally {
+      loadingLiveCommits = false;
+    }
   }
 
   $effect(() => {
@@ -969,8 +983,19 @@
         </div>
 
         {#if commits.length === 0}
-          <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-6 text-center text-xs text-[var(--text-muted)]">
-            No commit ledger history found for this section.
+          <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-6 text-center text-xs text-[var(--text-muted)] space-y-3">
+            <p>
+              {usingStaticDiffs
+                ? "Using precomputed offline release diffs. Live GitHub commit history lookup is opt-in so static browsing works without external API calls."
+                : "No commit ledger history found for this section."}
+            </p>
+            <button
+              onclick={() => void loadLiveCommitLedger()}
+              disabled={loadingLiveCommits}
+              class="rounded-lg bg-[var(--civic-navy)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            >
+              {loadingLiveCommits ? "Loading GitHub commit ledger…" : "Load Live GitHub Commit Ledger"}
+            </button>
           </div>
         {:else}
           {@const visibleCommits = showAllHistory ? commits : commits.slice(0, HISTORY_PREVIEW_COUNT)}

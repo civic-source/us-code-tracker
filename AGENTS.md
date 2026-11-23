@@ -85,7 +85,7 @@ safety > correctness > compliance > simplicity > performance
 
 ### 3.2 Requires Explicit User Approval
 - **Destructive or history-altering Git operations** — resetting, force-pushing, deleting branches/tags, or discarding uncommitted statutory import runs in `civic-source-us-code` (`.import-state.json`, `.import-progress.json`, `statutes/`).
-- **Committing or pushing to remote repositories** (`origin/main` or feature branches) or merging Pull Requests.
+- **Committing or pushing to remote repositories** (`origin/main` or feature branches) or merging Pull Requests. **Never invoke `gh pr merge --admin`** — always use standard merge commands (`gh pr merge <num> --squash --delete-branch`), and if branch protection reports `REVIEW_REQUIRED` (`BLOCKED`), leave the PR open with green CI and independent review receipts as an explicit human-approval gate.
 - **Adding, upgrading, or removing dependencies** or accepting any software license / EULA.
 - **Modifying CI/CD workflows** (`.github/workflows/*.yml`) or Allstar security policies (`.allstar/*.yaml`).
 - **Running bulk external network jobs** (full OLRC historical backfills or full 60k-section CourtListener scrapes).
@@ -193,7 +193,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ## 7. Commit, PR & Release Conventions
 
-- **Conventional Commits**: `type(scope): description` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`). Enforced by `commitlint` on PR titles (squash-merge subject).
+- **Conventional Commits**: `type(scope): description` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`). Enforced by `commitlint` on PR titles (squash-merge subject). Validate non-trivial PR titles with `echo "$PR_TITLE" | npx commitlint` before opening or updating PRs.
+- **Four-Stage Acceptance Truthfulness**: Report `code-tested`, `data-accepted`, `build-completed`, and `deployment-verified` states separately — never conflate local build/test success with merged or deployed production state.
+- **Mandatory Pre-PR Execution Spine**: Before opening or updating a PR, run `pnpm typecheck && pnpm lint && pnpm test`, verify full static build + blocked-API Playwright checks when web UI/assets change, verify `npx tsx scripts/promote-publication.ts --action verify`, and run independent `nexus-agents` `pr_review` against the real unified `git diff` (never prose summaries).
 - **Statutory Data Commits (`us-code`)**: Automated law commits use `chore(law): Update to PL XXX-XXX` (tagged `pl-XXX-XXX`); precedent updates use `chore(annotations): Sync precedent for PL XXX-XXX`.
 - **AI Attribution**: Disclose AI assistance at the PR level (recommended) and optionally via `Co-authored-by:` commit trailers per GSA-TTS §2.1.
 - **Releases**: Managed via `release-please` (`release-please-config.json` + `.release-please-manifest.json`). Merging the automated Release PR tags `v0.x.y` and publishes the GitHub Release.

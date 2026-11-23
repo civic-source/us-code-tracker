@@ -40,9 +40,29 @@ interface DiffManifestPair {
 }
 
 interface DiffManifest {
+  producerVersion?: string;
   pairs: DiffManifestPair[];
   incompleteReleases?: string[];
   generatedAt: string;
+}
+
+const DIFF_PRODUCER_VERSION = 'usct.diff-generator/v2';
+
+async function countPairDiffFiles(outputDir: string, pairKey: string): Promise<number> {
+  const pairDir = join(outputDir, pairKey);
+  let count = 0;
+  try {
+    const titles = await readdir(pairDir);
+    for (const titleDir of titles) {
+      const sections = await readdir(join(pairDir, titleDir)).catch(() => [] as string[]);
+      for (const s of sections) {
+        if (s.endsWith('.json')) count++;
+      }
+    }
+  } catch {
+    return -1;
+  }
+  return count;
 }
 
 /** Frontmatter fields that change on every regeneration — not meaningful diffs */
@@ -167,21 +187,13 @@ export function findGapsBetweenTags(
 
 // --- Main ---
 
-async function runCli() {
-  const { values } = parseArgs({
-    options: {
-      repo: { type: 'string' },
-      output: { type: 'string' },
-      full: { type: 'boolean', default: false },
-      recent: { type: 'string' },
-    },
-  });
-  const { repo, output, full, recent } = values;
-
-  if (!repo || !output) {
-    console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full] [--recent <n>]');
-    process.exit(1);
-  }
+export async function runGenerateDiffs(options: {
+  repo: string;
+  output: string;
+  full?: boolean;
+  recent?: string;
+}): Promise<DiffManifest> {
+  const { repo, output, full = false, recent } = options;
 
   let tags = getTags(repo);
   if (recent) {
@@ -192,15 +204,33 @@ async function runCli() {
   }
   const incompleteReleases = await loadRepoIncompleteReleases(repo);
   console.log(`Found ${tags.length} pl-* tags: ${tags[0]} \u2026 ${tags[tags.length - 1]}`);
-  if (tags.length < 2) { console.error('Need at least 2 tags to generate diffs.'); process.exit(1); }
+  if (tags.length < 2) {
+    throw new Error('Need at least 2 tags to generate diffs.');
+  }
 
   const existingManifest = full ? null : await loadExistingManifest(output);
-  const existingPairs = new Set(
-    existingManifest?.pairs.map(p => `${p.from}_${p.to}`) ?? []
-  );
+  const existingPairMap = new Map<string, DiffManifestPair>();
+  for (const p of existingManifest?.pairs ?? []) {
+    existingPairMap.set(`${p.from}_${p.to}`, p);
+  }
+
+  const verifiedCachedPairs: DiffManifestPair[] = [];
+  const validExistingKeys = new Set<string>();
+  for (const [key, pair] of existingPairMap.entries()) {
+    const actualFiles = await countPairDiffFiles(output, key);
+    // AUD-012 / USCT-018: Only reuse a cached pair when its on-disk diff files match changedSections
+    if (
+      (pair.changedSections === 0 && actualFiles <= 0) ||
+      (pair.changedSections > 0 && actualFiles === pair.changedSections)
+    ) {
+      validExistingKeys.add(key);
+      verifiedCachedPairs.push(pair);
+    }
+  }
 
   const manifest: DiffManifest = {
-    pairs: existingManifest?.pairs ?? [],
+    producerVersion: DIFF_PRODUCER_VERSION,
+    pairs: verifiedCachedPairs,
     ...(incompleteReleases.length > 0 ? { incompleteReleases } : {}),
     generatedAt: new Date().toISOString(),
   };
@@ -214,7 +244,7 @@ async function runCli() {
     const key = `${from}_${to}`;
     const gaps = findGapsBetweenTags(from, to, incompleteReleases);
 
-    if (existingPairs.has(key)) {
+    if (validExistingKeys.has(key)) {
       skipped++;
       continue;
     }
@@ -272,6 +302,26 @@ async function runCli() {
   await writeFile(join(output, 'manifest.json'), JSON.stringify(manifest, null, 2));
   await writeFile(join(output, 'changed-sections.json'), JSON.stringify(sectionChanges));
   console.log(`Done. ${computed} new pairs computed, ${skipped} skipped (already cached). ${Object.keys(sectionChanges).length} sections with changes tracked. Manifest: ${output}/manifest.json`);
+  return manifest;
+}
+
+async function runCli() {
+  const { values } = parseArgs({
+    options: {
+      repo: { type: 'string' },
+      output: { type: 'string' },
+      full: { type: 'boolean', default: false },
+      recent: { type: 'string' },
+    },
+  });
+  const { repo, output, full, recent } = values;
+
+  if (!repo || !output) {
+    console.error('Usage: npx tsx scripts/generate-diffs.ts --repo <path> --output <path> [--full] [--recent <n>]');
+    process.exit(1);
+  }
+
+  await runGenerateDiffs({ repo, output, full, ...(recent ? { recent } : {}) });
 }
 
 if (process.argv[1]?.endsWith('generate-diffs.ts')) {

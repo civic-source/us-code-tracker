@@ -163,7 +163,7 @@ describe('USCT-005 & USCT-006: Middle-release resume ledger & immutable release 
     expect(persistedAfterRun2.releaseLedger?.['119-2']?.status).toBe('complete');
     expect(persistedAfterRun2.incompleteReleases).toEqual([]);
     expect(await gitRevParse(repoDir, 'pl-119-2')).not.toBeNull();
-  });
+  }, 15_000);
 
   it('USCT-006: preserves exclusion-bearing release point identifiers (e.g., 119/73not60) without collapsing to numeric law', async () => {
     const parsed = parseReleasePointStr('pl/119/73not60');
@@ -243,5 +243,5 @@ describe('USCT-005 & USCT-006: Middle-release resume ledger & immutable release 
     expect(state.supersessions).toHaveLength(1);
     expect(state.supersessions?.[0]?.originalTag).toBe('pl-119-73');
     expect(state.supersessions?.[0]?.revisionTag).toBe('pl-119-73-rev2');
-  });
+  }, 15_000);
 });

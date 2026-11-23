@@ -7,73 +7,158 @@
   "coverageState": "complete",
   "entries": [
     {
-      "provisionId": "prov-18-2",
-      "provisionVersionId": "pv-18-2-pl-116-220",
-      "releaseId": "pl-116-220",
-      "uscTitle": "18",
-      "uscSection": "2",
-      "citation": "18 U.S.C. 2",
-      "aliases": [
-        "18 U.S.C. 2"
-      ],
-      "heading": "§ 2. Principals",
-      "excerpt": "- **(a)** Whoever commits an offense against the United States or aids, abets, counsels, commands, induces or procures its commission, is punishable as a principal. - **(b)** Whoever willfully causes an act to be done which if directly performed by him or another would be an offense against the United States, is punishable as a principal.",
-      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-1/section-2/?release=pl-116-220"
-    },
-    {
-      "provisionId": "prov-18-111",
-      "provisionVersionId": "pv-18-111-pl-116-220",
-      "releaseId": "pl-116-220",
-      "uscTitle": "18",
-      "uscSection": "111",
-      "citation": "18 U.S.C. 111",
-      "aliases": [
-        "18 U.S.C. 111"
-      ],
-      "heading": "§ 111. Assaulting, resisting, or impeding certain officers or employees",
-      "excerpt": "- **(a)** Whoever— - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official duties during",
-      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-7/section-111/?release=pl-116-220"
-    },
-    {
-      "provisionId": "prov-18-371",
-      "provisionVersionId": "pv-18-371-pl-116-220",
-      "releaseId": "pl-116-220",
-      "uscTitle": "18",
-      "uscSection": "371",
-      "citation": "18 U.S.C. 371",
-      "aliases": [
-        "18 U.S.C. 371"
-      ],
-      "heading": "§ 371. Conspiracy to commit offense or to defraud United States",
-      "excerpt": "If two or more persons conspire either to commit any offense against the United States, or to defraud the United States, or any agency thereof in any manner or for any purpose, and one or more of such persons do any act to effect the object of the conspiracy, each shall be fined under this title or imprisoned not more than five years, or both. If, however, the offense, the commission of which is t",
-      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-19/section-371/?release=pl-116-220"
-    },
-    {
       "provisionId": "prov-18-1001",
       "provisionVersionId": "pv-18-1001-pl-116-220",
       "releaseId": "pl-116-220",
       "uscTitle": "18",
+      "uscChapter": "47",
       "uscSection": "1001",
       "citation": "18 U.S.C. 1001",
       "aliases": [
         "18 U.S.C. 1001"
       ],
       "heading": "§ 1001. Statements or entries generally",
+      "status": "active",
       "excerpt": "- **(a)** Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully— - **(1)** falsifies, conceals, or covers up by any trick, scheme, or device a material fact; - **(2)** makes any materially false, fictitious, or fraudulent statement or representati",
+      "bodyMarkdown": "# § 1001. Statements or entries generally\n\n- **(a)** Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully—\n  - **(1)** falsifies, conceals, or covers up by any trick, scheme, or device a material fact;\n  - **(2)** makes any materially false, fictitious, or fraudulent statement or representation; or\n  - **(3)** makes or uses any false writing or document knowing the same to contain any materially false, fictitious, or fraudulent statement or entry; shall be fined under this title, imprisoned not more than 5 years or, if the offense involves international or domestic terrorism (as defined in section 2331), imprisoned not more than 8 years, or both.\n\n**Maximum Imprisonment Schedule Under Subsection (a)**\n\n| Offense Context | Maximum Term |\n| --- | --- |\n| Standard material false statement or concealment | 5 years |\n| Offense involving international or domestic terrorism (18 U.S.C. 2331) | 8 years |\n\n- **(b)** Subsection (a) does not apply to a party to a judicial proceeding, or that party's counsel, for statements, representations, writings or documents submitted by such party or counsel to a judge or magistrate in that proceeding.\n- **(c)** With respect to any matter within the jurisdiction of the legislative branch, subsection (a) shall apply only to—\n  - **(1)** administrative matters, including a claim for payment, a matter related to the procurement of property or services, personnel or employment practices, or support services, or a document required by law, rule, or regulation to be submitted to the Congress or any office or officer within the legislative branch; or\n  - **(2)** any investigation or review, conducted pursuant to the authority of any committee, subcommittee, commission or office of the Congress, consistent with applicable rules of the House or Senate.\n\n## Source Credit\n\n*(June 25, 1948, ch. 645, [62 Stat. 749](https://www.govinfo.gov/link/statute/62/749); [Pub. L. 104–292, § 2](https://www.govinfo.gov/link/plaw/104/public/292), Oct. 11, 1996, [110 Stat. 3459](https://www.govinfo.gov/link/statute/110/3459); [Pub. L. 108–458, title VI, § 6703(a)](https://www.govinfo.gov/link/plaw/108/public/458), Dec. 17, 2004, [118 Stat. 3766](https://www.govinfo.gov/link/statute/118/3766).)*\n\n## Notes\n\nAmendments 2004—Subsec. (a). Pub. L. 108–458, § 6703(a), inserted terrorism penalty enhancement after 5 years. 1996—Pub. L. 104–292, § 2, amended section generally, restructuring provisions into subsecs. (a) to (c).\nEffective Date of 1996 Amendment Amendment by Pub. L. 104–292 effective Oct. 11, 1996, upon enactment.",
+      "sourceCredits": [
+        "*(June 25, 1948, ch. 645, [62 Stat. 749](https://www.govinfo.gov/link/statute/62/749); [Pub. L. 104–292, § 2](https://www.govinfo.gov/link/plaw/104/public/292), Oct. 11, 1996, [110 Stat. 3459](https://www.govinfo.gov/link/statute/110/3459); [Pub. L. 108–458, title VI, § 6703(a)](https://www.govinfo.gov/link/plaw/108/public/458), Dec. 17, 2004, [118 Stat. 3766](https://www.govinfo.gov/link/statute/118/3766).)*"
+      ],
+      "notes": [
+        {
+          "noteId": "note-1",
+          "topic": "amendments",
+          "role": "amendment",
+          "heading": "Amendments",
+          "text": "Amendments 2004—Subsec. (a). Pub. L. 108–458, § 6703(a), inserted terrorism penalty enhancement after 5 years. 1996—Pub. L. 104–292, § 2, amended section generally, restructuring provisions into subsecs. (a) to (c).",
+          "locator": "/us/usc/t18/s1001/note1"
+        },
+        {
+          "noteId": "note-2",
+          "topic": "effectiveDate",
+          "role": "effective_date",
+          "heading": "Effective Date of 1996 Amendment",
+          "text": "Effective Date of 1996 Amendment Amendment by Pub. L. 104–292 effective Oct. 11, 1996, upon enactment.",
+          "locator": "/us/usc/t18/s1001/note2"
+        }
+      ],
+      "tables": [
+        {
+          "tableId": "table-1",
+          "caption": "Maximum Imprisonment Schedule Under Subsection (a)",
+          "headers": [
+            "Offense Context",
+            "Maximum Term"
+          ],
+          "rows": [
+            [
+              "Standard material false statement or concealment",
+              "5 years"
+            ],
+            [
+              "Offense involving international or domestic terrorism (18 U.S.C. 2331)",
+              "8 years"
+            ]
+          ],
+          "locator": "/us/usc/t18/s1001/a/table1"
+        }
+      ],
+      "legacyDerived": false,
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-47/section-1001/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-111",
+      "provisionVersionId": "pv-18-111-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscChapter": "7",
+      "uscSection": "111",
+      "citation": "18 U.S.C. 111",
+      "aliases": [
+        "18 U.S.C. 111"
+      ],
+      "heading": "§ 111. Assaulting, resisting, or impeding certain officers or employees",
+      "status": "active",
+      "excerpt": "- **(a)** In General.—Whoever— - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official d",
+      "bodyMarkdown": "# § 111. Assaulting, resisting, or impeding certain officers or employees\n\n- **(a)** In General.—Whoever—\n  - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or\n  - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official duties during such person's term of service, shall, where the acts in violation of this section constitute only simple assault, be fined under this title or imprisoned not more than one year, or both, and where such acts involve physical contact with the victim of that assault or the intent to commit another felony, be fined under this title or imprisoned not more than 8 years, or both.\n- **(b)** Enhanced Penalty.—Whoever, in the commission of any act described in subsection (a), uses a deadly or dangerous weapon (including a weapon intended to cause death or danger but that fails to do so by reason of a defective component) or inflicts bodily injury, shall be fined under this title or imprisoned not more than 20 years, or both.\n\n## Source Credit\n\n*(June 25, 1948, ch. 645, [62 Stat. 688](https://www.govinfo.gov/link/statute/62/688); [Pub. L. 110–177, title II, § 208(b)](https://www.govinfo.gov/link/plaw/110/public/177), Jan. 7, 2008, [121 Stat. 2538](https://www.govinfo.gov/link/statute/121/2538).)*\n\n## Notes\n\nAmendments 2008—Subsec. (a). Pub. L. 110–177, § 208(b)(1), substituted physical contact or intent to commit another felony penalty clause for all other cases clause.",
+      "sourceCredits": [
+        "*(June 25, 1948, ch. 645, [62 Stat. 688](https://www.govinfo.gov/link/statute/62/688); [Pub. L. 110–177, title II, § 208(b)](https://www.govinfo.gov/link/plaw/110/public/177), Jan. 7, 2008, [121 Stat. 2538](https://www.govinfo.gov/link/statute/121/2538).)*"
+      ],
+      "notes": [
+        {
+          "noteId": "note-1",
+          "topic": "amendments",
+          "role": "amendment",
+          "heading": "Amendments",
+          "text": "Amendments 2008—Subsec. (a). Pub. L. 110–177, § 208(b)(1), substituted physical contact or intent to commit another felony penalty clause for all other cases clause.",
+          "locator": "/us/usc/t18/s111/note1"
+        }
+      ],
+      "tables": [],
+      "legacyDerived": false,
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-7/section-111/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-2",
+      "provisionVersionId": "pv-18-2-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscChapter": "1",
+      "uscSection": "2",
+      "citation": "18 U.S.C. 2",
+      "aliases": [
+        "18 U.S.C. 2"
+      ],
+      "heading": "§ 2. Principals",
+      "status": "active",
+      "excerpt": "- **(a)** Whoever commits an offense against the United States or aids, abets, counsels, commands, induces or procures its commission, is punishable as a principal. - **(b)** Whoever willfully causes an act to be done which if directly performed by him or another would be an offense against the United States, is punishable as a principal.",
+      "bodyMarkdown": "# § 2. Principals\n\n- **(a)** Whoever commits an offense against the United States or aids, abets, counsels, commands, induces or procures its commission, is punishable as a principal.\n- **(b)** Whoever willfully causes an act to be done which if directly performed by him or another would be an offense against the United States, is punishable as a principal.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-1/section-2/?release=pl-116-220"
+    },
+    {
+      "provisionId": "prov-18-371",
+      "provisionVersionId": "pv-18-371-pl-116-220",
+      "releaseId": "pl-116-220",
+      "uscTitle": "18",
+      "uscChapter": "19",
+      "uscSection": "371",
+      "citation": "18 U.S.C. 371",
+      "aliases": [
+        "18 U.S.C. 371"
+      ],
+      "heading": "§ 371. Conspiracy to commit offense or to defraud United States",
+      "status": "active",
+      "excerpt": "If two or more persons conspire either to commit any offense against the United States, or to defraud the United States, or any agency thereof in any manner or for any purpose, and one or more of such persons do any act to effect the object of the conspiracy, each shall be fined under this title or imprisoned not more than five years, or both. If, however, the offense, the commission of which is t",
+      "bodyMarkdown": "# § 371. Conspiracy to commit offense or to defraud United States\n\nIf two or more persons conspire either to commit any offense against the United States, or to defraud the United States, or any agency thereof in any manner or for any purpose, and one or more of such persons do any act to effect the object of the conspiracy, each shall be fined under this title or imprisoned not more than five years, or both. If, however, the offense, the commission of which is the object of the conspiracy, is a misdemeanor only, the punishment for such conspiracy shall not exceed the maximum punishment provided for such misdemeanor.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
+      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-19/section-371/?release=pl-116-220"
     },
     {
       "provisionId": "prov-18-1341",
       "provisionVersionId": "pv-18-1341-pl-116-220",
       "releaseId": "pl-116-220",
       "uscTitle": "18",
+      "uscChapter": "63",
       "uscSection": "1341",
       "citation": "18 U.S.C. 1341",
       "aliases": [
         "18 U.S.C. 1341"
       ],
       "heading": "§ 1341. Frauds and swindles",
+      "status": "active",
       "excerpt": "Whoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, or to sell, dispose of, loan, exchange, alter, give away, distribute, supply, or furnish or procure for unlawful use any counterfeit or spurious coin, obligation, security, or other article, or anything represe",
+      "bodyMarkdown": "# § 1341. Frauds and swindles\n\nWhoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, or to sell, dispose of, loan, exchange, alter, give away, distribute, supply, or furnish or procure for unlawful use any counterfeit or spurious coin, obligation, security, or other article, or anything represented to be or intimated or held out to be such counterfeit or spurious article, for the purpose of executing such scheme or artifice or attempting so to do, places in any post office or authorized depository for mail matter, any matter or thing whatever to be sent or delivered by the Postal Service, or deposits or causes to be deposited any matter or thing whatever to be sent or delivered by any private or commercial interstate carrier, or takes or receives therefrom, any such matter or thing, or knowingly causes to be delivered by mail or such carrier according to the direction thereon, or at the place at which it is directed to be delivered by the person to whom it is addressed, any such matter or thing, shall be fined under this title or imprisoned not more than 20 years, or both. If the violation occurs in relation to, or involving any benefit authorized, transported, transmitted, transferred, disbursed, or paid in connection with, a presidentially declared major disaster or emergency (as those terms are defined in section 102 of the Robert T. Stafford Disaster Relief and Emergency Assistance Act ( 42 U.S.C. 5122 )), or affects a financial institution, such person shall be fined not more than $1,000,000 or imprisoned not more than 30 years, or both.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-63/section-1341/?release=pl-116-220"
     },
     {
@@ -81,13 +166,20 @@
       "provisionVersionId": "pv-18-1343-pl-116-220",
       "releaseId": "pl-116-220",
       "uscTitle": "18",
+      "uscChapter": "63",
       "uscSection": "1343",
       "citation": "18 U.S.C. 1343",
       "aliases": [
         "18 U.S.C. 1343"
       ],
       "heading": "§ 1343. Fraud by wire, radio, or television",
+      "status": "active",
       "excerpt": "Whoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, transmits or causes to be transmitted by means of wire, radio, or television communication in interstate or foreign commerce, any writings, signs, signals, pictures, or sounds for the purpose of executing such ",
+      "bodyMarkdown": "# § 1343. Fraud by wire, radio, or television\n\nWhoever, having devised or intending to devise any scheme or artifice to defraud, or for obtaining money or property by means of false or fraudulent pretenses, representations, or promises, transmits or causes to be transmitted by means of wire, radio, or television communication in interstate or foreign commerce, any writings, signs, signals, pictures, or sounds for the purpose of executing such scheme or artifice, shall be fined under this title or imprisoned not more than 20 years, or both. If the violation occurs in relation to, or involving any benefit authorized, transported, transmitted, transferred, disbursed, or paid in connection with, a presidentially declared major disaster or emergency (as those terms are defined in section 102 of the Robert T. Stafford Disaster Relief and Emergency Assistance Act ( 42 U.S.C. 5122 )), or affects a financial institution, such person shall be fined not more than $1,000,000 or imprisoned not more than 30 years, or both.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-63/section-1343/?release=pl-116-220"
     },
     {
@@ -95,13 +187,20 @@
       "provisionVersionId": "pv-18-1951-pl-116-220",
       "releaseId": "pl-116-220",
       "uscTitle": "18",
+      "uscChapter": "95",
       "uscSection": "1951",
       "citation": "18 U.S.C. 1951",
       "aliases": [
         "18 U.S.C. 1951"
       ],
       "heading": "§ 1951. Interference with commerce by threats or violence",
+      "status": "active",
       "excerpt": "- **(a)** Whoever in any way or degree obstructs, delays, or affects commerce or the movement of any article or commodity in commerce, by robbery or extortion or attempts or conspires so to do, or commits or threatens physical violence to any person or property in furtherance of a plan or purpose to do anything in violation of this section shall be fined under this title or imprisoned not more tha",
+      "bodyMarkdown": "# § 1951. Interference with commerce by threats or violence\n\n- **(a)** Whoever in any way or degree obstructs, delays, or affects commerce or the movement of any article or commodity in commerce, by robbery or extortion or attempts or conspires so to do, or commits or threatens physical violence to any person or property in furtherance of a plan or purpose to do anything in violation of this section shall be fined under this title or imprisoned not more than twenty years, or both.\n- **(b)** As used in this section—\n  - **(1)** The term “robbery” means the unlawful taking or obtaining of personal property from the person or in the presence of another, against his will, by means of actual or threatened force, or violence, or fear of injury, immediate or future, to his person or property, or property in his custody or possession, or the person or property of a relative or member of his family or of anyone in his company at the time of the taking or obtaining.\n  - **(2)** The term “extortion” means the obtaining of property from another, with his consent, induced by wrongful use of actual or threatened force, violence, or fear, or under color of official right.\n  - **(3)** The term “commerce” means commerce within the District of Columbia, or any Territory or Possession of the United States; all commerce between any point in a State, Territory, Possession, or the District of Columbia and any point outside thereof; all commerce between points within the same State through any place outside such State; and all other commerce over which the United States has jurisdiction.\n- **(c)** This section shall not be construed to repeal, modify or affect section 17 of Title 15 , sections 52, 101–115, 151–166 of Title 29 or sections 151–188 of Title 45.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-95/section-1951/?release=pl-116-220"
     },
     {
@@ -109,15 +208,22 @@
       "provisionVersionId": "pv-18-1962-pl-116-220",
       "releaseId": "pl-116-220",
       "uscTitle": "18",
+      "uscChapter": "96",
       "uscSection": "1962",
       "citation": "18 U.S.C. 1962",
       "aliases": [
         "18 U.S.C. 1962"
       ],
       "heading": "§ 1962. Prohibited activities",
+      "status": "active",
       "excerpt": "- **(a)** It shall be unlawful for any person who has received any income derived, directly or indirectly, from a pattern of racketeering activity or through collection of an unlawful debt in which such person has participated as a principal within the meaning of section 2, title 18, United States Code, to use or invest, directly or indirectly, any part of such income, or the proceeds of such inco",
+      "bodyMarkdown": "# § 1962. Prohibited activities\n\n- **(a)** It shall be unlawful for any person who has received any income derived, directly or indirectly, from a pattern of racketeering activity or through collection of an unlawful debt in which such person has participated as a principal within the meaning of section 2, title 18, United States Code, to use or invest, directly or indirectly, any part of such income, or the proceeds of such income, in acquisition of any interest in, or the establishment or operation of, any enterprise which is engaged in, or the activities of which affect, interstate or foreign commerce. A purchase of securities on the open market for purposes of investment, and without the intention of controlling or participating in the control of the issuer, or of assisting another to do so, shall not be unlawful under this subsection if the securities of the issuer held by the purchaser, the members of his immediate family, and his or their accomplices in any pattern or racketeering activity or the collection of an unlawful debt after such purchase do not amount in the aggregate to one percent of the outstanding securities of any one class, and do not confer, either in law or in fact, the power to elect one or more directors of the issuer.\n- **(b)** It shall be unlawful for any person through a pattern of racketeering activity or through collection of an unlawful debt to acquire or maintain, directly or indirectly, any interest in or control of any enterprise which is engaged in, or the activities of which affect, interstate or foreign commerce.\n- **(c)** It shall be unlawful for any person employed by or associated with any enterprise engaged in, or the activities of which affect, interstate or foreign commerce, to conduct or participate, directly or indirectly, in the conduct of such enterprise’s affairs through a pattern of racketeering activity or collection of unlawful debt.\n- **(d)** It shall be unlawful for any person to conspire to violate any of the provisions of subsection (a), (b), or (c) of this section.",
+      "sourceCredits": [],
+      "notes": [],
+      "tables": [],
+      "legacyDerived": true,
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-96/section-1962/?release=pl-116-220"
     }
   ],
-  "shardDigest": "69741013fce89e28a6c6b80d176e1d07745e033276bb7fee7f5cfcded5ae8142"
+  "shardDigest": "7539c795a7a25f0a7f5910ff2a5c91076e6a9071fccdb342c66890e375f3431d"
 }

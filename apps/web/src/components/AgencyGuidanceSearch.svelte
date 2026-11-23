@@ -12,6 +12,8 @@
     description?: string;
     domain?: string;
     extractionState?: string;
+    targetSections?: string[];
+    retrievedAt?: string;
   }
 
   interface AgencyGuidanceSnapshotPayload {
@@ -22,10 +24,10 @@
 
   let { uscTitle, uscSection }: Props = $props();
 
-  let query = $state(`${uscTitle} U.S.C. ${uscSection}`);
+  let query = $state('');
   let loading = $state(true);
   let snapshotAsOf = $state<string | null>(null);
-  let coverageState = $state<string>('complete');
+  let coverageState = $state<string>('partial');
   let allRecords = $state<GovSearchResult[]>([]);
   let results = $state<GovSearchResult[]>([]);
 
@@ -33,14 +35,18 @@
   const baseUrl = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
 
   function filterRecords(searchQuery: string, source: GovSearchResult[]): GovSearchResult[] {
+    const sectionKey = `${uscTitle}/${uscSection}`;
+    const scoped = source.filter(
+      (item) => Array.isArray(item.targetSections) && item.targetSections.includes(sectionKey)
+    );
     const terms = searchQuery
       .toLowerCase()
       .split(/\s+/)
       .filter((t) => t.length > 1);
-    if (terms.length === 0) return source;
-    return source.filter((item) => {
+    if (terms.length === 0) return scoped;
+    return scoped.filter((item) => {
       const hay = `${item.title} ${item.description ?? ''} ${item.domain ?? ''}`.toLowerCase();
-      return terms.some((t) => hay.includes(t));
+      return terms.every((t) => hay.includes(t));
     });
   }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "usct.historical-search-manifest/v1",
-  "generatedForPublicationId": "pub-pl-119-73-c2e2d792518c",
+  "generatedForPublicationId": "pub-pl-119-73-d2fd4df0d55d",
   "availableReleases": [
     {
       "releaseId": "pl-116-220",
@@ -24,12 +24,12 @@
   "shards": {
     "pl-116-220__title-18": {
       "shardPath": "search-shards/pl-116-220__title-18.json",
-      "shardDigest": "69741013fce89e28a6c6b80d176e1d07745e033276bb7fee7f5cfcded5ae8142",
+      "shardDigest": "7539c795a7a25f0a7f5910ff2a5c91076e6a9071fccdb342c66890e375f3431d",
       "entryCount": 8
     },
     "pl-119-73__title-18": {
       "shardPath": "search-shards/pl-119-73__title-18.json",
-      "shardDigest": "4f17c6ff262c8652b909b22fec12fe790d982df2b62fd15772b91f5c1683b33b",
+      "shardDigest": "7d40444223a3c8ef31c8756bd0781a7da69a14e872f20ea5a9b8323047d1b3a7",
       "entryCount": 8
     }
   }

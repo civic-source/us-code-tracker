@@ -8,4 +8,5 @@ coverage/
 .astro/
 apps/web/public/diffs/
 .nexus-agents/
+.workbench/
 runs/

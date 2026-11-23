@@ -709,5 +709,77 @@ describe('reformatInlineLists', () => {
       if (!res2.ok) return;
       expect(res2.value[0]?.normalizedContentHash).toBe(file1.normalizedContentHash);
     });
+
+    it('emits inline tables inside subsection (a) before subsection (b) in exact source order', () => {
+      const TWO_SUBSEC_TABLE_XML = `
+<lawDoc>
+  <title identifier="/us/usc/t18">
+    <num>Title 18</num>
+    <chapter identifier="/us/usc/t18/ch1">
+      <num>Chapter 1</num>
+      <section identifier="/us/usc/t18/s99">
+        <num>99</num>
+        <heading>Schedule</heading>
+        <subsection identifier="/us/usc/t18/s99/a">
+          <num>(a)</num>
+          <content>First subsection table:</content>
+          <table identifier="/us/usc/t18/s99/a/tbl1">
+            <thead><tr><th>Tier</th><th>Penalty</th></tr></thead>
+            <tbody><tr><td>I</td><td>5 years</td></tr></tbody>
+          </table>
+        </subsection>
+        <subsection identifier="/us/usc/t18/s99/b">
+          <num>(b)</num>
+          <content>Second subsection follows table.</content>
+        </subsection>
+      </section>
+    </chapter>
+  </title>
+</lawDoc>`;
+      const res = new XmlToMarkdownAdapter('PL 119-73').transformToFiles(TWO_SUBSEC_TABLE_XML);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const body = res.value[0]!.content;
+      const tblPos = body.indexOf('| Tier | Penalty |');
+      const subBPos = body.indexOf('- **(b)** Second subsection follows table.');
+      expect(tblPos).toBeGreaterThan(-1);
+      expect(subBPos).toBeGreaterThan(tblPos);
+    });
+
+    it('emits tables placed after child paragraphs in exact source order after the paragraph', () => {
+      const PARA_BEFORE_TABLE_XML = `
+<lawDoc>
+  <title identifier="/us/usc/t18">
+    <num>Title 18</num>
+    <chapter identifier="/us/usc/t18/ch1">
+      <num>Chapter 1</num>
+      <section identifier="/us/usc/t18/s100">
+        <num>100</num>
+        <heading>Schedule</heading>
+        <subsection identifier="/us/usc/t18/s100/a">
+          <num>(a)</num>
+          <chapeau>Introductory clause—</chapeau>
+          <paragraph identifier="/us/usc/t18/s100/a/1">
+            <num>(1)</num>
+            <content>First paragraph text.</content>
+          </paragraph>
+          <table identifier="/us/usc/t18/s100/a/tbl1">
+            <thead><tr><th>Code</th><th>Limit</th></tr></thead>
+            <tbody><tr><td>A1</td><td>10 years</td></tr></tbody>
+          </table>
+        </subsection>
+      </section>
+    </chapter>
+  </title>
+</lawDoc>`;
+      const res = new XmlToMarkdownAdapter('PL 119-73').transformToFiles(PARA_BEFORE_TABLE_XML);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const body = res.value[0]!.content;
+      const paraPos = body.indexOf('First paragraph text.');
+      const tblPos = body.indexOf('| Code | Limit |');
+      expect(paraPos).toBeGreaterThan(-1);
+      expect(tblPos).toBeGreaterThan(paraPos);
+    });
   });
 });
