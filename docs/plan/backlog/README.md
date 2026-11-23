@@ -1,5 +1,7 @@
 # US Code Tracker implementation backlog
 
+> **Archival Note (2026-11-23):** All 33 required tickets (`USCT-001`–`USCT-036`, excluding optional M6 prototypes `USCT-024`, `USCT-031`, `USCT-032`) are accepted in [`../ACCEPTANCE-LEDGER.md`](../ACCEPTANCE-LEDGER.md). Individual `USCT-*.md` and `backlog.json` entries retain their original `"status": "proposed"` planning wording as historical baseline records; see [GitHub Issues](https://github.com/civic-source/us-code-tracker/issues) for current active backlog work.
+
 This is a proposed backlog for the merged improvement plan. It contains 36 scoped tickets and creates no external issues. Every ticket remains **proposed**; readiness records prerequisite state, not implementation approval or completion.
 
 ## How to use it

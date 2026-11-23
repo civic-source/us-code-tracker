@@ -44,7 +44,7 @@ Documented deviations from the original project specification, with rationale.
 **Rationale:**
 - CourtListener does not expose a structured citation-to-statute index. No such API endpoint exists.
 - Full-text search is the best available approximation. It finds cases that mention a statute citation in their text, but may miss cases that cite the statute using non-standard formats.
-- This limitation is documented in the `Annotator` class and reflected in the schema field name (`holdingSummary` from search snippets, not from a structured holdings database).
+- Post-`USCT-004` / `AUD-014` (`civic-source/us-code-tracker#322` and `civic-source/cap-citation-pipeline#2`), `@civic-source/annotator` and `cap-citation-pipeline` classify search-API hits as unreviewed retrieval candidates (`retrievalExcerpt`, `extractionState: "candidate"`, `editorialReview: "unreviewed"`, `impact: "unverified_mention"`) rather than treating snippets as judicial holdings, while keeping legacy `holdingSummary` compatibility for historical sidecars.
 
 ## 5. @astrojs/tailwind Deprecated: Using @tailwindcss/vite Directly
 
