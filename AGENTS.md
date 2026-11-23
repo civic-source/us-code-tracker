@@ -6,7 +6,7 @@ tier: 1
 contract:
   role: project-layer
   requires_contract: ">=1.0"
-last_updated: "2026-11-21"
+last_updated: "2026-11-22"
 frameworks: ["NIST SP 800-53 Rev 5.2", "NIST AI RMF 1.0", "NIST SP 800-218A", "OWASP Top 10 LLM 2025", "OWASP Top 10 Agentic 2026"]
 audience: "all"
 keywords: ["civic-source", "us-code-tracker", "us-code", "cap-citation-pipeline", "agent-rules", "plan-before-execute", "verification-transcript", "matt-pocock-skills"]
@@ -85,7 +85,7 @@ safety > correctness > compliance > simplicity > performance
 
 ### 3.2 Requires Explicit User Approval
 - **Destructive or history-altering Git operations** — resetting, force-pushing, deleting branches/tags, or discarding uncommitted statutory import runs in `civic-source-us-code` (`.import-state.json`, `.import-progress.json`, `statutes/`).
-- **Committing or pushing to remote repositories** (`origin/main` or feature branches) or merging Pull Requests. **Never invoke `gh pr merge --admin`** — always use standard merge commands (`gh pr merge <num> --squash --delete-branch`), and if branch protection reports `REVIEW_REQUIRED` (`BLOCKED`), leave the PR open with green CI and independent review receipts as an explicit human-approval gate.
+- **Committing, pushing, reviewing, or merging Pull Requests**: Civic Source operates under a **solo-maintainer governance model** (`required_approving_review_count: 0`, PRs required, force-pushes and deletions blocked, `CI / build` required on `us-code-tracker`, and Allstar `requireApproval: false`). Once all required CI checks pass and an independent real-diff review (`nexus-agents` `pr_review` or independent `pro` diff reviewer) approves, the agent may—**with explicit user approval**—record the verification/review summary on the PR (`gh pr review <num> --approve` on PRs authored by other accounts, or `gh pr comment <num>` on PRs authored by the solo maintainer's account since GitHub prohibits self-approval) and merge via the standard protected command (`gh pr merge <num> --squash --delete-branch`). **Never invoke `gh pr merge --admin`**; if branch protection unexpectedly reports `BLOCKED`, stop and report the exact gate to the user.
 - **Adding, upgrading, or removing dependencies** or accepting any software license / EULA.
 - **Modifying CI/CD workflows** (`.github/workflows/*.yml`) or Allstar security policies (`.allstar/*.yaml`).
 - **Running bulk external network jobs** (full OLRC historical backfills or full 60k-section CourtListener scrapes).
@@ -195,7 +195,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 - **Conventional Commits**: `type(scope): description` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`). Enforced by `commitlint` on PR titles (squash-merge subject). Validate non-trivial PR titles with `echo "$PR_TITLE" | npx commitlint` before opening or updating PRs.
 - **Four-Stage Acceptance Truthfulness**: Report `code-tested`, `data-accepted`, `build-completed`, and `deployment-verified` states separately — never conflate local build/test success with merged or deployed production state.
-- **Mandatory Pre-PR Execution Spine**: Before opening or updating a PR, run `pnpm typecheck && pnpm lint && pnpm test`, verify full static build + blocked-API Playwright checks when web UI/assets change, verify `npx tsx scripts/promote-publication.ts --action verify`, and run independent `nexus-agents` `pr_review` against the real unified `git diff` (never prose summaries).
+- **Mandatory Pre-PR Execution Spine**: Before opening or updating a PR, run `pnpm typecheck && pnpm lint && pnpm test`, verify full static build + blocked-API Playwright checks when web UI/assets change, verify `npx tsx scripts/promote-publication.ts --action verify`, and run independent `nexus-agents` `pr_review` or independent `pro` diff review against the real unified `git diff` (never prose summaries).
+- **Solo-Maintainer Merge Gate**: Per §3.2, with all required checks green, an approving real-diff review, and explicit user approval, record the review/verification receipt on the PR (`gh pr review --approve` when permitted, or `gh pr comment` on solo-authored PRs) and merge with `gh pr merge <num> --squash --delete-branch` (never `--admin`).
 - **Statutory Data Commits (`us-code`)**: Automated law commits use `chore(law): Update to PL XXX-XXX` (tagged `pl-XXX-XXX`); precedent updates use `chore(annotations): Sync precedent for PL XXX-XXX`.
 - **AI Attribution**: Disclose AI assistance at the PR level (recommended) and optionally via `Co-authored-by:` commit trailers per GSA-TTS §2.1.
 - **Releases**: Managed via `release-please` (`release-please-config.json` + `.release-please-manifest.json`). Merging the automated Release PR tags `v0.x.y` and publishes the GitHub Release.
