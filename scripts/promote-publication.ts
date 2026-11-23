@@ -50,8 +50,14 @@ export interface PromotePublicationOptions {
   nowIso?: string | undefined;
 }
 
+const GIT_EXEC_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
 async function gitExec(cwd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd, timeout: 30_000 });
+  const { stdout } = await execFileAsync('git', args, {
+    cwd,
+    timeout: 30_000,
+    maxBuffer: GIT_EXEC_MAX_BUFFER_BYTES,
+  });
   return stdout.trim();
 }
 

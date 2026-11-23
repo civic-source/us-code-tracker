@@ -207,4 +207,33 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
     });
     expect(verifyAfterRollback.ok).toBe(true);
   }, 15_000);
+
+  it('validates a candidate whose .import-state.json exceeds Node 1 MiB default maxBuffer', async () => {
+    const s1Dir = join(dataRepo, 'statutes', 'title-18', 'chapter-7');
+    await mkdir(s1Dir, { recursive: true });
+    await writeFile(join(s1Dir, 'section-111.md'), '# Section 111\nText v1\n', 'utf-8');
+
+    const manifests: Record<string, string> = {};
+    for (let i = 0; i < 20_000; i++) {
+      manifests[`title-18/section-${i}.md`] = '0'.repeat(64);
+    }
+    const largeStateJson = JSON.stringify({
+      lastCompletedReleasePoint: '119-73',
+      incompleteReleases: [],
+      manifests,
+    });
+    expect(Buffer.byteLength(largeStateJson, 'utf-8')).toBeGreaterThan(1_500_000);
+
+    await writeFile(join(dataRepo, '.import-state.json'), largeStateJson, 'utf-8');
+    await execFileAsync('git', ['add', '-A'], { cwd: dataRepo });
+    await execFileAsync('git', ['commit', '-m', 'chore(law): Update to PL 119-73'], { cwd: dataRepo });
+    await execFileAsync('git', ['tag', 'pl-119-73'], { cwd: dataRepo });
+
+    const validation = await validateDataCandidate(dataRepo, 'HEAD');
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) return;
+    expect(validation.value.tagName).toBe('pl-119-73');
+    expect(validation.value.incompleteReleases).toEqual([]);
+    expect(validation.value.statuteTitleCount).toBe(1);
+  }, 15_000);
 });
