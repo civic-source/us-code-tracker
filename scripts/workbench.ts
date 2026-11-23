@@ -55,7 +55,7 @@ async function main() {
       subdivision: { type: 'string' },
       query: { type: 'string' },
       title: { type: 'string' },
-      publication: { type: 'string', default: 'pub-pl-119-73-d2fd4df0d55d' },
+      publication: { type: 'string', default: 'pub-pl-119-73-9650ca79cbc9' },
       output: { type: 'string', default: 'apps/web/public/search-shards' },
       'parquet-dir': { type: 'string', default: '.workbench/parquet' },
       'backup-file': { type: 'string', default: '.workbench/pg-backup.json' },
