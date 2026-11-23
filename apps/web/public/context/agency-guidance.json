@@ -1,20 +1,29 @@
 {
-  "snapshotAsOf": "2026-11-21T00:00:00Z",
-  "coverageState": "complete",
+  "snapshotAsOf": "2026-11-22T06:30:00Z",
+  "coverageState": "partial",
+  "declaredScope": ["18/1001", "1/1"],
   "records": [
     {
+      "targetSections": ["18/1001"],
       "title": "Justice Manual § 9-42.000 — Fraud Against the Government (18 U.S.C. § 1001)",
       "url": "https://www.justice.gov/jm/jm-9-42000-fraud-against-government",
+      "sourceUrl": "https://www.justice.gov/jm/jm-9-42000-fraud-against-government",
+      "retrievedAt": "2026-11-22T06:30:00Z",
       "description": "Official DOJ prosecutorial guidance covering materiality, jurisdiction, and false statements under 18 U.S.C. § 1001.",
       "domain": "justice.gov",
-      "extractionState": "candidate"
+      "extractionState": "candidate",
+      "editorialReview": "unreviewed"
     },
     {
+      "targetSections": ["1/1"],
       "title": "OLRC Positive Law Codification & Dictionary Act Guidance (1 U.S.C. § 1)",
       "url": "https://uscode.house.gov/codification/legislation.shtml",
+      "sourceUrl": "https://uscode.house.gov/codification/legislation.shtml",
+      "retrievedAt": "2026-11-22T06:30:00Z",
       "description": "Office of the Law Revision Counsel reference on general rules of construction in Title 1 of the United States Code.",
       "domain": "uscode.house.gov",
-      "extractionState": "candidate"
+      "extractionState": "candidate",
+      "editorialReview": "unreviewed"
     }
   ]
 }

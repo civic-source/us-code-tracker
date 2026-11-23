@@ -1,0 +1,106 @@
+---
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import type { CuratedTopicDataset } from '../../lib/types';
+
+export function getStaticPaths() {
+  const indexPath = join(process.cwd(), 'public/topics/index.json');
+  const indexData = JSON.parse(readFileSync(indexPath, 'utf-8')) as {
+    topics: Array<{ topicSlug: string }>;
+  };
+  return indexData.topics.map((t) => {
+    const raw = readFileSync(join(process.cwd(), `public/topics/${t.topicSlug}.json`), 'utf-8');
+    return {
+      params: { slug: t.topicSlug },
+      props: { topic: JSON.parse(raw) as CuratedTopicDataset },
+    };
+  });
+}
+
+const { topic } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title={topic.title} description={topic.summary} wide={true}>
+  <Breadcrumbs items={[
+    { label: 'Home', href: base },
+    { label: 'Topics', href: `${base}topics/` },
+    { label: topic.topicSlug },
+  ]} />
+
+  <div class="not-prose space-y-8 font-sans">
+    <header class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-6 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+        <span class="rounded bg-[var(--civic-action)]/10 px-2 py-0.5 font-bold uppercase tracking-wider text-[var(--civic-action)]">
+          Curated Topic Profile ({topic.currentReleaseId})
+        </span>
+        <div class="flex items-center gap-2 font-mono">
+          <a href={`${base}topics/${topic.topicSlug}/feed.json`} class="underline hover:text-[var(--civic-action)]">feed.json</a>
+          <span>·</span>
+          <a href={`${base}topics/${topic.topicSlug}/feed.xml`} class="underline hover:text-[var(--civic-action)]">feed.xml</a>
+        </div>
+      </div>
+      <h1 class="text-2xl font-bold text-[var(--text-primary)]">{topic.title}</h1>
+      <p class="text-sm text-[var(--text-secondary)]">{topic.summary}</p>
+      <p class="rounded bg-[var(--surface-sunken)] p-3 text-xs text-[var(--text-muted)]">{topic.scopeNote}</p>
+    </header>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-bold text-[var(--text-primary)]">Member Statutory Provisions ({topic.memberProvisions.length})</h2>
+      <div class="grid gap-3 md:grid-cols-2">
+        {topic.memberProvisions.map((m) => (
+          <div class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <a href={m.url} class="font-bold text-[var(--civic-action)] hover:underline">{m.citation}</a>
+              <span class="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] font-semibold">
+                {m.legacyDerived ? 'Legacy Git Blob' : 'USLM Canonical'}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-[var(--text-primary)]">{m.heading}</div>
+            <p class="text-xs text-[var(--text-secondary)]">{m.roleInTopic}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-bold text-[var(--text-primary)]">Verified Related Authorities ({topic.relatedAuthorities.length})</h2>
+      <div class="space-y-2.5">
+        {topic.relatedAuthorities.map((a) => (
+          <div class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 space-y-1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" class="font-semibold text-[var(--civic-action)] hover:underline">
+                {a.label}
+              </a>
+              <span class="rounded bg-[var(--legal-valid-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[var(--legal-valid)]">
+                {a.extractionState} / {a.editorialReview} ({a.relationshipType})
+              </span>
+            </div>
+            <p class="text-xs text-[var(--text-secondary)]">{a.summary}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-bold text-[var(--text-primary)]">Typed Change-Event Ledger ({topic.changeEvents.length})</h2>
+      <div class="space-y-2.5">
+        {topic.changeEvents.map((evt) => (
+          <div class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 space-y-1">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase">
+                {evt.eventKind}
+              </span>
+              <span class="font-mono text-[var(--text-muted)]">{evt.occurredAt.slice(0, 10)} · {evt.affectedCitation}</span>
+            </div>
+            <div class="text-sm font-bold text-[var(--text-primary)]">{evt.title}</div>
+            <p class="text-xs text-[var(--text-secondary)]">{evt.summary}</p>
+            <div class="text-[11px] font-mono text-[var(--text-muted)]">Evidence Locator: {evt.evidenceLocator}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+</BaseLayout>

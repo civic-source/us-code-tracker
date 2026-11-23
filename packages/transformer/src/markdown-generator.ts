@@ -257,47 +257,99 @@ function extractHeading(children: unknown[]): string {
   return extractTextFromNodes(first.children).trim();
 }
 
-/** Extract content/chapeau text from node children */
+function withoutTables(nodes: unknown[]): unknown[] {
+  return nodes.filter((n) => getElementName(n) !== USLM_ELEMENTS.table);
+}
+
+/** Extract content/chapeau text from node children (excluding embedded table elements rendered as GFM tables) */
 function extractContent(children: unknown[]): string {
   const firstChapeau = findElements(children, USLM_ELEMENTS.chapeau)[0];
   if (firstChapeau) {
-    return extractTextFromNodes(firstChapeau.children).trim();
+    return extractTextFromNodes(withoutTables(firstChapeau.children)).trim();
   }
   const firstContent = findElements(children, USLM_ELEMENTS.content)[0];
   if (firstContent) {
-    return extractTextFromNodes(firstContent.children).trim();
+    return extractTextFromNodes(withoutTables(firstContent.children)).trim();
   }
   return '';
 }
 
-/** Recursively walk nested list elements and generate markdown lines */
+const LIST_ELEMENT_SET: ReadonlySet<string> = new Set([
+  USLM_ELEMENTS.subsection,
+  USLM_ELEMENTS.paragraph,
+  USLM_ELEMENTS.subparagraph,
+  USLM_ELEMENTS.clause,
+  USLM_ELEMENTS.subclause,
+]);
+
+/** Extract tables attached directly inside a node's immediate chapeau/content element */
+function extractContentChapeauTables(itemChildren: unknown[], pathPrefix: string): StructuredTable[] {
+  const directTableNodes: unknown[] = [];
+  for (const child of itemChildren) {
+    const tag = getElementName(child);
+    if (tag === USLM_ELEMENTS.content || tag === USLM_ELEMENTS.chapeau) {
+      const inner = (child as Record<string, unknown>)[tag];
+      if (Array.isArray(inner)) {
+        for (const grandChild of inner) {
+          if (getElementName(grandChild) === USLM_ELEMENTS.table) {
+            directTableNodes.push(grandChild);
+          }
+        }
+      }
+    }
+  }
+  return directTableNodes.length > 0 ? extractStructuredTables(directTableNodes, pathPrefix) : [];
+}
+
+/** Recursively walk nested list elements and in-place tables in exact document order */
 function walkListElements(
   children: unknown[],
   depth: number,
-  lines: string[]
+  lines: string[],
+  emittedTableFingerprints?: Set<string>
 ): void {
   if (depth > MAX_NESTING_DEPTH) return;
 
-  const listElements = [
-    USLM_ELEMENTS.subsection,
-    USLM_ELEMENTS.paragraph,
-    USLM_ELEMENTS.subparagraph,
-    USLM_ELEMENTS.clause,
-    USLM_ELEMENTS.subclause,
-  ];
+  for (const rawNode of children) {
+    if (!rawNode || typeof rawNode !== 'object' || Array.isArray(rawNode)) continue;
+    const elemName = getElementName(rawNode);
+    if (!elemName) continue;
 
-  for (const elemName of listElements) {
-    const items = findElements(children, elemName);
-    for (const item of items) {
-      const marker = extractMarker(item.children);
-      const text = extractContent(item.children);
-      const childDepth = nestingDepthFor(elemName);
-
-      if (marker || text) {
-        lines.push(formatListItem(marker, text, childDepth));
+    if (elemName === USLM_ELEMENTS.table) {
+      const inlineTables = extractStructuredTables([rawNode], `/depth-${depth}`);
+      for (const tbl of inlineTables) {
+        const fp = JSON.stringify([tbl.caption, tbl.headers, tbl.rows]);
+        emittedTableFingerprints?.add(fp);
+        lines.push('');
+        lines.push(formatTableMarkdown(tbl));
+        lines.push('');
       }
-      walkListElements(item.children, depth + 1, lines);
+      continue;
     }
+
+    if (!LIST_ELEMENT_SET.has(elemName)) continue;
+    const itemChildren = Array.isArray((rawNode as Record<string, unknown>)[elemName])
+      ? ((rawNode as Record<string, unknown>)[elemName] as unknown[])
+      : [];
+
+    const marker = extractMarker(itemChildren);
+    const text = extractContent(itemChildren);
+    const childDepth = nestingDepthFor(elemName);
+
+    if (marker || text) {
+      lines.push(formatListItem(marker, text, childDepth));
+    }
+
+    const chapeauTables = extractContentChapeauTables(itemChildren, `/section/${elemName}`);
+    for (const tbl of chapeauTables) {
+      const fp = JSON.stringify([tbl.caption, tbl.headers, tbl.rows]);
+      emittedTableFingerprints?.add(fp);
+      lines.push('');
+      lines.push(formatTableMarkdown(tbl));
+      lines.push('');
+    }
+
+    walkListElements(itemChildren, depth + 1, lines, emittedTableFingerprints);
   }
 }
 
@@ -590,11 +642,14 @@ export function generateSectionBody(sectionChildren: unknown[]): string {
     lines.push('');
   }
 
-  // Walk nested list elements
-  walkListElements(sectionChildren, 0, lines);
+  // Walk nested list elements and in-place tables in document order
+  const emittedTableFingerprints = new Set<string>();
+  walkListElements(sectionChildren, 0, lines, emittedTableFingerprints);
 
-  // Tables (USCT-010)
-  const tables = extractStructuredTables(sectionChildren);
+  // Any remaining tables not already emitted in-place (USCT-010)
+  const tables = extractStructuredTables(sectionChildren).filter(
+    (tbl) => !emittedTableFingerprints.has(JSON.stringify([tbl.caption, tbl.headers, tbl.rows]))
+  );
   if (tables.length > 0) {
     lines.push('');
     for (const tbl of tables) {

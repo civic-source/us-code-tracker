@@ -269,21 +269,18 @@ export async function gitTreeHash(repo: string, ref: string): Promise<string | n
 }
 
 export async function gitCommit(repo: string, message: string): Promise<string> {
-  const statutesDir = join(repo, 'statutes');
-  try {
-    const entries = readdirSync(statutesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        await execFileAsync('git', ['add', join('statutes', entry.name)], {
-          cwd: repo,
-          timeout: 60_000,
-        });
-      }
+  await execFileAsync('git', ['add', '-A', '--', 'statutes'], { cwd: repo, timeout: 120_000 }).catch(
+    async () => {
+      await execFileAsync('git', ['add', '-A', '--', ':!.import-staging'], {
+        cwd: repo,
+        timeout: 120_000,
+      }).catch(() => {});
     }
-  } catch {
-    await execFileAsync('git', ['add', '-A'], { cwd: repo, timeout: 120_000 });
-  }
-  await execFileAsync('git', ['add', '-A'], { cwd: repo, timeout: 60_000 }).catch(() => {});
+  );
+  await execFileAsync('git', ['reset', '-q', '--', '.import-staging'], {
+    cwd: repo,
+    timeout: 10_000,
+  }).catch(() => {});
   await execFileAsync('git', ['commit', '-m', message, '--allow-empty'], {
     cwd: repo,
     timeout: 120_000,

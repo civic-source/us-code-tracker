@@ -70,3 +70,11 @@ Keep third-party attribution machine readable and visible where required. Axiom-
 Add workers only after the local benchmark identifies a parallelizable bottleneck and the task acceptance tests pass. Prefer one owner for placement: either the simple local executor or a selected existing scheduler. HCK can supply the task runner contract later. MicroVM isolation is a separate capability from a rootless container and should not be claimed unless the actual runtime provides it.
 
 Before adding a source family, define its bounded value, authoritative documents, legal status, access method, completeness rules, evidence mapping, storage cost, and failure behavior. Before adding a model, define its evaluation set and stop conditions. Before retiring an old producer or reader, demonstrate parity and preserve rollback for the agreed observation period.
+
+## Verified Execution Receipts (November 22, 2026)
+
+- **Local PostgreSQL 16 Container**: `docker.io/library/postgres:16-alpine` (`usct-pg-audit`, `127.0.0.1:54329`).
+- **17-Table Migration & Full 15-Entity Sync/Readback**: Executed via `npx tsx scripts/workbench.ts --action sync-postgres` (`tablesWritten: 15`, `rowsUpserted: 100`, `readbackProvisions: 13`, `readbackVersions: 16`).
+- **PostgreSQL Backup / Catastrophic Drop / Restore Parity Drill**: Executed via `npx tsx scripts/workbench.ts --action backup-restore-postgres` and automated in `scripts/__tests__/postgres-parquet-e2e.test.ts` (`restoredRowCount: 102` across 15 catalog + 2 coordinator tables, `parityVerified: true`, pre-drop and post-restore SHA-256 digests identical).
+- **Apache Parquet Export & DuckDB Audit**: Executed via `npx tsx scripts/workbench.ts --action export-parquet` and `--action query-duckdb` (9 `.parquet` tables queried with DuckDB v1.5.4; `parityWithCatalogReport: true`).
+- **Corrupt Derived-Index Replay & Publication Reversal Drill**: Verified in `scripts/__tests__/audit-regressions.test.ts` (`AUD-005`) and `scripts/__tests__/postgres-parquet-e2e.test.ts` (`recoveredFromCorruptIndexMatch: true`).

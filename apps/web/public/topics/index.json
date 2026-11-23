@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "usct.curated-topic-index/v1",
+  "topics": [
+    {
+      "topicSlug": "false-statements-fraud",
+      "title": "Federal False Statements, Concealment & Official Integrity (18 U.S.C. §§ 1001, 111, 371, 1341, 1343)",
+      "summary": "Curated statutory, regulatory, and judicial vertical slice tracking material false statements to the federal government (18 U.S.C. § 1001), protection of federal officers (18 U.S.C. § 111), and related conspiracy and fraud provisions across Public Law release points.",
+      "curator": "Civic Source Legal Architecture Working Group",
+      "lastReviewedAt": "2026-11-22T06:30:00.000Z",
+      "memberCount": 5,
+      "eventCount": 4
+    }
+  ]
+}

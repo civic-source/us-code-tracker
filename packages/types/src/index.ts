@@ -412,7 +412,7 @@ export const SourceArtifactSchema = z.object({
   mediaType: z.string().min(1),
   storageLocator: z.string().min(1),
   parentArchiveArtifactId: z.string().optional(),
-  license: z.string().default('CC0-1.0'),
+  license: z.string().default('unknown'),
   attributionRequired: z.boolean().default(false),
   attributionText: z.string().optional(),
 });
@@ -497,6 +497,30 @@ export const TemporalBoundarySchema = z.object({
     'unestablished',
   ]).default('unestablished'),
   evidenceIds: z.array(z.string()).default([]),
+}).superRefine((val, ctx) => {
+  if (val.state === 'known') {
+    if (!val.value || val.value.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'TemporalBoundary with state "known" requires a non-empty value',
+        path: ['value'],
+      });
+    }
+    if (val.precision === 'unknown') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'TemporalBoundary with state "known" requires explicit date precision',
+        path: ['precision'],
+      });
+    }
+    if (val.basis === 'unestablished') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'TemporalBoundary with state "known" requires an established legal basis',
+        path: ['basis'],
+      });
+    }
+  }
 });
 export type TemporalBoundary = z.infer<typeof TemporalBoundarySchema>;
 

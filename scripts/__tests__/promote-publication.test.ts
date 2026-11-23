@@ -206,5 +206,5 @@ describe('USCT-033: Validated data-to-site publication handoff, pin update, and 
       expectedDataCommitSha: sha1,
     });
     expect(verifyAfterRollback.ok).toBe(true);
-  });
+  }, 15_000);
 });

@@ -92,6 +92,12 @@ const titleEntries = Object.entries(TITLE_NAMES)
           <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch lg:pt-1">
             <ThemeToggle client:load />
             <SearchBar client:load />
+            <a
+              href={`${base}topics/`}
+              class="inline-flex items-center justify-center rounded border border-teal/30 bg-teal/5 px-2.5 py-1 text-xs font-semibold text-teal hover:bg-teal/10 dark:text-teal-bright"
+            >
+              Curated Topics &amp; Feeds
+            </a>
           </div>
         </div>
         <button

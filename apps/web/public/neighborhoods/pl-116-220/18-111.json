@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "usct.relationship-neighborhood/v1",
+  "provisionId": "prov-18-111",
+  "citation": "18 U.S.C. 111",
+  "releaseId": "pl-116-220",
+  "edges": [
+    {
+      "assertionId": "assert-18-111-cites-1114",
+      "direction": "outbound",
+      "relationType": "cites",
+      "peerId": "18 U.S.C. 1114",
+      "peerLabel": "18 U.S.C. 1114",
+      "authorityKind": "statute",
+      "extractionState": "verified",
+      "editorialReview": "accepted",
+      "versionAlignmentState": "verified",
+      "propositionText": "Incorporates the class of federal officers and employees designated in 18 U.S.C. § 1114.",
+      "evidenceExcerpts": [
+        "forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties"
+      ]
+    }
+  ]
+}

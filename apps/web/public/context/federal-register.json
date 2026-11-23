@@ -1,25 +1,113 @@
 {
-  "snapshotAsOf": "2026-11-21T00:00:00Z",
-  "coverageState": "complete",
+  "snapshotAsOf": "2026-11-22T06:30:00Z",
+  "coverageState": "partial",
+  "declaredScope": [
+    "18/1001",
+    "1/1"
+  ],
+  "quarantinedRecords": [
+    {
+      "findingId": "finding-fr-2026-09112-quarantine",
+      "removedCitation": "91 FR 24100",
+      "reason": "Synthetic/misattributed entry attributed to DOJ without captured official API document; replaced with SHA-256 verified Federal Register API captures."
+    }
+  ],
   "sections": {
     "18/1001": [
       {
-        "title": "Department of Justice Manual: False Statements Under 18 U.S.C. 1001 Notice",
+        "document_number": "2026-23762",
+        "citation": "91 FR 75462",
+        "title": "Regulations Implementing the Privacy Act",
+        "type": "Proposed Rule",
+        "action": "Notice of proposed rulemaking.",
+        "agency_names": [
+          "Occupational Safety and Health Review Commission"
+        ],
+        "publication_date": "2026-11-23",
+        "comments_close_on": "2026-12-23",
+        "html_url": "https://www.federalregister.gov/documents/2026/11/23/2026-23762/regulations-implementing-the-privacy-act",
+        "sourceUrl": "https://www.federalregister.gov/api/v1/documents/2026-23762.json",
+        "sourceSha256": "4a94178521d96ab01b670f0747f0a0e28a2397d2d457037e7e9994eca996d96c",
+        "byteLength": 2571,
+        "extractionState": "candidate",
+        "editorialReview": "unreviewed"
+      },
+      {
+        "document_number": "2026-23412",
+        "citation": "91 FR 74270",
+        "title": "Applications for Inclusion on the Binational Panels Roster Under the United States-Mexico-Canada Agreement",
         "type": "Notice",
-        "agency_names": ["Department of Justice"],
-        "publication_date": "2026-05-14",
-        "html_url": "https://www.federalregister.gov/documents/search?conditions%5Bterm%5D=18+U.S.C.+1001",
-        "citation": "91 FR 24100"
+        "action": "Request for applications.",
+        "agency_names": [
+          "Trade Representative, Office of United States"
+        ],
+        "publication_date": "2026-11-18",
+        "comments_close_on": null,
+        "html_url": "https://www.federalregister.gov/documents/2026/11/18/2026-23412/applications-for-inclusion-on-the-binational-panels-roster-under-the-united-states-mexico-canada",
+        "sourceUrl": "https://www.federalregister.gov/api/v1/documents/2026-23412.json",
+        "sourceSha256": "e806bda2c2d8bf941777964ff5c539dce4eb96e9718491f0c5028147886dd59c",
+        "byteLength": 3975,
+        "extractionState": "candidate",
+        "editorialReview": "unreviewed"
+      },
+      {
+        "document_number": "2026-23370",
+        "citation": "91 FR 73916",
+        "title": "Modernizing the Labor Market Test and Improving Protections for U.S. Workers in the PERM Immigrant Visa Program",
+        "type": "Proposed Rule",
+        "action": "Notice of proposed rulemaking.",
+        "agency_names": [
+          "Labor Department",
+          "Employment and Training Administration"
+        ],
+        "publication_date": "2026-11-17",
+        "comments_close_on": "2027-01-19",
+        "html_url": "https://www.federalregister.gov/documents/2026/11/17/2026-23370/modernizing-the-labor-market-test-and-improving-protections-for-us-workers-in-the-perm-immigrant",
+        "sourceUrl": "https://www.federalregister.gov/api/v1/documents/2026-23370.json",
+        "sourceSha256": "45f32c7736e6ad9144e02e6c7d71b578789c7709de29d6951cb311e20ba14327",
+        "byteLength": 19078,
+        "extractionState": "candidate",
+        "editorialReview": "unreviewed"
       }
     ],
     "1/1": [
       {
-        "title": "Statutory Construction and Dictionary Act Definitions Alignment",
-        "type": "Rule",
-        "agency_names": ["Office of the Federal Register"],
-        "publication_date": "2026-03-10",
-        "html_url": "https://www.federalregister.gov/documents/search?conditions%5Bterm%5D=1+U.S.C.+1",
-        "citation": "91 FR 11205"
+        "document_number": "2026-22396",
+        "citation": "91 FR 69314",
+        "title": "Pipeline Safety: Amendments to Liquefied Natural Gas Facilities",
+        "type": "Proposed Rule",
+        "action": "Notice of proposed rulemaking (NPRM).",
+        "agency_names": [
+          "Transportation Department",
+          "Pipeline and Hazardous Materials Safety Administration"
+        ],
+        "publication_date": "2026-11-03",
+        "comments_close_on": "2027-01-04",
+        "html_url": "https://www.federalregister.gov/documents/2026/11/03/2026-22396/pipeline-safety-amendments-to-liquefied-natural-gas-facilities",
+        "sourceUrl": "https://www.federalregister.gov/api/v1/documents/2026-22396.json",
+        "sourceSha256": "1119f8e06d97a028a02ad94ebca06c9c036ce6b85722aa4283bcc0daf820813c",
+        "byteLength": 21914,
+        "extractionState": "candidate",
+        "editorialReview": "unreviewed"
+      },
+      {
+        "document_number": "2026-02961",
+        "citation": "91 FR 6986",
+        "title": "Electronic Bond Transmission",
+        "type": "Proposed Rule",
+        "action": "Proposed rule; request for comments.",
+        "agency_names": [
+          "Homeland Security Department",
+          "U.S. Customs and Border Protection"
+        ],
+        "publication_date": "2026-02-13",
+        "comments_close_on": "2026-04-14",
+        "html_url": "https://www.federalregister.gov/documents/2026/02/13/2026-02961/electronic-bond-transmission",
+        "sourceUrl": "https://www.federalregister.gov/api/v1/documents/2026-02961.json",
+        "sourceSha256": "b4e22d105cb8296a4b321a20f4b09ea83047a6db875bdc8f08e5f7e29eae56ba",
+        "byteLength": 7753,
+        "extractionState": "candidate",
+        "editorialReview": "unreviewed"
       }
     ]
   }

@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+      actions: write
     steps:
       # Step 1: Checkout pipeline code
       - name: Checkout us-code-tracker
@@ -275,8 +276,9 @@ jobs:
           git -C us-code push
           echo "data_sha=$DATA_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Advance tracker submodule pin to accepted data commit (USCT-033)
+      - name: Advance tracker submodule pin to accepted data commit (USCT-033, AUD-016)
         if: steps.promote_data.outputs.data_sha != ''
+        id: advance_pin
         env:
           DATA_SHA: ${{ steps.promote_data.outputs.data_sha }}
           PUBLIC_LAW: ${{ steps.fetch.outputs.public_law }}
@@ -284,9 +286,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps/web/content-data apps/web/public/publication-receipt.json apps/web/public/publication-history.json
+          if [ -e apps/web/public/search-shards/manifest.json ]; then
+            git add apps/web/public/search-shards/manifest.json
+          fi
           if ! git diff --cached --quiet; then
             git commit -m "chore(data): Promote validated $PUBLIC_LAW ($DATA_SHA)"
             git push
+            echo "pin_pushed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger downstream Deploy Site workflow after pin promotion (AUD-016)
+        if: steps.advance_pin.outputs.pin_pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_DISPATCH_TOKEN || github.token }}
+          DATA_SHA: ${{ steps.promote_data.outputs.data_sha }}
+        run: |
+          # Pushes authenticated with default GITHUB_TOKEN do not trigger push-based downstream workflows;
+          # dispatch deploy-site.yml explicitly and fail visibly if workflow_dispatch lacks permission.
+          if gh workflow run deploy-site.yml --ref main; then
+            echo "Dispatched deploy-site.yml for accepted data commit $DATA_SHA"
+          else
+            echo "::error::Unable to dispatch deploy-site.yml automatically; configure secrets.SYNC_DISPATCH_TOKEN with actions:write or run deploy-site.yml manually for $DATA_SHA"
+            exit 1
           fi
 
       # Step 13: Write job summary

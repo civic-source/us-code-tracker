@@ -210,7 +210,7 @@ export class Annotator {
         editorialReview: 'unreviewed' as const,
         versionAlignmentState: 'unknown' as const,
         sourceUrl: courtListenerSourceUrl(result.absolute_url),
-        impact: 'interpretation' as const,
+        impact: 'unverified_mention' as const,
       };
     });
 

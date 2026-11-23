@@ -24,10 +24,76 @@
     regulationRefreshStatus,
   }: Props = $props();
 
-  type TabId = 'precedents' | 'regulations' | 'rulemaking' | 'guidance';
+  type TabId = 'precedents' | 'regulations' | 'relationships' | 'rulemaking' | 'guidance';
   let activeTab = $state<TabId>('precedents');
   let open = $state(false); // Mobile drawer toggle
   let expandedHoldings = $state<Set<number>>(new Set());
+
+  interface RelationshipEdge {
+    assertionId: string;
+    direction: 'outbound' | 'inbound';
+    relationType: string;
+    peerId: string;
+    peerLabel: string;
+    authorityKind: string;
+    extractionState: string;
+    editorialReview: string;
+    versionAlignmentState: string;
+    propositionText?: string;
+    evidenceExcerpts: string[];
+  }
+
+  interface RelationshipShard {
+    schemaVersion: 'usct.relationship-neighborhood/v1';
+    provisionId: string;
+    citation: string;
+    releaseId: string;
+    edges: RelationshipEdge[];
+  }
+
+  let relationshipShard = $state<RelationshipShard | null>(null);
+  let relationshipsLoading = $state(false);
+  let relationshipsError = $state<string | null>(null);
+  let relationshipsLoadedFor = $state<string | null>(null);
+
+  function getInspectorBaseUrl(): string {
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="base-url"]')?.getAttribute('content');
+      if (meta) return meta.endsWith('/') ? meta : `${meta}/`;
+    }
+    const envBase = import.meta.env.BASE_URL || '/us-code-tracker/';
+    return envBase.endsWith('/') ? envBase : `${envBase}/`;
+  }
+
+  async function loadRelationships(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const urlRelease = new URLSearchParams(window.location.search).get('release')?.trim() || 'pl-119-73';
+    const key = `${urlRelease}/${uscTitle}-${uscSection}`;
+    if (relationshipsLoadedFor === key) return;
+    relationshipsLoadedFor = key;
+    relationshipsLoading = true;
+    relationshipsError = null;
+    try {
+      const res = await fetch(`${getInspectorBaseUrl()}neighborhoods/${key}.json`);
+      if (!res.ok) {
+        relationshipShard = null;
+        relationshipsError = `No static relationship neighborhood shard available for ${uscTitle} U.S.C. § ${uscSection} in ${urlRelease}.`;
+        return;
+      }
+      relationshipShard = (await res.json()) as RelationshipShard;
+    } catch {
+      relationshipShard = null;
+      relationshipsError = `Relationship shard unavailable for ${uscTitle} U.S.C. § ${uscSection}.`;
+    } finally {
+      relationshipsLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (activeTab === 'relationships') {
+      void loadRelationships();
+    }
+  });
 
   function isVerifiedHolding(c: CaseAnnotation): boolean {
     return (
@@ -144,6 +210,18 @@
       >
         <span>CFR Rules</span>
         <span class="rounded-full bg-[var(--legal-valid-bg)] text-[var(--legal-valid)] px-1.5 py-0.2 text-[9px] font-bold">eCFR</span>
+      </button>
+
+      <button
+        onclick={() => (activeTab = 'relationships')}
+        class:list={[
+          'px-2.5 py-1.5 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap',
+          activeTab === 'relationships'
+            ? 'bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xs font-semibold'
+            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+        ]}
+      >
+        <span>Relationships</span>
       </button>
 
       <button
@@ -382,7 +460,65 @@
         </div>
       </div>
 
-    <!-- TAB 3: LIVE FEDERAL REGISTER ACTIVITY -->
+    <!-- TAB 3: STATIC RELATIONSHIP NEIGHBORHOOD EXPLORER (USCT-021) -->
+    {:else if activeTab === 'relationships'}
+      <div class="space-y-3" data-relationships-panel>
+        <div class="rounded bg-[var(--surface-raised)] border border-[var(--border-subtle)] p-3 text-xs">
+          <div class="font-semibold text-[var(--text-primary)]">Version-Scoped Legal Relationships</div>
+          <p class="mt-1 text-[var(--text-muted)] text-[11px]">
+            Static neighborhood graph linking statutes, enacted Public Laws, CFR authorities, and reviewed opinions.
+          </p>
+        </div>
+
+        {#if relationshipsLoading}
+          <div class="p-4 text-center text-xs text-[var(--text-muted)]">Loading relationship shard...</div>
+        {:else if relationshipsError}
+          <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 text-center text-xs text-[var(--text-muted)]">
+            {relationshipsError}
+          </div>
+        {:else if relationshipShard && relationshipShard.edges.length > 0}
+          <div class="text-[10px] font-mono text-[var(--text-muted)]">
+            Release: {relationshipShard.releaseId} · Provision: {relationshipShard.provisionId} · {relationshipShard.edges.length} edges
+          </div>
+          <div class="space-y-2">
+            {#each relationshipShard.edges as edge (edge.assertionId)}
+              <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-xs space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-mono text-[10px] uppercase font-bold text-[var(--civic-action)]">
+                    {edge.direction === 'outbound' ? '→' : '←'} {edge.relationType}
+                  </span>
+                  <span class:list={[
+                    'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                    edge.extractionState === 'verified' && edge.editorialReview === 'accepted'
+                      ? 'bg-[var(--legal-valid-bg)] text-[var(--legal-valid)]'
+                      : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                  ]}>
+                    {edge.extractionState}/{edge.editorialReview}
+                  </span>
+                </div>
+                <div class="font-semibold text-[var(--text-primary)]">{edge.peerLabel}</div>
+                <div class="text-[10px] text-[var(--text-muted)]">
+                  Kind: {edge.authorityKind} · Alignment: {edge.versionAlignmentState}
+                </div>
+                {#if edge.propositionText}
+                  <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed">{edge.propositionText}</p>
+                {/if}
+                {#if edge.evidenceExcerpts.length > 0}
+                  <div class="rounded bg-[var(--surface-sunken)] p-2 text-[10px] text-[var(--text-muted)] font-mono">
+                    {edge.evidenceExcerpts[0]}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 text-center text-xs text-[var(--text-muted)]">
+            No asserted relationship edges recorded for this section in this release.
+          </div>
+        {/if}
+      </div>
+
+    <!-- TAB 4: LIVE FEDERAL REGISTER ACTIVITY -->
     {:else if activeTab === 'rulemaking'}
       <FederalRegisterActivity {uscTitle} {uscSection} />
 

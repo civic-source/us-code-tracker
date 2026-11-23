@@ -100,10 +100,10 @@ describe('USCT-002 & USCT-003: fetchRegulationsWithOutcome & fetchImplementingRe
     expect(outcome.status).toBe('success-nonempty');
     expect(outcome.data).toHaveLength(3);
 
-    // 40 CFR Part 50 has verified authority citing 42 U.S.C. 7401
+    // 40 CFR Part 50 has verified authority citing 42 U.S.C. 7401 (machine verification defaults editorialReview to 'unreviewed')
     expect(outcome.data[0]?.extractionState).toBe('verified');
     expect(outcome.data[0]?.relationshipType).toBe('authority_citation');
-    expect(outcome.data[0]?.editorialReview).toBe('accepted');
+    expect(outcome.data[0]?.editorialReview).toBe('unreviewed');
     expect(outcome.data[0]?.verifiedAuthorityText).toBe('Authority: 42 U.S.C. 7401-7671q.');
 
     // 29 CFR Part 1910 is an incidental text mention (authority is 29 U.S.C. 655)

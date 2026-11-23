@@ -10,6 +10,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import ArticleToc from '../../components/ArticleToc.svelte';
 import SummaryBox from '../../components/SummaryBox.astro';
 import ReadingToolbar from '../../components/ReadingToolbar.svelte';
+import HistoricalReleaseViewer from '../../components/HistoricalReleaseViewer.svelte';
 
 export async function getStaticPaths() {
   const [entries, allAnnotations, allRegulations] = await Promise.all([
@@ -317,12 +318,13 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       </div>
 
       <!-- Main statute content -->
-      <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none">
+      <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
+      <div id="current-statute-body" class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none">
         <Content />
       </div>
 
       <!-- Prev / Next section navigation with title previews -->
-      <nav data-pagefind-ignore class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
+      <nav id="statute-section-nav" data-pagefind-ignore class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
         {prevSection ? (
           <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%]">
             <span class="text-[11px] text-[var(--text-muted)]">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>

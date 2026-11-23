@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="http://xml.house.gov/schemas/uslm/1.0" identifier="/us/usc/t18">
+  <meta>
+    <docNumber>18</docNumber>
+    <docPublicationName>Online@116-220</docPublicationName>
+    <created>2020-12-27T00:00:00</created>
+  </meta>
+  <main>
+    <title identifier="/us/usc/t18">
+      <num value="18">Title 18</num>
+      <heading>CRIMES AND CRIMINAL PROCEDURE</heading>
+      <chapter identifier="/us/usc/t18/ch7">
+        <num value="7">CHAPTER 7</num>
+        <heading>ASSAULT</heading>
+        <section identifier="/us/usc/t18/s111">
+          <num value="111">§ 111.</num>
+          <heading>Assaulting, resisting, or impeding certain officers or employees</heading>
+          <subsection identifier="/us/usc/t18/s111/a">
+            <num value="a">(a)</num>
+            <chapeau>In General.—Whoever—</chapeau>
+            <paragraph identifier="/us/usc/t18/s111/a/1">
+              <num value="1">(1)</num>
+              <content>forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or</content>
+            </paragraph>
+            <paragraph identifier="/us/usc/t18/s111/a/2">
+              <num value="2">(2)</num>
+              <content>forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official duties during such person's term of service, shall, where the acts in violation of this section constitute only simple assault, be fined under this title or imprisoned not more than one year, or both, and where such acts involve physical contact with the victim of that assault or the intent to commit another felony, be fined under this title or imprisoned not more than 8 years, or both.</content>
+            </paragraph>
+          </subsection>
+          <subsection identifier="/us/usc/t18/s111/b">
+            <num value="b">(b)</num>
+            <content>Enhanced Penalty.—Whoever, in the commission of any act described in subsection (a), uses a deadly or dangerous weapon (including a weapon intended to cause death or danger but that fails to do so by reason of a defective component) or inflicts bodily injury, shall be fined under this title or imprisoned not more than 20 years, or both.</content>
+          </subsection>
+          <sourceCredit>(June 25, 1948, ch. 645, <ref href="/us/stat/62/688">62 Stat. 688</ref>; <ref href="/us/pl/110/177">Pub. L. 110–177, title II, § 208(b)</ref>, Jan. 7, 2008, <ref href="/us/stat/121/2538">121 Stat. 2538</ref>.)</sourceCredit>
+          <note identifier="/us/usc/t18/s111/note1" topic="amendments">
+            <heading>Amendments</heading>
+            <p>2008—Subsec. (a). Pub. L. 110–177, § 208(b)(1), substituted physical contact or intent to commit another felony penalty clause for all other cases clause.</p>
+          </note>
+        </section>
+      </chapter>
+    </title>
+  </main>
+</uscDoc>

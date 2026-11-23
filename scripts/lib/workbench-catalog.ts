@@ -156,13 +156,16 @@ export interface ImpactPreviewReport {
   invalidatedArtifacts: DerivedArtifactRecord[];
   unaffectedArtifacts: DerivedArtifactRecord[];
   affectedProvisions: string[];
+  affectedAssertions: string[];
   affectedPages: string[];
   affectedSearchShards: string[];
   affectedExports: string[];
 }
 
 /**
- * Compute the exact invalidation and pre-acceptance impact preview report across the Processing DAG (USCT-018).
+ * Compute the exact transitive invalidation and pre-acceptance impact preview report across the Processing DAG (USCT-018, AUD-011).
+ * Traverses downstream dependencies to a fixed point so invalidating an intermediate artifact (such as a canonical provision
+ * whose negative dependency resolved) invalidates all downstream pages, shards, and exports that consume it.
  */
 export function computeDependencyImpact(
   existingArtifacts: readonly DerivedArtifactRecord[],
@@ -176,37 +179,48 @@ export function computeDependencyImpact(
     newConfigDigest?: string;
   }
 ): ImpactPreviewReport {
-  const posSet = new Set(changeSet.modifiedPositiveInputs ?? []);
+  const initialPosSet = new Set(changeSet.modifiedPositiveInputs ?? []);
+  const activePosSet = new Set(initialPosSet);
   const colSet = new Set(changeSet.modifiedCollectionInputs ?? []);
   const negSet = new Set(changeSet.newlyPresentTargets ?? []);
   const polSet = new Set(changeSet.modifiedPolicyInputs ?? []);
 
-  const invalidated: DerivedArtifactRecord[] = [];
-  const unaffected: DerivedArtifactRecord[] = [];
+  const invalidatedKeys = new Set<string>();
+  let addedInPass = true;
 
-  for (const art of existingArtifacts) {
-    const producerChanged =
-      (changeSet.newProducerVersion !== undefined &&
-        changeSet.newProducerVersion !== art.producerVersion) ||
-      (changeSet.newSchemaVersion !== undefined &&
-        changeSet.newSchemaVersion !== art.schemaVersion) ||
-      (changeSet.newConfigDigest !== undefined &&
-        changeSet.newConfigDigest !== art.configDigest);
+  while (addedInPass) {
+    addedInPass = false;
+    for (const art of existingArtifacts) {
+      if (invalidatedKeys.has(art.artifactKey)) continue;
 
-    const hitPos = art.dependencies.positiveInputs.some((x) => posSet.has(x));
-    const hitCol = art.dependencies.collectionInputs.some((x) => colSet.has(x));
-    const hitNeg = art.dependencies.negativeInputs.some((x) => negSet.has(x));
-    const hitPol = art.dependencies.policyInputs.some((x) => polSet.has(x));
+      const producerChanged =
+        (changeSet.newProducerVersion !== undefined &&
+          changeSet.newProducerVersion !== art.producerVersion) ||
+        (changeSet.newSchemaVersion !== undefined &&
+          changeSet.newSchemaVersion !== art.schemaVersion) ||
+        (changeSet.newConfigDigest !== undefined &&
+          changeSet.newConfigDigest !== art.configDigest);
 
-    if (producerChanged || hitPos || hitCol || hitNeg || hitPol) {
-      invalidated.push(art);
-    } else {
-      unaffected.push(art);
+      const hitPos = art.dependencies.positiveInputs.some((x) => activePosSet.has(x));
+      const hitCol = art.dependencies.collectionInputs.some((x) => colSet.has(x));
+      const hitNeg = art.dependencies.negativeInputs.some((x) => negSet.has(x));
+      const hitPol = art.dependencies.policyInputs.some((x) => polSet.has(x));
+
+      if (producerChanged || hitPos || hitCol || hitNeg || hitPol) {
+        invalidatedKeys.add(art.artifactKey);
+        activePosSet.add(art.outputContentHash);
+        activePosSet.add(art.artifactKey);
+        activePosSet.add(art.targetScope);
+        addedInPass = true;
+      }
     }
   }
 
+  const invalidated = existingArtifacts.filter((a) => invalidatedKeys.has(a.artifactKey));
+  const unaffected = existingArtifacts.filter((a) => !invalidatedKeys.has(a.artifactKey));
+
   return {
-    changedPositiveInputs: [...posSet],
+    changedPositiveInputs: [...initialPosSet],
     changedCollectionInputs: [...colSet],
     newlyResolvedNegativeTargets: [...negSet],
     changedProducerOrSchema: Boolean(
@@ -216,6 +230,9 @@ export function computeDependencyImpact(
     unaffectedArtifacts: unaffected,
     affectedProvisions: invalidated
       .filter((a) => a.artifactKind === 'canonical_provision')
+      .map((a) => a.targetScope),
+    affectedAssertions: invalidated
+      .filter((a) => a.artifactKind === 'model_proposal' || a.artifactKind === 'relationship_neighborhood')
       .map((a) => a.targetScope),
     affectedPages: invalidated
       .filter((a) => a.artifactKind === 'section_page' || a.artifactKind === 'relationship_neighborhood')
@@ -286,8 +303,16 @@ export class FencedTaskCoordinator {
       if (taskState.currentInputIdentity !== params.inputIdentity) {
         taskState.currentGeneration += 1;
         taskState.currentInputIdentity = params.inputIdentity;
+        delete taskState.acceptedAttemptId;
+        delete taskState.acceptedFencingToken;
+        delete taskState.acceptedOutputHash;
+        delete taskState.acceptedAtIso;
       } else if (taskState.highestFencingToken < fencingToken) {
         taskState.currentGeneration += 1;
+        delete taskState.acceptedAttemptId;
+        delete taskState.acceptedFencingToken;
+        delete taskState.acceptedOutputHash;
+        delete taskState.acceptedAtIso;
       }
       taskState.highestFencingToken = fencingToken;
     }
@@ -328,16 +353,36 @@ export class FencedTaskCoordinator {
       return err(new Error(`Unknown taskId: ${attempt.taskId}`));
     }
 
-    // Idempotent duplicate retry check
+    // Terminal immutability check (AUD-011 / USCT-035):
+    // Once an attempt or generation has been accepted, it is strictly terminal.
+    // Identical output retry is an idempotent no-op; conflicting output on an already-accepted
+    // attempt or generation is rejected!
+    if (attempt.state === 'accepted' || taskState.acceptedAttemptId === attempt.attemptId) {
+      if (taskState.acceptedOutputHash === params.outputArtifactHash) {
+        return ok({ status: 'noop_already_accepted', taskState: { ...taskState } });
+      }
+      return err(
+        new Error(
+          `Terminal accepted attempt '${attempt.attemptId}' cannot replace accepted output '${taskState.acceptedOutputHash}' with '${params.outputArtifactHash}'`
+        )
+      );
+    }
+
     if (
-      taskState.acceptedOutputHash === params.outputArtifactHash &&
+      taskState.acceptedOutputHash !== undefined &&
       taskState.currentInputIdentity === attempt.inputIdentity &&
-      (taskState.acceptedAttemptId === attempt.attemptId ||
-        taskState.currentGeneration === attempt.generation)
+      taskState.currentGeneration === attempt.generation
     ) {
-      attempt.state = 'accepted';
-      attempt.outputArtifactHash = params.outputArtifactHash;
-      return ok({ status: 'noop_already_accepted', taskState: { ...taskState } });
+      if (taskState.acceptedOutputHash === params.outputArtifactHash) {
+        attempt.state = 'accepted';
+        attempt.outputArtifactHash = params.outputArtifactHash;
+        return ok({ status: 'noop_already_accepted', taskState: { ...taskState } });
+      }
+      return err(
+        new Error(
+          `Generation ${attempt.generation} already accepted output '${taskState.acceptedOutputHash}'; conflicting output '${params.outputArtifactHash}' requires a new generation`
+        )
+      );
     }
 
     // 1. Check lease expiry
@@ -377,6 +422,50 @@ export class FencedTaskCoordinator {
   getAttempt(attemptId: string): TaskAttemptRecord | undefined {
     const a = this.attempts.get(attemptId);
     return a ? { ...a } : undefined;
+  }
+
+  exportState(): {
+    globalFencingCounter: number;
+    tasks: AcceptedTaskState[];
+    attempts: TaskAttemptRecord[];
+  } {
+    return {
+      globalFencingCounter: this.globalFencingCounter,
+      tasks: [...this.tasks.values()].map((t) => ({ ...t })),
+      attempts: [...this.attempts.values()].map((a) => ({ ...a })),
+    };
+  }
+
+  importState(snapshot: {
+    globalFencingCounter?: number;
+    tasks?: readonly AcceptedTaskState[];
+    attempts?: readonly TaskAttemptRecord[];
+  }): void {
+    this.tasks.clear();
+    this.attempts.clear();
+    let maxToken = snapshot.globalFencingCounter ?? 0;
+    for (const t of snapshot.tasks ?? []) {
+      this.tasks.set(t.taskId, { ...t });
+      if (t.highestFencingToken > maxToken) maxToken = t.highestFencingToken;
+    }
+    for (const a of snapshot.attempts ?? []) {
+      this.attempts.set(a.attemptId, { ...a });
+      if (a.fencingToken > maxToken) maxToken = a.fencingToken;
+    }
+    this.globalFencingCounter = maxToken;
+  }
+
+  async saveToFile(filePath: string): Promise<void> {
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, JSON.stringify(this.exportState(), null, 2) + '\n', 'utf-8');
+  }
+
+  static async loadFromFile(filePath: string): Promise<FencedTaskCoordinator> {
+    const raw = await readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(raw) as ReturnType<FencedTaskCoordinator['exportState']>;
+    const coord = new FencedTaskCoordinator();
+    coord.importState(parsed);
+    return coord;
   }
 }
 
@@ -463,6 +552,18 @@ export interface CitationResolutionResult {
  * Canonical Workbench Catalog implementing both the file-backed fixture/replay store (USCT-008)
  * and the PostgreSQL SQL migration/export adapter (USCT-009) with 100% deterministic parity.
  */
+export interface WorkbenchLexicalHit {
+  provisionVersionId: string;
+  provisionId: string;
+  releaseId?: string;
+  citation: string;
+  heading: string;
+  matchedExcerpt: string;
+  lexicalScore: number;
+  combinedScore: number;
+  evidenceSpans: EvidenceSpan[];
+}
+
 export class CanonicalWorkbenchCatalog {
   private state: CatalogStateSnapshot = {
     schemaVersion: 'usct.catalog-snapshot/v1',
@@ -483,10 +584,10 @@ export class CanonicalWorkbenchCatalog {
     derivedArtifacts: [],
   };
 
-  /** Generate the PostgreSQL DDL schema migration for the local workbench catalog (USCT-009) */
+  /** Generate the PostgreSQL DDL schema migration for the local workbench catalog (USCT-009, USCT-023, USCT-035) */
   static getPostgresMigrationSql(): string {
     return `
--- USCT-009: Canonical Local PostgreSQL Workbench Schema Migration (v1)
+-- USCT-009 / USCT-023 / USCT-035: Canonical Local PostgreSQL Workbench Schema Migration (v2 - Full 15-Entity + Durable Task Coordinator)
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS source_artifacts (
@@ -495,9 +596,20 @@ CREATE TABLE IF NOT EXISTS source_artifacts (
   byte_length BIGINT NOT NULL CHECK (byte_length >= 0),
   media_type TEXT NOT NULL,
   storage_locator TEXT NOT NULL,
-  license TEXT NOT NULL DEFAULT 'CC0-1.0',
+  license TEXT NOT NULL DEFAULT 'unknown',
   attribution_required BOOLEAN NOT NULL DEFAULT FALSE,
-  attribution_text TEXT
+  attribution_text TEXT,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS source_snapshots (
+  snapshot_id TEXT PRIMARY KEY,
+  source_registry_id TEXT NOT NULL,
+  artifact_id TEXT NOT NULL REFERENCES source_artifacts(artifact_id),
+  authority_kind TEXT NOT NULL,
+  retrieved_at TIMESTAMPTZ NOT NULL,
+  legacy_derived BOOLEAN NOT NULL DEFAULT FALSE,
+  payload_json JSONB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS source_releases (
@@ -509,7 +621,8 @@ CREATE TABLE IF NOT EXISTS source_releases (
   manifest_digest CHAR(64) NOT NULL,
   published_date TEXT,
   observed_at TIMESTAMPTZ NOT NULL,
-  legacy_derived BOOLEAN NOT NULL DEFAULT FALSE
+  legacy_derived BOOLEAN NOT NULL DEFAULT FALSE,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS provisions (
@@ -517,7 +630,8 @@ CREATE TABLE IF NOT EXISTS provisions (
   jurisdiction TEXT NOT NULL DEFAULT 'US',
   document_kind TEXT NOT NULL,
   creation_basis TEXT NOT NULL,
-  identity_registry_version INT NOT NULL DEFAULT 1
+  identity_registry_version INT NOT NULL DEFAULT 1,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS provision_versions (
@@ -531,8 +645,10 @@ CREATE TABLE IF NOT EXISTS provision_versions (
   heading TEXT NOT NULL,
   status TEXT NOT NULL,
   body_markdown TEXT NOT NULL,
+  legacy_derived BOOLEAN NOT NULL DEFAULT FALSE,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_tsv TSVECTOR GENERATED ALWAYS AS (
-    to_tsvector('english', coalesce(heading, '') || ' ' || coalesce(body_markdown, ''))
+    to_tsvector('english', coalesce(usc_title, '') || ' U.S.C. ' || coalesce(usc_section, '') || ' ' || coalesce(heading, '') || ' ' || coalesce(body_markdown, ''))
   ) STORED
 );
 
@@ -546,7 +662,48 @@ CREATE TABLE IF NOT EXISTS snapshot_memberships (
   source_order INT NOT NULL,
   hierarchy_path TEXT NOT NULL,
   source_locator TEXT NOT NULL,
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   UNIQUE (source_release_id, provision_version_id)
+);
+
+CREATE TABLE IF NOT EXISTS citation_assignments (
+  assignment_id TEXT PRIMARY KEY,
+  provision_id TEXT NOT NULL REFERENCES provisions(provision_id),
+  normalized_citation TEXT NOT NULL,
+  legacy_slug TEXT NOT NULL,
+  editorial_review TEXT NOT NULL DEFAULT 'accepted',
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS identity_transitions (
+  transition_id TEXT PRIMARY KEY,
+  transition_kind TEXT NOT NULL,
+  from_provision_id TEXT NOT NULL,
+  from_citation TEXT NOT NULL,
+  extraction_state TEXT NOT NULL,
+  editorial_review TEXT NOT NULL,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS evidence_spans (
+  evidence_id TEXT PRIMARY KEY,
+  source_snapshot_id TEXT NOT NULL,
+  artifact_sha256 CHAR(64) NOT NULL,
+  locator_kind TEXT NOT NULL,
+  locator_value TEXT NOT NULL,
+  excerpt_sha256 CHAR(64) NOT NULL,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS legal_assertions (
+  assertion_id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  relation_type TEXT NOT NULL,
+  object_id TEXT,
+  authority_kind TEXT NOT NULL,
+  extraction_state TEXT NOT NULL,
+  editorial_review TEXT NOT NULL,
+  payload_json JSONB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS applicability_claims (
@@ -557,7 +714,75 @@ CREATE TABLE IF NOT EXISTS applicability_claims (
   start_boundary JSONB NOT NULL,
   end_boundary JSONB NOT NULL,
   required_context_facts JSONB NOT NULL DEFAULT '[]'::jsonb,
-  editorial_review TEXT NOT NULL DEFAULT 'unreviewed'
+  editorial_review TEXT NOT NULL DEFAULT 'unreviewed',
+  payload_json JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS historical_observations (
+  observation_id TEXT PRIMARY KEY,
+  target_kind TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  source_published_date TEXT,
+  backfilled_historical_source BOOLEAN NOT NULL DEFAULT FALSE,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS collection_coverages (
+  coverage_id TEXT PRIMARY KEY,
+  source_scope TEXT NOT NULL,
+  source_family TEXT NOT NULL,
+  release_id TEXT,
+  coverage_state TEXT NOT NULL,
+  is_required_for_publication BOOLEAN NOT NULL DEFAULT TRUE,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS findings (
+  finding_id TEXT PRIMARY KEY,
+  fingerprint TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  affected_scope TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS derived_artifacts (
+  artifact_key TEXT PRIMARY KEY,
+  artifact_kind TEXT NOT NULL,
+  target_scope TEXT NOT NULL,
+  producer_id TEXT NOT NULL,
+  producer_version TEXT NOT NULL,
+  output_content_hash TEXT NOT NULL,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS accepted_tasks (
+  task_id TEXT PRIMARY KEY,
+  current_generation INT NOT NULL,
+  current_input_identity TEXT NOT NULL,
+  highest_fencing_token INT NOT NULL,
+  accepted_attempt_id TEXT,
+  accepted_fencing_token INT,
+  accepted_output_hash TEXT,
+  accepted_at_iso TEXT,
+  payload_json JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS task_attempts (
+  attempt_id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES accepted_tasks(task_id),
+  generation INT NOT NULL,
+  input_identity TEXT NOT NULL,
+  owner_worker_id TEXT NOT NULL,
+  fencing_token INT NOT NULL,
+  lease_expires_at_ms BIGINT NOT NULL,
+  state TEXT NOT NULL,
+  output_artifact_hash TEXT,
+  rejection_reason TEXT,
+  payload_json JSONB NOT NULL
 );
 
 COMMIT;
@@ -578,23 +803,84 @@ COMMIT;
         else arr.push(item);
       };
 
+      const insertImmutable = <T>(
+        kind: string,
+        arr: T[],
+        item: T,
+        keyFn: (x: T) => string,
+        sameContentFn: (existing: T, incoming: T) => boolean
+      ) => {
+        const k = keyFn(item);
+        const existing = arr.find((e) => keyFn(e) === k);
+        if (!existing) {
+          arr.push(item);
+          return;
+        }
+        if (!sameContentFn(existing, item)) {
+          throw new Error(
+            `Immutable identity collision for ${kind} '${k}': incoming content/digest conflicts with already accepted record`
+          );
+        }
+      };
+
       for (const a of partial.artifacts ?? []) {
-        upsert(next.artifacts, SourceArtifactSchema.parse(a), (x) => x.artifactId);
+        insertImmutable(
+          'SourceArtifact',
+          next.artifacts,
+          SourceArtifactSchema.parse(a),
+          (x) => x.artifactId,
+          (e, i) => e.sha256 === i.sha256 && e.byteLength === i.byteLength && e.mediaType === i.mediaType
+        );
       }
       for (const s of partial.snapshots ?? []) {
-        upsert(next.snapshots, SourceSnapshotSchema.parse(s), (x) => x.snapshotId);
+        insertImmutable(
+          'SourceSnapshot',
+          next.snapshots,
+          SourceSnapshotSchema.parse(s),
+          (x) => x.snapshotId,
+          (e, i) => e.artifactId === i.artifactId && e.requestedUrl === i.requestedUrl
+        );
       }
       for (const r of partial.releases ?? []) {
-        upsert(next.releases, SourceReleaseSchema.parse(r), (x) => x.releaseId);
+        insertImmutable(
+          'SourceRelease',
+          next.releases,
+          SourceReleaseSchema.parse(r),
+          (x) => x.releaseId,
+          (e, i) =>
+            e.manifestDigest === i.manifestDigest &&
+            e.releaseSegment === i.releaseSegment &&
+            e.revisionNumber === i.revisionNumber
+        );
       }
       for (const p of partial.provisions ?? []) {
         upsert(next.provisions, ProvisionSchema.parse(p), (x) => x.provisionId);
       }
       for (const pv of partial.provisionVersions ?? []) {
-        upsert(next.provisionVersions, ProvisionVersionSchema.parse(pv), (x) => x.provisionVersionId);
+        insertImmutable(
+          'ProvisionVersion',
+          next.provisionVersions,
+          ProvisionVersionSchema.parse(pv),
+          (x) => x.provisionVersionId,
+          (e, i) =>
+            e.normalizedContentHash === i.normalizedContentHash &&
+            e.bodyMarkdown === i.bodyMarkdown &&
+            e.heading === i.heading &&
+            e.status === i.status &&
+            e.provisionId === i.provisionId
+        );
       }
       for (const m of partial.memberships ?? []) {
-        upsert(next.memberships, SnapshotMembershipSchema.parse(m), (x) => x.membershipId);
+        insertImmutable(
+          'SnapshotMembership',
+          next.memberships,
+          SnapshotMembershipSchema.parse(m),
+          (x) => x.membershipId,
+          (e, i) =>
+            e.sourceReleaseId === i.sourceReleaseId &&
+            e.provisionVersionId === i.provisionVersionId &&
+            e.provisionId === i.provisionId
+        );
       }
       for (const ca of partial.citationAssignments ?? []) {
         upsert(next.citationAssignments, CitationAssignmentSchema.parse(ca), (x) => x.assignmentId);
@@ -603,7 +889,17 @@ COMMIT;
         upsert(next.identityTransitions, IdentityTransitionSchema.parse(tr), (x) => x.transitionId);
       }
       for (const ev of partial.evidenceSpans ?? []) {
-        upsert(next.evidenceSpans, EvidenceSpanSchema.parse(ev), (x) => x.evidenceId);
+        insertImmutable(
+          'EvidenceSpan',
+          next.evidenceSpans,
+          EvidenceSpanSchema.parse(ev),
+          (x) => x.evidenceId,
+          (e, i) =>
+            e.artifactSha256 === i.artifactSha256 &&
+            e.excerptSha256 === i.excerptSha256 &&
+            e.excerpt === i.excerpt &&
+            e.locatorValue === i.locatorValue
+        );
       }
       for (const as of partial.assertions ?? []) {
         upsert(next.assertions, LegalAssertionSchema.parse(as), (x) => x.assertionId);
@@ -668,7 +964,7 @@ COMMIT;
         await adapter.execute(
           `INSERT INTO source_artifacts (artifact_id, sha256, byte_length, media_type, storage_locator, license, attribution_required, attribution_text)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           ON CONFLICT (artifact_id) DO UPDATE SET sha256 = EXCLUDED.sha256, byte_length = EXCLUDED.byte_length`,
+           ON CONFLICT (artifact_id) DO NOTHING`,
           [
             a.artifactId,
             a.sha256,
@@ -687,7 +983,7 @@ COMMIT;
         await adapter.execute(
           `INSERT INTO source_releases (release_id, publisher_release_label, release_segment, congress, law_identifier, manifest_digest, published_date, observed_at, legacy_derived)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           ON CONFLICT (release_id) DO UPDATE SET manifest_digest = EXCLUDED.manifest_digest`,
+           ON CONFLICT (release_id) DO NOTHING`,
           [
             r.releaseId,
             r.publisherReleaseLabel,
@@ -723,7 +1019,7 @@ COMMIT;
         await adapter.execute(
           `INSERT INTO provision_versions (provision_version_id, provision_id, normalized_content_hash, normalization_version, usc_title, usc_chapter, usc_section, heading, status, body_markdown)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           ON CONFLICT (provision_version_id) DO UPDATE SET normalized_content_hash = EXCLUDED.normalized_content_hash, body_markdown = EXCLUDED.body_markdown`,
+           ON CONFLICT (provision_version_id) DO NOTHING`,
           [
             pv.provisionVersionId,
             pv.provisionId,
@@ -744,7 +1040,7 @@ COMMIT;
         await adapter.execute(
           `INSERT INTO snapshot_memberships (membership_id, source_release_id, provision_version_id, provision_id, source_order, hierarchy_path, source_locator)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (membership_id) DO UPDATE SET source_order = EXCLUDED.source_order`,
+           ON CONFLICT (membership_id) DO NOTHING`,
           [
             m.membershipId,
             m.sourceReleaseId,
@@ -1127,9 +1423,12 @@ COMMIT;
       return this.state.evidenceSpans.filter((e) => ids.has(e.evidenceId));
     };
 
-    // 1. Check for disputed / competing claims
+    // 1. Check for disputed / competing claims (AUD-003 / USCT-034)
     const disputedClaims = claims.filter(
-      (c) => c.applicabilityState === 'disputed' || c.competingClaimIds.length > 0
+      (c) =>
+        c.applicabilityState === 'disputed' ||
+        c.editorialReview === 'disputed' ||
+        c.competingClaimIds.length > 0
     );
     if (disputedClaims.length > 0) {
       return {
@@ -1173,36 +1472,99 @@ COMMIT;
       };
     }
 
-    // 3. Evaluate temporal boundaries against requestedLegalDate
+    // 3. Evaluate temporal boundaries against requestedLegalDate with strict coherence and evidence checks (AUD-003 / USCT-034)
+    const isCoherentKnownBoundary = (b: TemporalBoundary): boolean => {
+      if (b.state !== 'known') return false;
+      if (!b.value || typeof b.value !== 'string' || b.value.trim().length === 0) return false;
+      if (b.precision === 'unknown' || b.basis === 'unestablished') return false;
+      if (b.precision === 'day' && !/^\d{4}-\d{2}-\d{2}$/.test(b.value)) return false;
+      if (b.precision === 'month' && !/^\d{4}-\d{2}$/.test(b.value)) return false;
+      if (b.precision === 'year' && !/^\d{4}$/.test(b.value)) return false;
+      return true;
+    };
+
+    const compareDateWithPrecision = (
+      requestedDay: string,
+      boundary: TemporalBoundary,
+      role: 'start' | 'end'
+    ): 'before' | 'after' | 'within' | 'uncertain_partial_precision' => {
+      const val = boundary.value!;
+      if (boundary.precision === 'day') {
+        const cmp = requestedDay.localeCompare(val);
+        if (role === 'start') {
+          return cmp < 0 || (cmp === 0 && boundary.inclusive === false) ? 'before' : 'within';
+        }
+        return cmp > 0 || (cmp === 0 && boundary.inclusive === false) ? 'after' : 'within';
+      }
+      if (boundary.precision === 'month') {
+        const reqMonth = requestedDay.slice(0, 7);
+        if (reqMonth === val) return 'uncertain_partial_precision';
+        const cmp = reqMonth.localeCompare(val);
+        if (role === 'start') return cmp < 0 ? 'before' : 'within';
+        return cmp > 0 ? 'after' : 'within';
+      }
+      if (boundary.precision === 'year') {
+        const reqYear = requestedDay.slice(0, 4);
+        if (reqYear === val) return 'uncertain_partial_precision';
+        const cmp = reqYear.localeCompare(val);
+        if (role === 'start') return cmp < 0 ? 'before' : 'within';
+        return cmp > 0 ? 'after' : 'within';
+      }
+      return 'uncertain_partial_precision';
+    };
+
     const evaluateBoundary = (
-      start: TemporalBoundary,
-      end: TemporalBoundary,
+      claim: ApplicabilityClaim,
       dateStr: string
     ): 'applicable' | 'not_yet_effective' | 'expired' | 'unknown_boundary' | 'conditional_boundary' => {
-      if (start.state === 'unknown') return 'unknown_boundary';
-      if (start.state === 'conditional' && start.conditions.some((cond) => !facts[cond])) {
-        return 'conditional_boundary';
-      }
-      if (start.value) {
-        const cmp = dateStr.localeCompare(start.value);
-        if (cmp < 0 || (cmp === 0 && start.inclusive === false)) {
-          return 'not_yet_effective';
-        }
+      const { startBoundary: start, endBoundary: end } = claim;
+      const claimEvidence = collectEvidence([claim]);
+
+      // A claim without accepted review or without resolvable supporting EvidenceSpans cannot produce a verified 'known' applicability conclusion (AUD-003)
+      if (claim.editorialReview !== 'accepted' || claimEvidence.length === 0) {
+        return 'unknown_boundary';
       }
 
-      // Crucial USCT-034 invariant: a null/absent end date NEVER implies ongoing validity
-      // unless end.state is explicitly 'open'!
+      if (start.state === 'unknown') return 'unknown_boundary';
+      if (start.state === 'conditional') {
+        if (start.conditions.length === 0 || start.conditions.some((cond) => !facts[cond])) {
+          return 'conditional_boundary';
+        }
+        if (start.value) {
+          if (start.precision === 'unknown') return 'unknown_boundary';
+          const cmpStart = compareDateWithPrecision(dateStr, start, 'start');
+          if (cmpStart === 'before') return 'not_yet_effective';
+          if (cmpStart === 'uncertain_partial_precision') return 'unknown_boundary';
+        }
+      } else if (start.state === 'known') {
+        if (!isCoherentKnownBoundary(start)) return 'unknown_boundary';
+        const cmpStart = compareDateWithPrecision(dateStr, start, 'start');
+        if (cmpStart === 'before') return 'not_yet_effective';
+        if (cmpStart === 'uncertain_partial_precision') return 'unknown_boundary';
+      }
+
+      // Crucial USCT-034 & AUD-003 invariant:
+      // 1. end.state === 'unknown' -> unknown_boundary
+      // 2. end.state === 'known' WITHOUT a coherent date/precision/basis -> unknown_boundary (never implies ongoing validity!)
+      // 3. end.state === 'open' requires resolvable supporting evidence on the claim
       if (end.state === 'unknown') {
         return 'unknown_boundary';
       }
-      if (end.state === 'conditional' && end.conditions.some((cond) => !facts[cond])) {
-        return 'conditional_boundary';
-      }
-      if (end.state === 'known' && end.value) {
-        const cmpEnd = dateStr.localeCompare(end.value);
-        if (cmpEnd > 0 || (cmpEnd === 0 && end.inclusive === false)) {
-          return 'expired';
+      if (end.state === 'conditional') {
+        if (end.conditions.length === 0 || end.conditions.some((cond) => !facts[cond])) {
+          return 'conditional_boundary';
         }
+        if (end.value) {
+          if (end.precision === 'unknown') return 'unknown_boundary';
+          const cmpEnd = compareDateWithPrecision(dateStr, end, 'end');
+          if (cmpEnd === 'after') return 'expired';
+          if (cmpEnd === 'uncertain_partial_precision') return 'unknown_boundary';
+        }
+      } else if (end.state === 'known') {
+        if (!isCoherentKnownBoundary(end)) return 'unknown_boundary';
+        const cmpEnd = compareDateWithPrecision(dateStr, end, 'end');
+        if (cmpEnd === 'after') return 'expired';
+        if (cmpEnd === 'uncertain_partial_precision') return 'unknown_boundary';
       }
 
       return 'applicable';
@@ -1213,7 +1575,7 @@ COMMIT;
     let sawConditionalBoundary = false;
 
     for (const c of claims) {
-      const outcome = evaluateBoundary(c.startBoundary, c.endBoundary, params.requestedLegalDate);
+      const outcome = evaluateBoundary(c, params.requestedLegalDate);
       if (outcome === 'applicable') {
         applicableClaims.push(c);
       } else if (outcome === 'unknown_boundary') {
@@ -1283,17 +1645,7 @@ COMMIT;
     uscTitle?: string;
     onlyAcceptedReview?: boolean;
     optionalVectorScores?: Record<string, number>;
-  }): Array<{
-    provisionVersionId: string;
-    provisionId: string;
-    releaseId?: string;
-    citation: string;
-    heading: string;
-    matchedExcerpt: string;
-    lexicalScore: number;
-    combinedScore: number;
-    evidenceSpans: EvidenceSpan[];
-  }> {
+  }): WorkbenchLexicalHit[] {
     const terms = params.query
       .toLowerCase()
       .split(/\s+/)
@@ -1377,11 +1729,18 @@ export interface HistoricalSearchShardEntry {
   provisionVersionId: string;
   releaseId: string;
   uscTitle: string;
+  uscChapter?: string;
   uscSection: string;
   citation: string;
   aliases: string[];
   heading: string;
+  status?: ProvisionVersion['status'];
   excerpt: string;
+  bodyMarkdown?: string;
+  sourceCredits?: string[];
+  notes?: ProvisionVersion['notes'];
+  tables?: ProvisionVersion['tables'];
+  legacyDerived?: boolean;
   historicalUrl: string;
 }
 
@@ -1448,11 +1807,18 @@ export function buildHistoricalSearchShards(
         provisionVersionId: pv.provisionVersionId,
         releaseId: rel.releaseId,
         uscTitle: pv.uscTitle,
+        uscChapter: pv.uscChapter,
         uscSection: pv.uscSection,
         citation: primaryCitation,
         aliases,
         heading: pv.heading,
+        status: pv.status,
         excerpt: pv.bodyMarkdown.replace(/^#.*$/gm, '').replace(/\s+/g, ' ').trim().slice(0, 400),
+        bodyMarkdown: pv.bodyMarkdown,
+        sourceCredits: pv.sourceCredits,
+        notes: pv.notes,
+        tables: pv.tables,
+        legacyDerived: pv.legacyDerived,
         historicalUrl: `${baseUrl}statute/title-${pv.uscTitle}/chapter-${pv.uscChapter}/section-${pv.uscSection}/?release=${encodeURIComponent(rel.releaseId)}`,
       };
 
@@ -1460,11 +1826,21 @@ export function buildHistoricalSearchShards(
       byTitle.get(pv.uscTitle)!.push(entry);
     }
 
-    const cov = snap.coverages.find((c) => c.releaseId === rel.releaseId);
+    const cov =
+      snap.coverages.find((c) => c.coverageId === rel.coverageId) ??
+      snap.coverages.find((c) => c.releaseId === rel.releaseId);
     const coverageState = cov?.coverageState ?? 'complete';
     const expectedTitles = cov?.expectedPartitions ?? [...byTitle.keys()];
     const completedTitles = [...byTitle.keys()].sort();
-    const missingTitles = expectedTitles.filter((t) => !byTitle.has(t));
+    const presentPartitions = new Set<string>();
+    for (const [title, entries] of byTitle.entries()) {
+      presentPartitions.add(title);
+      presentPartitions.add(`title-${title}`);
+      for (const entry of entries) {
+        presentPartitions.add(`title-${entry.uscTitle}/section-${entry.uscSection}`);
+      }
+    }
+    const missingTitles = expectedTitles.filter((p) => !presentPartitions.has(p));
 
     availableReleases.push({
       releaseId: rel.releaseId,
@@ -1664,16 +2040,51 @@ export function buildRelationshipNeighborhoodShard(
   releaseId: string
 ): StaticNeighborhoodShard {
   const snap = catalog.getSnapshot();
-  const assignment = snap.citationAssignments.find((ca) => ca.provisionId === provisionId);
+  const assignment =
+    snap.citationAssignments.find(
+      (ca) => ca.provisionId === provisionId && ca.releaseIds.includes(releaseId)
+    ) ?? snap.citationAssignments.find((ca) => ca.provisionId === provisionId);
   const citation = assignment?.normalizedCitation ?? provisionId;
 
-  const relevantAssertions = snap.assertions.filter(
-    (a) => a.subjectId === provisionId || a.objectId === provisionId
+  const membershipInRelease = snap.memberships.find(
+    (m) => m.sourceReleaseId === releaseId && m.provisionId === provisionId
   );
+  const versionIdInRelease = membershipInRelease?.provisionVersionId;
+
+  const relevantAssertions = snap.assertions.filter((a) => {
+    const matchesNode =
+      a.subjectId === provisionId ||
+      a.objectId === provisionId ||
+      (versionIdInRelease !== undefined &&
+        (a.subjectId === versionIdInRelease || a.objectId === versionIdInRelease));
+    if (!matchesNode) return false;
+    // If the assertion is bound to specific applicability claims, ensure at least one targets the version in this release
+    if (a.applicabilityClaimIds.length > 0 && versionIdInRelease) {
+      const linkedClaims = snap.applicabilityClaims.filter((c) =>
+        a.applicabilityClaimIds.includes(c.claimId)
+      );
+      if (
+        linkedClaims.length > 0 &&
+        !linkedClaims.some((c) => c.targetProvisionVersionId === versionIdInRelease)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   const edges: StaticNeighborhoodShard['edges'] = relevantAssertions.map((a) => {
-    const isOutbound = a.subjectId === provisionId;
-    const peerId = isOutbound ? (a.objectId ?? a.unresolvedTargetCitation ?? 'unresolved') : a.subjectId;
+    const isOutbound =
+      a.subjectId === provisionId ||
+      (versionIdInRelease !== undefined && a.subjectId === versionIdInRelease);
+    const peerId = isOutbound
+      ? (a.objectId ?? a.unresolvedTargetCitation ?? 'unresolved')
+      : a.subjectId;
+    const peerAssignment =
+      snap.citationAssignments.find(
+        (ca) => ca.provisionId === peerId && ca.releaseIds.includes(releaseId)
+      ) ?? snap.citationAssignments.find((ca) => ca.provisionId === peerId);
+    const peerLabel = peerAssignment?.normalizedCitation ?? peerId;
     const excerpts = snap.evidenceSpans
       .filter((e) => a.evidenceIds.includes(e.evidenceId))
       .map((e) => e.excerpt);
@@ -1683,7 +2094,7 @@ export function buildRelationshipNeighborhoodShard(
       direction: isOutbound ? 'outbound' : 'inbound',
       relationType: a.relationType,
       peerId,
-      peerLabel: peerId,
+      peerLabel,
       authorityKind: a.authorityKind,
       extractionState: a.extractionState,
       editorialReview: a.editorialReview,
@@ -2050,3 +2461,42 @@ export async function runPilotParityAndRecoveryDrill(params: {
 }
 
 export type { PublicationReceipt };
+
+/**
+ * Compute aggregate license and attribution metadata across contributing artifacts (AUD-015, USCT-032).
+ * Never relabels 'unknown' or third-party licenses as CC0-1.0.
+ */
+export function computeExportAttribution(artifacts: readonly SourceArtifact[]): {
+  effectiveLicenseSummary: string;
+  containsUnknownLicense: boolean;
+  requiresAttribution: boolean;
+  licenses: string[];
+  attributionNotices: string[];
+  unknownLicenseArtifactIds: string[];
+} {
+  const licenses = [...new Set(artifacts.map((a) => a.license || 'unknown'))].sort();
+  const unknownLicenseArtifactIds = artifacts
+    .filter((a) => !a.license || a.license === 'unknown')
+    .map((a) => a.artifactId);
+  const containsUnknownLicense = unknownLicenseArtifactIds.length > 0;
+  const attributionNotices = artifacts
+    .filter((a) => a.attributionRequired || Boolean(a.attributionText))
+    .map((a) => a.attributionText ?? `Attribution required for ${a.artifactId} (${a.license})`);
+  const requiresAttribution = attributionNotices.length > 0;
+
+  let effectiveLicenseSummary = 'unknown';
+  if (!containsUnknownLicense && licenses.length === 1) {
+    effectiveLicenseSummary = licenses[0]!;
+  } else if (licenses.length > 1 || containsUnknownLicense) {
+    effectiveLicenseSummary = `mixed(${licenses.join('+')})`;
+  }
+
+  return {
+    effectiveLicenseSummary,
+    containsUnknownLicense,
+    requiresAttribution,
+    licenses,
+    attributionNotices,
+    unknownLicenseArtifactIds,
+  };
+}

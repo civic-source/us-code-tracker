@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="http://xml.house.gov/schemas/uslm/1.0" identifier="/us/usc/t18">
+  <meta>
+    <docNumber>18</docNumber>
+    <docPublicationName>Online@116-220</docPublicationName>
+    <created>2020-12-27T00:00:00</created>
+  </meta>
+  <main>
+    <title identifier="/us/usc/t18">
+      <num value="18">Title 18</num>
+      <heading>CRIMES AND CRIMINAL PROCEDURE</heading>
+      <chapter identifier="/us/usc/t18/ch47">
+        <num value="47">CHAPTER 47</num>
+        <heading>FRAUD AND FALSE STATEMENTS</heading>
+        <section identifier="/us/usc/t18/s1001">
+          <num value="1001">§ 1001.</num>
+          <heading>Statements or entries generally</heading>
+          <subsection identifier="/us/usc/t18/s1001/a">
+            <num value="a">(a)</num>
+            <chapeau>Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully—</chapeau>
+            <paragraph identifier="/us/usc/t18/s1001/a/1">
+              <num value="1">(1)</num>
+              <content>falsifies, conceals, or covers up by any trick, scheme, or device a material fact;</content>
+            </paragraph>
+            <paragraph identifier="/us/usc/t18/s1001/a/2">
+              <num value="2">(2)</num>
+              <content>makes any materially false, fictitious, or fraudulent statement or representation; or</content>
+            </paragraph>
+            <paragraph identifier="/us/usc/t18/s1001/a/3">
+              <num value="3">(3)</num>
+              <content>makes or uses any false writing or document knowing the same to contain any materially false, fictitious, or fraudulent statement or entry; shall be fined under this title, imprisoned not more than 5 years or, if the offense involves international or domestic terrorism (as defined in section 2331), imprisoned not more than 8 years, or both.</content>
+            </paragraph>
+            <table identifier="/us/usc/t18/s1001/a/table1">
+              <caption>Maximum Imprisonment Schedule Under Subsection (a)</caption>
+              <thead>
+                <tr>
+                  <th>Offense Context</th>
+                  <th>Maximum Term</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Standard material false statement or concealment</td>
+                  <td>5 years</td>
+                </tr>
+                <tr>
+                  <td>Offense involving international or domestic terrorism (18 U.S.C. 2331)</td>
+                  <td>8 years</td>
+                </tr>
+              </tbody>
+            </table>
+          </subsection>
+          <subsection identifier="/us/usc/t18/s1001/b">
+            <num value="b">(b)</num>
+            <content>Subsection (a) does not apply to a party to a judicial proceeding, or that party's counsel, for statements, representations, writings or documents submitted by such party or counsel to a judge or magistrate in that proceeding.</content>
+          </subsection>
+          <subsection identifier="/us/usc/t18/s1001/c">
+            <num value="c">(c)</num>
+            <chapeau>With respect to any matter within the jurisdiction of the legislative branch, subsection (a) shall apply only to—</chapeau>
+            <paragraph identifier="/us/usc/t18/s1001/c/1">
+              <num value="1">(1)</num>
+              <content>administrative matters, including a claim for payment, a matter related to the procurement of property or services, personnel or employment practices, or support services, or a document required by law, rule, or regulation to be submitted to the Congress or any office or officer within the legislative branch; or</content>
+            </paragraph>
+            <paragraph identifier="/us/usc/t18/s1001/c/2">
+              <num value="2">(2)</num>
+              <content>any investigation or review, conducted pursuant to the authority of any committee, subcommittee, commission or office of the Congress, consistent with applicable rules of the House or Senate.</content>
+            </paragraph>
+          </subsection>
+          <sourceCredit>(June 25, 1948, ch. 645, <ref href="/us/stat/62/749">62 Stat. 749</ref>; <ref href="/us/pl/104/292">Pub. L. 104–292, § 2</ref>, Oct. 11, 1996, <ref href="/us/stat/110/3459">110 Stat. 3459</ref>; <ref href="/us/pl/108/458">Pub. L. 108–458, title VI, § 6703(a)</ref>, Dec. 17, 2004, <ref href="/us/stat/118/3766">118 Stat. 3766</ref>.)</sourceCredit>
+          <note identifier="/us/usc/t18/s1001/note1" topic="amendments">
+            <heading>Amendments</heading>
+            <p>2004—Subsec. (a). Pub. L. 108–458, § 6703(a), inserted terrorism penalty enhancement after 5 years. 1996—Pub. L. 104–292, § 2, amended section generally, restructuring provisions into subsecs. (a) to (c).</p>
+          </note>
+          <note identifier="/us/usc/t18/s1001/note2" topic="effectiveDate">
+            <heading>Effective Date of 1996 Amendment</heading>
+            <p>Amendment by Pub. L. 104–292 effective Oct. 11, 1996, upon enactment.</p>
+          </note>
+        </section>
+      </chapter>
+    </title>
+  </main>
+</uscDoc>
