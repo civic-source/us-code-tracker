@@ -170,36 +170,37 @@ const statusBadge = isRepealed
   </div>
 </div>
 
-<script is:inline>
-  (function() {
-    var copyBtn = document.getElementById('copy-cite-btn');
-    var label = document.getElementById('copy-cite-label');
-    if (copyBtn && label) {
-      copyBtn.addEventListener('click', function() {
-        var citation = copyBtn.getAttribute('data-citation');
-        if (!citation) return;
-        navigator.clipboard.writeText(citation).then(function() {
+<script>
+  const copyBtn = document.getElementById('copy-cite-btn');
+  const label = document.getElementById('copy-cite-label');
+  if (copyBtn && label) {
+    copyBtn.addEventListener('click', () => {
+      const citation = copyBtn.getAttribute('data-citation');
+      if (!citation) return;
+      navigator.clipboard
+        ?.writeText(citation)
+        .then(() => {
           label.textContent = 'Copied!';
-          setTimeout(function() {
+          window.setTimeout(() => {
             label.textContent = 'Copy cite';
           }, 2000);
-        }).catch(function() {});
-      });
-    }
+        })
+        .catch(() => {});
+    });
+  }
 
-    var printBtn = document.getElementById('print-section-btn');
-    if (printBtn) {
-      printBtn.addEventListener('click', function() {
-        window.print();
-      });
-    }
+  const printBtn = document.getElementById('print-section-btn');
+  if (printBtn) {
+    printBtn.addEventListener('click', () => {
+      window.print();
+    });
+  }
 
-    var jumpLink = document.getElementById('jump-to-inspector-link');
-    if (jumpLink) {
-      jumpLink.addEventListener('click', function() {
-        document.documentElement.dataset.inspectorRequested = '1';
-        window.dispatchEvent(new CustomEvent('civic:open-inspector'));
-      });
-    }
-  })();
+  const jumpLink = document.getElementById('jump-to-inspector-link');
+  if (jumpLink) {
+    jumpLink.addEventListener('click', () => {
+      document.documentElement.dataset.inspectorRequested = '1';
+      window.dispatchEvent(new CustomEvent('civic:open-inspector'));
+    });
+  }
 </script>

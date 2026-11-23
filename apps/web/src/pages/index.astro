@@ -1,6 +1,9 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCurrentReleaseDisplay } from '../lib/release-currency';
+
+const releaseDisplay = getCurrentReleaseDisplay();
 
 // Count release point tags from the content-data submodule at build time
 let releasePointCount = 0;
@@ -114,7 +117,7 @@ const popularTitles = [
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--legal-valid)] opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-[var(--legal-valid)]"></span>
           </span>
-          <span>Official U.S. Code · Git Versioning & Redlines · Current through PL 119-73</span>
+          <span>Official U.S. Code · Git Versioning & Redlines · Current through {releaseDisplay.shortLabel}</span>
         </div>
 
         <h1 class="mb-4 text-4xl font-black tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-6xl" style="line-height: 1.1">
@@ -174,7 +177,7 @@ const popularTitles = [
               </span>
             </div>
             <span class="font-mono text-xs font-semibold rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-[var(--text-muted)] border border-[var(--border-subtle)]">
-              Release PL 119-73
+              Release {releaseDisplay.shortLabel}
             </span>
           </div>
 
@@ -241,7 +244,7 @@ const popularTitles = [
       <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">Tracked across 100+ years</p>
     </div>
     <div class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-5 text-center shadow-2xs transition-all hover:border-[var(--civic-action)]">
-      <p class="text-3xl font-black text-[var(--legal-valid)] tabular-nums">PL 119-73</p>
+      <p class="text-3xl font-black text-[var(--legal-valid)] tabular-nums">{releaseDisplay.shortLabel}</p>
       <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Current Through</p>
       <p class="mt-0.5 text-[11px] text-[var(--text-muted)]">Verified from House OLRC XML</p>
     </div>
