@@ -42,37 +42,37 @@ export interface DeprecatedUrlRule {
 export const DEPRECATED_URL_RULES: readonly DeprecatedUrlRule[] = [
   {
     id: 'olrc-view-xhtml',
-    pattern: /uscode\.house\.gov\/view\.xhtml/i,
+    pattern: /^https?:\/\/uscode\.house\.gov\/view\.xhtml(?:[/?#]|$)/i,
     reason: 'Legacy OLRC JSF viewer returns HTTP 404 after site migration',
     replacement: 'https://uscode.house.gov/us/usc/t{title}/s{section}/',
   },
   {
     id: 'olrc-download-shtml',
-    pattern: /uscode\.house\.gov\/download\/download\.shtml/i,
+    pattern: /^https?:\/\/uscode\.house\.gov\/download\/download\.shtml(?:[/?#]|$)/i,
     reason: 'Legacy OLRC download page returns HTTP 404',
     replacement: OLRC_DOWNLOAD_PAGE,
   },
   {
     id: 'olrc-prior-htm',
-    pattern: /uscode\.house\.gov\/download\/priorreleasepoints\.htm(?!l)/i,
+    pattern: /^https?:\/\/uscode\.house\.gov\/download\/priorreleasepoints\.htm(?:[/?#]|$)/i,
     reason: 'Legacy OLRC prior release points page returns HTTP 404',
     replacement: OLRC_PRIOR_RELEASE_POINTS_PAGE,
   },
   {
     id: 'olrc-codification-shtml',
-    pattern: /uscode\.house\.gov\/codification\/legislation\.shtml/i,
+    pattern: /^https?:\/\/uscode\.house\.gov\/codification\/legislation\.shtml(?:[/?#]|$)/i,
     reason: 'Legacy OLRC codification page returns HTTP 404',
     replacement: OLRC_CODIFICATION_URL,
   },
   {
     id: 'olrc-classification-shtml',
-    pattern: /uscode\.house\.gov\/classification\/tables\.shtml/i,
+    pattern: /^https?:\/\/uscode\.house\.gov\/classification\/tables\.shtml(?:[/?#]|$)/i,
     reason: 'Legacy OLRC classification tables page returns HTTP 404',
     replacement: OLRC_CLASSIFICATION_TABLES_URL,
   },
   {
     id: 'doj-jm-fraud-typo',
-    pattern: /justice\.gov\/jm\/jm-9-42000-fraud-against-government(?:[/?#]|$)/i,
+    pattern: /^https?:\/\/(?:www\.)?justice\.gov\/jm\/jm-9-42000-fraud-against-government(?:[/?#]|$)/i,
     reason: 'DOJ Justice Manual 9-42.000 URL requires "-the-" in slug',
     replacement: 'https://www.justice.gov/jm/jm-9-42000-fraud-against-the-government',
   },

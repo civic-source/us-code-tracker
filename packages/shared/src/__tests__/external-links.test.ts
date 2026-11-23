@@ -181,6 +181,16 @@ describe('external-links builders & validators', () => {
       for (const good of valid) {
         expect(DEPRECATED_URL_RULES.some((r) => r.pattern.test(good))).toBe(false);
       }
+
+      const unrelatedHosts = [
+        'https://evil.example/?u=uscode.house.gov/download/download.shtml',
+        'https://evil.example/?u=uscode.house.gov/view.xhtml',
+        'https://evil-uscode.house.gov/view.xhtml',
+        'https://evil.example/justice.gov/jm/jm-9-42000-fraud-against-government',
+      ];
+      for (const external of unrelatedHosts) {
+        expect(DEPRECATED_URL_RULES.some((r) => r.pattern.test(external))).toBe(false);
+      }
     });
   });
 });
