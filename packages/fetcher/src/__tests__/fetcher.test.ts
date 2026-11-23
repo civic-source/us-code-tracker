@@ -7,9 +7,16 @@ import {
   parseReleasePoints,
   parsePriorReleasePoints,
   parseCurrentRelease,
+  parseOlrcDateToIso,
   readBodyCapped,
   readBytesCapped,
 } from '../fetcher.js';
+import {
+  OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
+  OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
+} from '../constants.js';
 import { HashStore } from '../hash-store.js';
 import { createLogger } from '@civic-source/shared';
 import type { ReleasePoint } from '@civic-source/types';
@@ -43,6 +50,36 @@ describe('parseCurrentRelease', () => {
 
   it('returns undefined for HTML with no release info', () => {
     expect(parseCurrentRelease('<html><body>No info</body></html>')).toBeUndefined();
+  });
+
+  it('parses Nov-2026 OLRC prose date format and header fallback', () => {
+    const html = `
+      <h3 class="releasepointinformation">Public Law 119-142</h3>
+      <p class="releasepointdescription">All files are current through Public Law 119-142 (November 10, 2026).</p>
+    `;
+    const result = parseCurrentRelease(html);
+    expect(result).toEqual({
+      publicLaw: 'PL 119-142',
+      congress: '119',
+      law: '142',
+      dateET: '2026-11-10T00:00:00.000Z',
+    });
+
+    const headerOnly = `<h3 class="releasepointinformation">Public Law 119-142</h3>`;
+    expect(parseCurrentRelease(headerOnly)).toEqual({
+      publicLaw: 'PL 119-142',
+      congress: '119',
+      law: '142',
+      dateET: '',
+    });
+  });
+
+  it('parseOlrcDateToIso validates calendar bounds for both formats', () => {
+    expect(parseOlrcDateToIso('01/23/2026')).toBe('2026-01-23T00:00:00.000Z');
+    expect(parseOlrcDateToIso('November 10, 2026')).toBe('2026-11-10T00:00:00.000Z');
+    expect(parseOlrcDateToIso('July 2, 2026')).toBe('2026-07-02T00:00:00.000Z');
+    expect(parseOlrcDateToIso('February 30, 2026')).toBeUndefined();
+    expect(parseOlrcDateToIso('02/30/2026')).toBeUndefined();
   });
 });
 
@@ -115,6 +152,33 @@ describe('parsePriorReleasePoints', () => {
 
   it('returns empty array for HTML with no matching links', () => {
     expect(parsePriorReleasePoints('<html><body>Nothing</body></html>')).toEqual([]);
+  });
+
+  it('parses Nov-2026 OLRC priorreleasepoints.html format including exclusions and sorting', () => {
+    const html = `
+      <ul class="releasepoints">
+        <li class="releasepoint"><a class="releasepoint" href="download/119-138.html">Public Law 119-138 (November 3, 2026), affecting titles 21, 22.</a></li>
+        <li class="releasepoint"><a class="releasepoint" href="download/119-102.html">Public Law 119-102 (July 12, 2026), affecting titles 7, 12.</a></li>
+        <li class="releasepoint"><a class="releasepoint" href="download/119-102not101.html">Public Law 119-102not101 (July 12, 2026), except 119-101, affecting titles 5, 16.</a></li>
+      </ul>
+    `;
+    const points = parsePriorReleasePoints(html);
+    expect(points.map((p) => `${p.congress}-${p.law}`)).toEqual([
+      '119-102not101',
+      '119-102',
+      '119-138',
+    ]);
+    expect(points[0]?.dateET).toBe('2026-07-12T00:00:00.000Z');
+    expect(points[2]?.publicLaw).toBe('PL 119-138');
+    expect(points[2]?.dateET).toBe('2026-11-03T00:00:00.000Z');
+  });
+
+  it('does not catastrophically backtrack on malformed prior release HTML (ReDoS)', () => {
+    const evil = `href="/download/releasepoints/us/pl/119/1/${'a'.repeat(40000)}`;
+    const start = performance.now();
+    const points = parsePriorReleasePoints(evil);
+    expect(points).toEqual([]);
+    expect(performance.now() - start).toBeLessThan(100);
   });
 });
 
@@ -399,6 +463,70 @@ describe('OlrcFetcher', () => {
       // Oldest first
       expect(result.value[0]?.publicLaw).toBe('PL 113-21');
       expect(result.value[2]?.publicLaw).toBe('PL 119-73');
+    }
+  });
+
+  it('listReleasePoints falls back to legacy download page ONLY on HTTP 404', async () => {
+    const legacyHtml = `
+      <h2>Public Law 118-200 (11/15/2024)</h2>
+      <a href="/download/releasepoints/us/pl/118/200/xml_usc18@118-200.zip">T18</a>
+    `;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('Not Found', { status: 404, statusText: 'Not Found' }))
+      .mockResolvedValueOnce(new Response(legacyHtml, { status: 200 }));
+
+    const fetcher = new OlrcFetcher({ logger });
+    const result = await fetcher.listReleasePoints('18');
+    expect(result.ok).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(OLRC_DOWNLOAD_PAGE);
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe(OLRC_LEGACY_DOWNLOAD_PAGE);
+    if (result.ok) {
+      expect(result.value).toHaveLength(1);
+      expect(result.value[0]?.title).toBe('18');
+    }
+  });
+
+  it('listHistoricalReleasePoints falls back to legacy prior page ONLY on HTTP 404', async () => {
+    const legacyPrior = `
+      <a class="releasepoint" href="/download/releasepoints/us/pl/113/21/usc-rp@113-21.htm">
+        Public Law 113-21 (07/18/2013)</a>
+    `;
+    const currentHtml = `
+      <h3 class="releasepointinformation">Public Law 119-142</h3>
+      <p>Current through Public Law 119-142 (November 10, 2026).</p>
+    `;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('Not Found', { status: 404, statusText: 'Not Found' }))
+      .mockResolvedValueOnce(new Response(legacyPrior, { status: 200 }))
+      .mockResolvedValueOnce(new Response(currentHtml, { status: 200 }));
+
+    const fetcher = new OlrcFetcher({ logger });
+    const result = await fetcher.listHistoricalReleasePoints();
+    expect(result.ok).toBe(true);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(OLRC_PRIOR_RELEASE_POINTS_PAGE);
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe(OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE);
+    if (result.ok) {
+      expect(result.value.map((p) => p.publicLaw)).toEqual(['PL 113-21', 'PL 119-142']);
+    }
+  });
+
+  it('does NOT fall back to legacy download page on HTTP 500 outages', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response('Server Error', { status: 500, statusText: 'Internal Server Error' })
+      );
+      const fetcher = new OlrcFetcher({ logger });
+      const result = await fetcher.listReleasePoints();
+      expect(result.ok).toBe(false);
+      // 3 retry attempts strictly on primary URL, zero calls to legacy URL
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      for (const call of fetchSpy.mock.calls) {
+        expect(call[0]).toBe(OLRC_DOWNLOAD_PAGE);
+      }
+    } finally {
+      vi.useRealTimers();
     }
   });
 

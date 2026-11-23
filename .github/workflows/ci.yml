@@ -48,6 +48,9 @@ jobs:
 
       - run: pnpm test
 
+      - name: Validate links (offline)
+        run: pnpm exec tsx scripts/validate-links.ts --mode offline
+
       # The repo squash-merges, so the PR title becomes the commit subject that
       # release-please parses. Lint that title (not the individual WIP commits)
       # and enforce it — a malformed title now fails CI rather than silently

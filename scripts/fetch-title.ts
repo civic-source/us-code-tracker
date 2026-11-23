@@ -14,6 +14,8 @@ import { parseArgs } from 'node:util';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createInflateRaw } from 'node:zlib';
+import { OlrcFetcher } from '@civic-source/fetcher';
+import { createLogger, normalizeUscTitle } from '@civic-source/shared';
 
 // --- Argument parsing ---
 
@@ -46,30 +48,17 @@ const outputDir = resolve(values.output ?? './test-output');
 
 // --- Download logic ---
 
-const OLRC_DOWNLOAD_PAGE = 'https://uscode.house.gov/download/download.shtml';
-
-/** Discover the ZIP URL for a given title from the OLRC download page */
+/** Discover the ZIP URL for a given title using `@civic-source/fetcher` dual-format resolution */
 async function discoverTitleUrl(title: string): Promise<string | null> {
   console.log(`Discovering download URL for Title ${title}...`);
-  const response = await fetch(OLRC_DOWNLOAD_PAGE);
-  if (!response.ok) {
-    console.error(`Failed to fetch OLRC download page: HTTP ${response.status}`);
+  const norm = normalizeUscTitle(title) ?? title.trim();
+  const fetcher = new OlrcFetcher({ logger: createLogger('fetch-title', 'warn') });
+  const result = await fetcher.listReleasePoints(norm);
+  if (!result.ok) {
+    console.error(`Failed to fetch OLRC download page: ${result.error.message}`);
     return null;
   }
-
-  const html = await response.text();
-  // Match links like: /download/releasepoints/us/pl/118/1/xml_usc01@118-100.zip
-  // The title number is in the path segment after the congress number
-  const padded = title.padStart(2, '0');
-  const pattern = new RegExp(
-    `href="([^"]*\\/releasepoints\\/us\\/pl\\/\\d+\\/\\d+\\/xml_usc${padded}@[^"]*\\.zip)"`,
-    'i'
-  );
-  const match = pattern.exec(html);
-  if (!match?.[1]) return null;
-
-  const path = match[1];
-  return path.startsWith('http') ? path : `https://uscode.house.gov${path}`;
+  return result.value[0]?.uslmUrl ?? null;
 }
 
 /** Extract XML content from a ZIP buffer (simple parser for single-entry ZIPs) */

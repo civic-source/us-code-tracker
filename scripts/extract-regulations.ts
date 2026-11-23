@@ -15,6 +15,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { buildEcfrPartUrl } from '@civic-source/shared';
 import {
   SectionRegulationsSchema,
   resolveRefreshWithFallback,
@@ -36,6 +37,9 @@ export interface ECFRSearchResult {
     chapter?: string;
   };
   full_text_excerpt?: string;
+  removed?: boolean;
+  reserved?: boolean;
+  ends_on?: string | null;
 }
 
 export interface FetchRegulationsOptions {
@@ -200,6 +204,9 @@ export async function fetchRegulationsWithOutcome(
         if (isNaN(cfrTitle) || isNaN(cfrPart) || cfrTitle <= 0 || cfrPart <= 0) {
           continue;
         }
+        if (item.removed === true && !item.ends_on) {
+          continue;
+        }
 
         const key = `${cfrTitle}-${cfrPart}`;
         if (regulationsMap.has(key)) continue;
@@ -207,7 +214,7 @@ export async function fetchRegulationsWithOutcome(
         const agency =
           item.headings?.chapter?.trim() || item.headings?.title?.trim() || 'Federal Agency';
         const description = item.headings?.part?.trim() || undefined;
-        const ecfrUrl = `https://www.ecfr.gov/current/title-${cfrTitle}/part-${cfrPart}`;
+        const ecfrUrl = buildEcfrPartUrl(cfrTitle, cfrPart, item.ends_on);
         const excerpt = item.full_text_excerpt?.trim().slice(0, 1000);
 
         let extractionState: 'candidate' | 'verified' = 'candidate';

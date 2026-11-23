@@ -1,7 +1,9 @@
 export {
   OLRC_BASE_URL,
   OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
   OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
   OLRC_RELEASE_POINTS_URL,
   titleXmlUrl,
   HASH_STORE_DIR,
@@ -17,6 +19,9 @@ export {
   parseReleasePoints,
   parsePriorReleasePoints,
   parseCurrentRelease,
+  parseOlrcDateToIso,
+  readBodyCapped,
+  type ParsedPriorReleasePoint,
   type CurrentReleaseInfo,
 } from './fetcher.js';
 export { extractXmlFromZip } from './zip.js';

@@ -1,20 +1,29 @@
-/** OLRC US Code release point URLs and configuration */
+import {
+  OLRC_BASE_URL,
+  OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
+  OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_RELEASE_POINTS_URL,
+  buildOlrcTitleZipUrl,
+} from '@civic-source/shared';
 
-export const OLRC_BASE_URL = 'https://uscode.house.gov';
-export const OLRC_DOWNLOAD_PAGE = `${OLRC_BASE_URL}/download/download.shtml`;
-export const OLRC_PRIOR_RELEASE_POINTS_PAGE = `${OLRC_BASE_URL}/download/priorreleasepoints.htm`;
-export const OLRC_RELEASE_POINTS_URL = `${OLRC_BASE_URL}/download/releasepoints/`;
+/** OLRC US Code release point URLs and configuration */
+export {
+  OLRC_BASE_URL,
+  OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
+  OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_RELEASE_POINTS_URL,
+};
 
 /**
  * Build a URL for an individual title's XML ZIP download.
  * Pattern: https://uscode.house.gov/download/releasepoints/us/pl/{congress}/{law}/xml_usc{title}@{congress}-{law}.zip
  */
 export function titleXmlUrl(congress: string, law: string, title: string): string {
-  // OLRC zero-pads the *numeric run* to two digits, keeping any letter suffix
-  // (e.g. title "5a" -> "xml_usc05a"). `title.padStart(2, '0')` pads to a total
-  // length of two, so it is a no-op on "5a" and would wrongly yield "xml_usc5a".
-  const paddedTitle = title.replace(/^(\d+)/, (digits) => digits.padStart(2, '0'));
-  return `${OLRC_RELEASE_POINTS_URL}us/pl/${congress}/${law}/xml_usc${paddedTitle}@${congress}-${law}.zip`;
+  return buildOlrcTitleZipUrl(congress, law, title);
 }
 
 /**
@@ -35,10 +44,10 @@ export const MAX_DOWNLOAD_BYTES = 314572800; // 300 MiB
  * from {@link MAX_DOWNLOAD_BYTES} (which bounds the *compressed* download)
  * because XML inflates roughly 10-20x: a title whose compressed entry sits well
  * under the download cap can still inflate past 300 MiB, and reusing the
- * compressed cap as the inflate cap would false-drop it (#226). The largest
- * single USC title decompresses to well under 500 MiB, so this leaves ample
- * headroom for real data while strictly staying within V8 MAX_STRING_LENGTH (~512 MB)
- * to avoid RangeError during buffer-to-string decoding (#226).
+ * compressed cap as the inflate cap would false-drop it. The largest single USC
+ * title decompresses to well under 500 MiB, so this leaves ample headroom for
+ * real data while strictly staying within V8 MAX_STRING_LENGTH (~512 MB) to
+ * avoid RangeError during buffer-to-string decoding.
  */
 export const MAX_DECOMPRESSED_BYTES = 524288000; // 500 MiB
 

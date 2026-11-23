@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { buildFederalRegisterSearchUrl } from '@civic-source/shared';
 
   interface Props {
     uscTitle: string | number;
@@ -96,7 +97,7 @@
     <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 text-center text-[var(--text-muted)]">
       <p>No precomputed rulemaking notices in the current snapshot for {uscTitle} U.S.C. § {uscSection}.</p>
       <a
-        href="https://www.federalregister.gov/documents/search?conditions%5Bterm%5D={encodeURIComponent(`${uscTitle} U.S.C. ${uscSection}`)}"
+        href={buildFederalRegisterSearchUrl(uscTitle, uscSection)}
         target="_blank"
         rel="noopener noreferrer"
         class="mt-2 inline-block font-semibold text-[var(--civic-action)] hover:underline"

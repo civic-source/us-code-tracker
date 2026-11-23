@@ -181,6 +181,26 @@ describe('USCT-005 & USCT-006: Middle-release resume ledger & immutable release 
     `;
     const scraped = await scrapeReleasePoints(async () => new Response(html, { status: 200 }));
     expect(scraped.map((p) => p.label)).toEqual(['PL 119-73not60', 'PL 119-73']);
+
+    const modernHtml = `
+      <li class="releasepoint"><a class="releasepoint" href="download/119-102not101.html">Public Law 119-102not101 (July 12, 2026), except 119-101.</a></li>
+      <li class="releasepoint"><a class="releasepoint" href="download/119-138.html">Public Law 119-138 (November 3, 2026).</a></li>
+    `;
+    const modernScraped = await scrapeReleasePoints(async (url) => {
+      const target = String(url);
+      if (target.endsWith('/priorreleasepoints.html')) {
+        return new Response(modernHtml, { status: 200 });
+      }
+      if (target.endsWith('/download.html')) {
+        return new Response('<h3 class="releasepointinformation">Public Law 119-142</h3><p>Current through Public Law 119-142 (November 10, 2026).</p>', { status: 200 });
+      }
+      return new Response('Not Found', { status: 404 });
+    });
+    expect(modernScraped.map((p) => p.label)).toEqual([
+      'PL 119-102not101',
+      'PL 119-138',
+      'PL 119-142',
+    ]);
   });
 
   it('USCT-006: rejects tag overwrite on conflicting content, allows idempotent rerun of identical content, and creates -rev2 superseding tag when correction is authorized', async () => {

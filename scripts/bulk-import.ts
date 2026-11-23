@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readdirSync } from 'node:fs';
+import { buildOlrcTitleZipUrl } from '@civic-source/shared';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,7 +24,7 @@ const RELEASE_POINT = 'PL 119-73';
 const TITLES = ['02', '03', '06', '08', '09', '10', '13', '17', '20', '23'];
 
 function buildUrl(paddedTitle: string): string {
-  return `https://uscode.house.gov/download/releasepoints/us/pl/119/73/xml_usc${paddedTitle}@119-73.zip`;
+  return buildOlrcTitleZipUrl(119, '73', paddedTitle);
 }
 
 /** Find the first .xml file in a directory (recursively) */

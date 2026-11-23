@@ -1,14 +1,36 @@
 import { createHash } from 'node:crypto';
 import { type IUsCodeFetcher, type ReleasePoint, type Result, ok, err } from '@civic-source/types';
-import { type Logger, createLogger, fetchWithRetry as sharedFetchWithRetry } from '@civic-source/shared';
+import {
+  type Logger,
+  createLogger,
+  fetchWithRetry as sharedFetchWithRetry,
+  normalizeUscTitle,
+} from '@civic-source/shared';
 import {
   OLRC_DOWNLOAD_PAGE,
+  OLRC_LEGACY_DOWNLOAD_PAGE,
   OLRC_PRIOR_RELEASE_POINTS_PAGE,
+  OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
   MAX_DOWNLOAD_BYTES,
   titleXmlUrl,
 } from './constants.js';
 import { HashStore } from './hash-store.js';
 import { FetcherMetrics } from './metrics.js';
+
+const MONTH_INDEX: Record<string, number> = {
+  january: 0,
+  february: 1,
+  march: 2,
+  april: 3,
+  may: 4,
+  june: 5,
+  july: 6,
+  august: 7,
+  september: 8,
+  october: 9,
+  november: 10,
+  december: 11,
+};
 
 /** Compute SHA-256 hex digest of a buffer */
 export function sha256(data: Buffer): string {
@@ -19,10 +41,6 @@ export function sha256(data: Buffer): string {
  * Inspect a response's Content-Length header and reject up-front if it
  * advertises a body larger than MAX_DOWNLOAD_BYTES. This is the primary guard
  * against runner OOM: it avoids ever reading an oversized body into memory.
- *
- * Returns true when the response is over the cap (caller should error).
- * A missing or unparseable Content-Length returns false — the post-read
- * length check provides defense-in-depth for those cases.
  */
 export function exceedsContentLengthLimit(response: Response): boolean {
   const header = response.headers.get('content-length');
@@ -35,13 +53,8 @@ export function exceedsContentLengthLimit(response: Response): boolean {
 /**
  * Read a response body into a Buffer, enforcing a hard byte cap.
  *
- * `exceedsContentLengthLimit` is the primary defense, but it returns false for
- * a response with no (or untruthful) Content-Length — e.g. a chunked body. To
- * actually bound memory (rather than buffer-then-check via arrayBuffer()), this
- * streams the body and aborts the read as soon as the running total exceeds
- * `maxBytes`, so an oversized or unbounded response is never fully materialized.
- *
- * @returns The body bytes, or `null` if it exceeds the size cap.
+ * Streams the body and cancels immediately if the running total exceeds
+ * `maxBytes`, preventing chunked or untruthful-Content-Length OOMs.
  */
 export async function readBytesCapped(
   response: Response,
@@ -49,7 +62,6 @@ export async function readBytesCapped(
 ): Promise<Buffer | null> {
   const body = response.body;
   if (body === null) {
-    // No readable stream (e.g. an empty body); fall back to a buffered read.
     const buffer = Buffer.from(await response.arrayBuffer());
     return buffer.length > maxBytes ? null : buffer;
   }
@@ -64,8 +76,6 @@ export async function readBytesCapped(
       if (value === undefined) continue;
       total += value.byteLength;
       if (total > maxBytes) {
-        // Stop reading immediately and release the connection rather than
-        // continuing to buffer an oversized body.
         await reader.cancel();
         return null;
       }
@@ -79,11 +89,7 @@ export async function readBytesCapped(
 
 /**
  * Read an HTML response body as a UTF-8 string, enforcing a hard byte cap.
- *
- * Thin wrapper over {@link readBytesCapped}: concatenate first, then decode, so
- * multi-byte UTF-8 sequences split across chunk boundaries are not corrupted.
- *
- * @returns The decoded body, or `null` if it exceeds the size cap.
+ * Concatenates first before UTF-8 decoding so split multi-byte characters stay intact.
  */
 export async function readBodyCapped(
   response: Response,
@@ -93,10 +99,7 @@ export async function readBodyCapped(
   return bytes === null ? null : bytes.toString('utf-8');
 }
 
-/**
- * Fetch with exponential backoff retry.
- * Delegates to the shared fetchWithRetry utility.
- */
+/** Fetch with exponential backoff retry via `@civic-source/shared`. */
 export async function fetchWithRetry(
   url: string,
   logger: Logger
@@ -104,14 +107,49 @@ export async function fetchWithRetry(
   return sharedFetchWithRetry(url, { logger });
 }
 
+/** Format validated calendar components into `YYYY-MM-DDT00:00:00.000Z`. */
+function toIsoMidnightUtc(year: number, monthIndex: number, day: number): string | undefined {
+  const dt = new Date(Date.UTC(year, monthIndex, day));
+  if (
+    dt.getUTCFullYear() !== year ||
+    dt.getUTCMonth() !== monthIndex ||
+    dt.getUTCDate() !== day
+  ) {
+    return undefined;
+  }
+  const yyyy = String(year).padStart(4, '0');
+  const mm = String(monthIndex + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
+}
+
 /**
- * Parse the Public Law identifier and date from a prior release points link.
- *
- * Link text format: "Public Law 119-73 (01/23/2026)"
- * Href format: /download/releasepoints/us/pl/119/73/usc-rp@119-73.htm
- *              /download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm
+ * Parse an OLRC release date in either legacy numeric form (`MM/DD/YYYY`)
+ * or Nov-2026 prose form (`Month D, YYYY`) into UTC ISO 8601 midnight.
  */
-interface ParsedPriorReleasePoint {
+export function parseOlrcDateToIso(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  const numericMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (numericMatch?.[1] && numericMatch[2] && numericMatch[3]) {
+    const month = Number(numericMatch[1]);
+    const day = Number(numericMatch[2]);
+    const year = Number(numericMatch[3]);
+    return toIsoMidnightUtc(year, month - 1, day);
+  }
+
+  const proseMatch = /^([A-Za-z]{3,12})\s+(\d{1,2}),\s*(\d{4})$/.exec(trimmed);
+  if (proseMatch?.[1] && proseMatch[2] && proseMatch[3]) {
+    const monthIndex = MONTH_INDEX[proseMatch[1].toLowerCase()];
+    if (monthIndex === undefined) return undefined;
+    const day = Number(proseMatch[2]);
+    const year = Number(proseMatch[3]);
+    return toIsoMidnightUtc(year, monthIndex, day);
+  }
+
+  return undefined;
+}
+
+export interface ParsedPriorReleasePoint {
   publicLaw: string;
   congress: string;
   law: string;
@@ -119,31 +157,45 @@ interface ParsedPriorReleasePoint {
   path: string;
 }
 
+/** Compare prior release points chronologically (oldest first, exclusions before full). */
+function compareParsedPriorReleasePoints(
+  a: ParsedPriorReleasePoint,
+  b: ParsedPriorReleasePoint
+): number {
+  const byDate = a.dateET.localeCompare(b.dateET);
+  if (byDate !== 0) return byDate;
+  if (a.law.includes('not') && !b.law.includes('not')) return -1;
+  if (!a.law.includes('not') && b.law.includes('not')) return 1;
+  return a.law.localeCompare(b.law);
+}
+
 /**
- * Parse the prior release points page HTML to extract all historical release points.
- * Returns them in chronological order (oldest first).
+ * Parse prior release points HTML across both current Nov-2026 static format
+ * (`download/{congress}-{law}.html` + `Month D, YYYY`) and legacy `.htm` format
+ * (`/download/releasepoints/us/pl/{congress}/{law}/usc-rp@...htm` + `MM/DD/YYYY`).
+ * Uses bounded quantifiers to avoid polynomial ReDoS backtracking.
  */
 export function parsePriorReleasePoints(html: string): ParsedPriorReleasePoint[] {
   const results: ParsedPriorReleasePoint[] = [];
+  const seenKeys = new Set<string>();
 
-  // Match: <a class="releasepoint" href="/download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm">
-  //        Public Law 119-73 (01/23/2026)</a>
-  const pattern = /href="(\/download\/releasepoints\/us\/pl\/(\d+)\/([^/]+)\/usc-rp@[^"]+\.htm)"[^>]*>\s*Public\s+Law\s+(\d+-\d+)\s+\((\d{2}\/\d{2}\/\d{4})\)/g;
+  // 1. Legacy format:
+  // <a class="releasepoint" href="/download/releasepoints/us/pl/119/73not60/usc-rp@119-73not60.htm">
+  //   Public Law 119-73 (01/23/2026)</a>
+  const legacyPattern =
+    /href="(\/download\/releasepoints\/us\/pl\/(\d{2,3})\/([^"/]{1,40})\/usc-rp@[^"/]{1,60}\.htm)"[^>]{0,200}>\s*Public\s+Law\s+(\d{2,3}-\d+)\s*\(([^()]{4,40})\)/g;
   let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(html)) !== null) {
+  while ((match = legacyPattern.exec(html)) !== null) {
     const path = match[1];
     const congress = match[2];
-    const law = match[3];
+    const law = match[3]?.toLowerCase();
     const publicLawNum = match[4];
-    const dateStr = match[5];
+    const isoDate = match[5] ? parseOlrcDateToIso(match[5]) : undefined;
+    if (!path || !congress || !law || !publicLawNum || !isoDate) continue;
 
-    if (!path || !congress || !law || !publicLawNum || !dateStr) continue;
-
-    // Parse MM/DD/YYYY to ISO 8601 datetime in ET
-    const [month, day, year] = dateStr.split('/');
-    if (!month || !day || !year) continue;
-    const isoDate = `${year}-${month}-${day}T00:00:00.000Z`;
+    const key = `${congress}-${law}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
 
     results.push({
       publicLaw: `PL ${publicLawNum}`,
@@ -154,15 +206,37 @@ export function parsePriorReleasePoints(html: string): ParsedPriorReleasePoint[]
     });
   }
 
-  // Return chronological order (oldest first)
-  results.sort((a, b) => a.dateET.localeCompare(b.dateET));
+  // 2. New Nov-2026 format:
+  // <a class="releasepoint" href="download/119-138.html">Public Law 119-138 (November 3, 2026), affecting titles 21, 22.</a>
+  // <a class="releasepoint" href="download/119-102not101.html">Public Law 119-102not101 (July 12, 2026), except 119-101...</a>
+  const modernPattern =
+    /href="(?:\/?download\/)?(\d{2,3})-([0-9a-zA-Z]{1,40})\.html"[^>]{0,200}>\s*Public\s+Law\s+(\d{2,3})-([0-9a-zA-Z]{1,40})\s*\(([^()]{4,40})\)/gi;
+  while ((match = modernPattern.exec(html)) !== null) {
+    const congress = match[1];
+    const law = match[2]?.toLowerCase();
+    const textCongress = match[3];
+    const textLaw = match[4]?.toLowerCase();
+    const isoDate = match[5] ? parseOlrcDateToIso(match[5]) : undefined;
+    if (!congress || !law || !textCongress || !textLaw || !isoDate) continue;
+    if (!/^\d+(?:not\d+(?:and\d+)*)?$/.test(law)) continue;
+
+    const key = `${congress}-${law}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
+    results.push({
+      publicLaw: `PL ${textCongress}-${textLaw}`,
+      congress,
+      law,
+      dateET: isoDate,
+      path: `/download/releasepoints/us/pl/${congress}/${law}/`,
+    });
+  }
+
+  results.sort(compareParsedPriorReleasePoints);
   return results;
 }
 
-/**
- * Parse the current release point from the main download page.
- * Extracts the Public Law identifier and date from the page header.
- */
 export interface CurrentReleaseInfo {
   publicLaw: string;
   congress: string;
@@ -170,61 +244,57 @@ export interface CurrentReleaseInfo {
   dateET: string;
 }
 
+/**
+ * Parse the current release point from the main OLRC download page header
+ * across legacy numeric dates (`MM/DD/YYYY`) and Nov-2026 prose dates (`Month D, YYYY`).
+ */
 export function parseCurrentRelease(html: string): CurrentReleaseInfo | undefined {
-  // Match: "Public Law 119-73 (01/23/2026)" in the page header
-  const headerPattern = /Public\s+Law\s+(\d+)-(\d+)\s+\((\d{2}\/\d{2}\/\d{4})\)/;
-  const match = headerPattern.exec(html);
-  if (!match) return undefined;
+  const datedPattern =
+    /Public\s+Law\s+(\d{2,3})-(\d+(?:not\d+(?:and\d+)*)?)\s*\(([^()]{4,40})\)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = datedPattern.exec(html)) !== null) {
+    const congress = match[1];
+    const law = match[2]?.toLowerCase();
+    const isoDate = match[3] ? parseOlrcDateToIso(match[3]) : undefined;
+    if (congress && law && isoDate) {
+      return {
+        publicLaw: `PL ${congress}-${law}`,
+        congress,
+        law,
+        dateET: isoDate,
+      };
+    }
+  }
 
-  const congress = match[1];
-  const law = match[2];
-  const dateStr = match[3];
-  if (!congress || !law || !dateStr) return undefined;
+  const headerOnlyPattern =
+    /<h3[^>]{0,120}class="releasepointinformation"[^>]{0,120}>\s*Public\s+Law\s+(\d{2,3})-(\d+(?:not\d+(?:and\d+)*)?)\s*<\/h3>/i;
+  const headerMatch = headerOnlyPattern.exec(html);
+  if (headerMatch?.[1] && headerMatch[2]) {
+    const congress = headerMatch[1];
+    const law = headerMatch[2].toLowerCase();
+    return {
+      publicLaw: `PL ${congress}-${law}`,
+      congress,
+      law,
+      dateET: '',
+    };
+  }
 
-  const [month, day, year] = dateStr.split('/');
-  if (!month || !day || !year) return undefined;
-
-  return {
-    publicLaw: `PL ${congress}-${law}`,
-    congress,
-    law,
-    dateET: `${year}-${month}-${day}T00:00:00.000Z`,
-  };
+  return undefined;
 }
 
 /**
  * Parse release point title-level ZIP links from the OLRC download page HTML.
- * Extracts links matching the release points directory pattern.
+ * Reconstructs every `uslmUrl` canonically on `uscode.house.gov` via `titleXmlUrl`.
  */
 export function parseReleasePoints(html: string): ReleasePoint[] {
   const results: ReleasePoint[] = [];
   const currentRelease = parseCurrentRelease(html);
 
-  // Match links like:
-  //   releasepoints/us/pl/119/99/xml_usc01@119-99.zip        (relative — live OLRC)
-  //   download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
-  //   /download/releasepoints/us/pl/118/42/xml_usc42@118-200.zip
-  //
-  // The `/download/` (and leading slash) prefix is OPTIONAL: the redesigned
-  // OLRC download page emits bare relative hrefs (no leading slash, no
-  // `/download/`). We capture the congress and law path segments and
-  // reconstruct the uslmUrl canonically via titleXmlUrl below.
-  //
-  // SSRF hardening (#205): we never echo the matched href into the uslmUrl.
-  // The regex anchors on `href="` immediately followed by an optional
-  // `download/` and then `releasepoints/us/pl/...`, so an absolute foreign
-  // href such as `href="https://evil.example/download/releasepoints/..."`
-  // never matches (the `https:` between `href="` and `download/` breaks it).
-  // Every uslmUrl is rebuilt from titleXmlUrl, so it is always OLRC-anchored.
-  //
-  // Anchor segments to non-slash/non-quote chars so we don't get polynomial
-  // backtracking on malformed input (CodeQL js/polynomial-redos). The optional
-  // prefix is a fixed alternation, not an unbounded `[^"]*` run.
   const linkPattern =
     /href="(?:\/?download\/)?releasepoints\/us\/pl\/(\d+)\/([^/"]+)\/xml_usc[^"/]+\.zip"/g;
   let match: RegExpExecArray | null;
 
-  // Extract unique title numbers from XML download links
   const titlePattern = /xml_usc(\d+[a-zA-Z]?)@/;
   const seen = new Set<string>();
 
@@ -240,15 +310,17 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
     if (!title || seen.has(title)) continue;
     seen.add(title);
 
-    // Reconstruct the URL canonically so it is always anchored to the OLRC
-    // host regardless of whether the href was relative or absolute — a
-    // foreign host can never become a uslmUrl (#205 SSRF protection).
-    const fullUrl = titleXmlUrl(congress, law, title);
+    let fullUrl: string;
+    try {
+      fullUrl = titleXmlUrl(congress, law, title);
+    } catch {
+      continue;
+    }
 
     results.push({
       title,
       publicLaw: currentRelease?.publicLaw ?? '',
-      dateET: currentRelease?.dateET ?? new Date().toISOString(),
+      dateET: currentRelease && currentRelease.dateET ? currentRelease.dateET : new Date().toISOString(),
       uslmUrl: fullUrl,
       sha256Hash: '0'.repeat(64),
     });
@@ -256,10 +328,15 @@ export function parseReleasePoints(html: string): ReleasePoint[] {
   return results;
 }
 
+/** True only when `fetchWithRetry` surfaced an upstream HTTP 404 error. */
+function isHttp404Error(error: Error): boolean {
+  return /^HTTP 404(?:\b|:)/.test(error.message);
+}
+
 /**
  * OLRC US Code fetcher implementation.
- * Downloads XML release points with hash-based caching and retry logic.
- * Supports both current and historical release point enumeration.
+ * Downloads XML release points with hash-based caching, dual-format HTML parsing,
+ * and 404-only fallback from modern `.html` endpoints to legacy `.shtml`/`.htm` endpoints.
  */
 export class OlrcFetcher implements IUsCodeFetcher {
   private readonly logger: Logger;
@@ -272,32 +349,65 @@ export class OlrcFetcher implements IUsCodeFetcher {
     this.metrics = options?.metrics ?? new FetcherMetrics();
   }
 
-  /** List available release points from the current download page, optionally filtered by title */
+  /**
+   * Fetch an OLRC HTML index page, falling back to `legacyUrl` strictly when
+   * `primaryUrl` returns HTTP 404 (so 5xx/timeout/SSRF outages still fail loudly).
+   */
+  private async fetchPageWith404Fallback(
+    primaryUrl: string,
+    legacyUrl: string,
+    label: string
+  ): Promise<Result<string>> {
+    let responseRes = await fetchWithRetry(primaryUrl, this.logger);
+    if (!responseRes.ok) {
+      if (!isHttp404Error(responseRes.error)) {
+        return responseRes;
+      }
+      this.logger.warn(`Primary OLRC ${label} returned HTTP 404; falling back to legacy URL`, {
+        primaryUrl,
+        legacyUrl,
+      });
+      responseRes = await fetchWithRetry(legacyUrl, this.logger);
+      if (!responseRes.ok) {
+        return responseRes;
+      }
+    }
+
+    if (exceedsContentLengthLimit(responseRes.value)) {
+      return err(new Error('Download exceeds size limit'));
+    }
+
+    const html = await readBodyCapped(responseRes.value);
+    if (html === null) {
+      return err(new Error('Download exceeds size limit'));
+    }
+    return ok(html);
+  }
+
+  /** List available release points from the current download page, optionally filtered by title. */
   async listReleasePoints(title?: string): Promise<Result<ReleasePoint[]>> {
     this.logger.info('Fetching release points', { title });
     const timer = this.logger.startTimer('listReleasePoints');
 
-    const result = await fetchWithRetry(OLRC_DOWNLOAD_PAGE, this.logger);
-    if (!result.ok) {
+    const htmlResult = await this.fetchPageWith404Fallback(
+      OLRC_DOWNLOAD_PAGE,
+      OLRC_LEGACY_DOWNLOAD_PAGE,
+      'download page'
+    );
+    if (!htmlResult.ok) {
       timer();
-      return result;
+      return htmlResult;
     }
 
-    if (exceedsContentLengthLimit(result.value)) {
-      timer();
-      return err(new Error('Download exceeds size limit'));
-    }
-
-    const html = await readBodyCapped(result.value);
-    if (html === null) {
-      timer();
-      return err(new Error('Download exceeds size limit'));
-    }
-    let points = parseReleasePoints(html);
+    let points = parseReleasePoints(htmlResult.value);
     this.metrics.recordDiscovered(points.length);
 
     if (title !== undefined) {
-      points = points.filter((p) => p.title === title);
+      const targetNorm = normalizeUscTitle(title) ?? title;
+      points = points.filter((p) => {
+        const entryNorm = normalizeUscTitle(p.title) ?? p.title;
+        return p.title === title || entryNorm === targetNorm;
+      });
     }
 
     timer();
@@ -306,41 +416,34 @@ export class OlrcFetcher implements IUsCodeFetcher {
   }
 
   /**
-   * List ALL historical release points from the prior release points page.
-   * Returns release points in chronological order (oldest first) for
-   * deterministic Git history reconstruction.
+   * List historical release points from the prior release points page plus
+   * the current release point, returned oldest first.
    */
   async listHistoricalReleasePoints(): Promise<Result<ParsedPriorReleasePoint[]>> {
     this.logger.info('Fetching historical release points index');
     const timer = this.logger.startTimer('listHistoricalReleasePoints');
 
-    // Fetch prior release points page
-    const priorResult = await fetchWithRetry(OLRC_PRIOR_RELEASE_POINTS_PAGE, this.logger);
-    if (!priorResult.ok) {
+    const priorHtmlRes = await this.fetchPageWith404Fallback(
+      OLRC_PRIOR_RELEASE_POINTS_PAGE,
+      OLRC_LEGACY_PRIOR_RELEASE_POINTS_PAGE,
+      'prior release points page'
+    );
+    if (!priorHtmlRes.ok) {
       timer();
-      return priorResult;
+      return priorHtmlRes;
     }
 
-    if (exceedsContentLengthLimit(priorResult.value)) {
-      timer();
-      return err(new Error('Download exceeds size limit'));
-    }
-
-    const priorHtml = await readBodyCapped(priorResult.value);
-    if (priorHtml === null) {
-      timer();
-      return err(new Error('Download exceeds size limit'));
-    }
-    const historicalPoints = parsePriorReleasePoints(priorHtml);
+    const historicalPoints = parsePriorReleasePoints(priorHtmlRes.value);
     this.metrics.recordDiscovered(historicalPoints.length);
 
-    // Also fetch current release point to include it
-    const currentResult = await fetchWithRetry(OLRC_DOWNLOAD_PAGE, this.logger);
-    if (currentResult.ok && !exceedsContentLengthLimit(currentResult.value)) {
-      const currentHtml = await readBodyCapped(currentResult.value);
-      const current = currentHtml === null ? null : parseCurrentRelease(currentHtml);
+    const currentHtmlRes = await this.fetchPageWith404Fallback(
+      OLRC_DOWNLOAD_PAGE,
+      OLRC_LEGACY_DOWNLOAD_PAGE,
+      'download page'
+    );
+    if (currentHtmlRes.ok) {
+      const current = parseCurrentRelease(currentHtmlRes.value);
       if (current) {
-        // Add current release if not already in the list
         const alreadyIncluded = historicalPoints.some(
           (p) => p.publicLaw === current.publicLaw
         );
@@ -350,10 +453,9 @@ export class OlrcFetcher implements IUsCodeFetcher {
             congress: current.congress,
             law: current.law,
             dateET: current.dateET,
-            path: `/download/releasepoints/us/pl/${current.congress}/${current.law}/usc-rp@${current.congress}-${current.law}.htm`,
+            path: `/download/releasepoints/us/pl/${current.congress}/${current.law}/`,
           });
-          // Re-sort after adding current
-          historicalPoints.sort((a, b) => a.dateET.localeCompare(b.dateET));
+          historicalPoints.sort(compareParsedPriorReleasePoints);
         }
       }
     }
@@ -363,7 +465,7 @@ export class OlrcFetcher implements IUsCodeFetcher {
     return ok(historicalPoints);
   }
 
-  /** Download and extract XML for a release point with hash-based caching */
+  /** Download and extract XML for a release point with hash-based caching. */
   async fetchXml(releasePoint: ReleasePoint): Promise<Result<string>> {
     this.logger.info('Fetching XML', { title: releasePoint.title, url: releasePoint.uslmUrl });
     const timer = this.logger.startTimer('fetchXml');
@@ -378,8 +480,6 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return result;
     }
 
-    // Size cap (primary guard): reject before reading the body if the server
-    // advertises a Content-Length over the limit, avoiding runner OOM.
     if (exceedsContentLengthLimit(result.value)) {
       const durationMs = performance.now() - startMs;
       this.metrics.recordDuration(durationMs);
@@ -388,9 +488,6 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return err(new Error('Download exceeds size limit'));
     }
 
-    // Memory-bounded read: stream the body and abort once the cap is exceeded,
-    // so a chunked or untruthful-Content-Length response (which the pre-check
-    // above cannot catch) is never fully buffered into memory.
     const buffer = await readBytesCapped(result.value);
     if (buffer === null) {
       const durationMs = performance.now() - startMs;
@@ -403,7 +500,6 @@ export class OlrcFetcher implements IUsCodeFetcher {
     const hash = sha256(buffer);
     const hashKey = `xml:${releasePoint.title}:${releasePoint.uslmUrl}`;
 
-    // Check if content has changed since last download
     const changed = await this.hashStore.hasChanged(hashKey, hash);
     if (!changed) {
       this.logger.info('Content unchanged, skipping', { title: releasePoint.title, hash });
@@ -414,7 +510,6 @@ export class OlrcFetcher implements IUsCodeFetcher {
       return ok('');
     }
 
-    // Validate that we got something that looks like a ZIP (PK signature)
     if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
       const durationMs = performance.now() - startMs;
       this.metrics.recordDuration(durationMs);
@@ -429,7 +524,6 @@ export class OlrcFetcher implements IUsCodeFetcher {
     this.metrics.recordDownloaded();
     timer();
 
-    // Return raw buffer as base64 — caller will extract XML from the ZIP
     return ok(buffer.toString('base64'));
   }
 }
