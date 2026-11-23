@@ -66,5 +66,19 @@
     "validationPassed": true,
     "requiredScopesComplete": true,
     "manifestDigest": "1d3e648978b36a507c16d6b67132770fe69b384c4f8f5c4cd62c668cb596fdf1"
+  },
+  {
+    "schemaVersion": "usct.publication-receipt/v1",
+    "publicationId": "pub-pl-119-142-7297bf86fe00",
+    "acceptedDataCommitSha": "7297bf86fe00c0f850e1da9df5af5a03383fea70",
+    "acceptedDataTag": "pl-119-142",
+    "trackerSubmodulePinSha": "7297bf86fe00c0f850e1da9df5af5a03383fea70",
+    "trackerBuildCommitSha": "216ec8aeeaa7621356b667c174eb075ef7196054",
+    "predecessorPublicationId": "pub-pl-119-73-9053858fbfbd",
+    "predecessorDataCommitSha": "9053858fbfbd9a7bb7dd505f24620aab7614fe88",
+    "promotedAt": "2026-11-23T22:02:14.756Z",
+    "validationPassed": true,
+    "requiredScopesComplete": true,
+    "manifestDigest": "b850f996acf45e5bd7fffe2cbbe4ddd5a246b28b10136937f7ac6bf75fcdf7aa"
   }
 ]
