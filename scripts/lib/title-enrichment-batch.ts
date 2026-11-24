@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { annotationToYaml, buildAnnotationPath } from '@civic-source/annotator';
@@ -173,25 +174,25 @@ function planSectionWork(
 }
 
 async function loadPriorRegSnapshot(
-  filePath: string
+  filePath: string, forOverwriteCheck = false
 ): Promise<{ data: ImplementingRegulation[]; lastSuccessAt: string } | null> {
   try {
     const parsed = SectionRegulationsSchema.safeParse(JSON.parse(await readFile(filePath, 'utf-8')));
     if (!parsed.success) return null;
     const st = parsed.data.refreshStatus;
-    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    if (!forOverwriteCheck && (st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
     return { data: parsed.data.regulations, lastSuccessAt: st?.lastSuccessAt ?? parsed.data.lastUpdated };
   } catch {
     return null;
   }
 }
 
-async function loadPriorAnnotation(filePath: string): Promise<PrecedentAnnotation | null> {
+async function loadPriorAnnotation(filePath: string, forOverwriteCheck = false): Promise<PrecedentAnnotation | null> {
   try {
     const parsed = parseAnnotationYaml(await readFile(filePath, 'utf-8'));
     if (!parsed.ok) return null;
     const st = parsed.value.refreshStatus;
-    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    if (!forOverwriteCheck && (st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
     return parsed.value;
   } catch {
     return null;
@@ -200,6 +201,9 @@ async function loadPriorAnnotation(filePath: string): Promise<PrecedentAnnotatio
 
 async function writeFileSafe(filePath: string, content: string): Promise<Result<void>> {
   try {
+    const priorEntries = filePath.endsWith('.yaml') ? (await loadPriorAnnotation(filePath, true))?.cases : (await loadPriorRegSnapshot(filePath, true))?.data;
+    if (existsSync(filePath) && (!priorEntries || priorEntries.some((c) => c.extractionState === 'verified' || (c.editorialReview && c.editorialReview !== 'unreviewed'))))
+      return err(new Error('Refusing to overwrite an unreadable or editorially reviewed sidecar'));
     await mkdir(dirname(filePath), { recursive: true });
     await writeFile(filePath, content, 'utf-8');
     return ok(undefined);
@@ -235,10 +239,8 @@ async function writeEcfrSidecar(
 
 async function writeAnnotationSidecar(
   filePath: string,
-  outcome: SourceAcquisitionOutcome<PrecedentAnnotation>, prior: PrecedentAnnotation | null
+  outcome: SourceAcquisitionOutcome<PrecedentAnnotation>
 ): Promise<Result<void>> {
-  if (prior?.cases.some((c) => c.extractionState === 'verified' || (c.editorialReview && c.editorialReview !== 'unreviewed')))
-    return err(new Error('Refusing to overwrite editorially reviewed annotation sidecar'));
   const parsed = PrecedentAnnotationSchema.safeParse(outcome.data);
   return parsed.success ? writeFileSafe(filePath, annotationToYaml(parsed.data)) : err(new Error(parsed.error.message));
 }
@@ -299,7 +301,6 @@ async function runSingleSource(
   state.remoteCallsMade += 1;
   const nowIso = (options.nowFn ?? (() => new Date().toISOString()))();
   const citation = `${config.uscTitle} U.S.C. ${section}`;
-
   let writeRes: Result<void> | null = null;
   let outcomeStatus: SourceAcquisitionOutcome<unknown>['status'];
   if (source === 'ecfr') {
@@ -321,7 +322,7 @@ async function runSingleSource(
     );
     outcomeStatus = outcome.status;
     if (recordOutcomeAndCheckBreaker('courtlistener', outcome, priorAnn !== null, config, state)) {
-      writeRes = await writeAnnotationSidecar(outFile, outcome, priorAnn);
+      writeRes = await writeAnnotationSidecar(outFile, outcome);
     }
   }
 

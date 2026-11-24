@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { annotationToYaml } from '@civic-source/annotator';
@@ -217,7 +217,7 @@ describe('title-enrichment-coverage & annotation-yaml-parser', () => {
     expect(parseAnnotationYaml(yaml.replace('    and requires', '  and requires')).ok).toBe(false);
   });
 
-  it('rejects malformed annotation YAML (e.g. cases: [unterminated), repairs on resume, and parses real annotation formats', async () => {
+  it('rejects malformed annotation YAML, preserves it on resume, and parses real annotation formats', async () => {
     expect(validateAnnotationRaw('targetSection: "18 U.S.C. 1001"\nlastSyncedET: "2026-11-24T04:00:00.000Z"\ncases: [unterminated\n')).toEqual({
       status: 'failed', reason: 'Invalid cases value "[unterminated"; expected [] or block list', failureKind: 'malformed_payload',
     });
@@ -252,10 +252,12 @@ describe('title-enrichment-coverage & annotation-yaml-parser', () => {
     const repo = await createTempRepo();
     await writeStatuteFixture(repo, '18', '47', '1001');
     await mkdir(join(repo, 'annotations', 'title-18'), { recursive: true });
-    await writeFile(join(repo, 'annotations', 'title-18', 'section-1001.yaml'), 'targetSection: "18 U.S.C. 1001"\nlastSyncedET: "2026-11-24T04:00:00.000Z"\ncases: [unterminated\n', 'utf-8');
+    const annotationPath = join(repo, 'annotations', 'title-18', 'section-1001.yaml');
+    const malformed = 'targetSection: "18 U.S.C. 1001"\nlastSyncedET: "2026-11-24T04:00:00.000Z"\ncases: [unterminated\n';
+    await writeFile(annotationPath, malformed, 'utf-8');
 
     const selectedOnResume: string[] = [];
-    const repaired = await runTitleEnrichmentBatch({
+    const attempted = await runTitleEnrichmentBatch({
       dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'], onlyMissing: true, sleepFn: async () => {},
       fetchCourtListener: async ({ uscTitle, section }) => {
         selectedOnResume.push(section);
@@ -266,9 +268,12 @@ describe('title-enrichment-coverage & annotation-yaml-parser', () => {
         };
       },
     });
-    expect(repaired.ok).toBe(true);
-    if (!repaired.ok) return;
+    expect(attempted.ok).toBe(true);
+    if (!attempted.ok) return;
     expect(selectedOnResume).toEqual(['1001']);
-    expect(repaired.value.coverageAfter.report.sources.courtlistener.coverageState).toBe('complete');
+    expect(attempted.value.writtenCount).toBe(0);
+    expect(attempted.value.failedCount).toBe(1);
+    expect(attempted.value.coverageAfter.report.sources.courtlistener.coverageState).toBe('failed');
+    expect(await readFile(annotationPath, 'utf-8')).toBe(malformed);
   });
 });

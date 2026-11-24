@@ -183,6 +183,46 @@ describe('title-enrichment-batch (resumable batch runner & CLI)', () => {
     }
   });
 
+  it.each(['comment', 'partial', 'failed', 'malformed'])('preserves existing annotations with %s content that cannot be used as a prior snapshot', async (kind) => {
+    const repo = await createTempRepo();
+    await writeStatuteFixture(repo, '18', '47', '1001');
+    const annotationPath = await writeValidAnnotationSidecar(repo, '18', '1001');
+    let original = (await readFile(annotationPath, 'utf-8')) + '    extractionState: verified\n    editorialReview: accepted\n';
+    if (kind === 'comment') original = '# reviewed by editor\n' + original;
+    else if (kind === 'malformed') original = 'cases: [unterminated\n';
+    else original += `refreshStatus:\n  source: courtlistener\n  scope: 18 U.S.C. 1001\n  status: ${kind}\n  observedAt: ${FIXED_NOW}\n  retainedPriorSnapshot: false\n  isStale: true\n`;
+    await writeFile(annotationPath, original);
+    const result = await runTitleEnrichmentBatch({
+      dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'],
+      fetchCourtListener: async () => makeCourtListenerSuccess('18', '1001'),
+    });
+    expect(result.ok && result.value.writtenCount).toBe(0);
+    expect(result.ok && result.value.failedCount).toBe(1);
+    expect(await readFile(annotationPath, 'utf-8')).toBe(original);
+  });
+
+  it('preserves reviewed eCFR sidecars on successful and empty refreshes', async () => {
+    const repo = await createTempRepo();
+    await writeStatuteFixture(repo, '18', '47', '1001');
+    const regPath = await writeValidRegSidecar(repo, '18', '1001');
+    const prior = SectionRegulationsSchema.parse(JSON.parse(await readFile(regPath, 'utf-8')));
+    prior.regulations = prior.regulations.map((r) => ({ ...r, extractionState: 'verified', editorialReview: 'accepted', relationshipType: 'authority_citation', verifiedAuthorityText: '18 U.S.C. 1001' }));
+    const original = JSON.stringify(prior);
+    await writeFile(regPath, original);
+    for (const empty of [false, true]) {
+      const result = await runTitleEnrichmentBatch({
+        dataRepoPath: repo, uscTitle: '18', sources: ['ecfr'], onlyMissing: false,
+        fetchEcfr: async () => {
+          const outcome = makeEcfrSuccess('18', '1001');
+          return empty ? { ...outcome, status: 'success-empty', data: [] } : outcome;
+        },
+      });
+      expect(result.ok && result.value.writtenCount).toBe(0);
+      expect(result.ok && result.value.failedCount).toBe(1);
+      expect(await readFile(regPath, 'utf-8')).toBe(original);
+    }
+  });
+
   it('clamps delayMs < 500 to MIN_POLITE_DELAY_MS and skips network calls during dryRun', async () => {
     expect(MIN_POLITE_DELAY_MS).toBe(500);
     expect(clampPoliteDelayMs(undefined)).toBe(500);
