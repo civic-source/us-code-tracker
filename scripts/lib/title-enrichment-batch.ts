@@ -11,12 +11,11 @@ import {
   type Result,
   type SourceAcquisitionOutcome,
 } from '@civic-source/types';
+import { parseAnnotationYaml } from './annotation-yaml-parser.js';
 import {
   computeTitleEnrichmentCoverage,
   discoverTitleSections,
-  inspectSidecar,
   normalizeTitleId,
-  validateAnnotationRaw,
   type CoverageSourceFamily,
   type DiscoveredTitleSection,
   type FailedPartitionRecord,
@@ -179,8 +178,21 @@ async function loadPriorRegSnapshot(
   try {
     const parsed = SectionRegulationsSchema.safeParse(JSON.parse(await readFile(filePath, 'utf-8')));
     if (!parsed.success) return null;
-    if (parsed.data.refreshStatus?.status === 'failed' && !parsed.data.refreshStatus.retainedPriorSnapshot) return null;
-    return { data: parsed.data.regulations, lastSuccessAt: parsed.data.refreshStatus?.lastSuccessAt ?? parsed.data.lastUpdated };
+    const st = parsed.data.refreshStatus;
+    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    return { data: parsed.data.regulations, lastSuccessAt: st?.lastSuccessAt ?? parsed.data.lastUpdated };
+  } catch {
+    return null;
+  }
+}
+
+async function loadPriorAnnotation(filePath: string): Promise<PrecedentAnnotation | null> {
+  try {
+    const parsed = parseAnnotationYaml(await readFile(filePath, 'utf-8'));
+    if (!parsed.ok) return null;
+    const st = parsed.value.refreshStatus;
+    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    return parsed.value;
   } catch {
     return null;
   }
@@ -218,8 +230,7 @@ async function writeEcfrSidecar(
     refreshStatus: buildRefreshStatus(outcome),
     regulations: outcome.data,
   });
-  if (!parsed.success) return err(new Error(parsed.error.message));
-  return writeFileSafe(filePath, JSON.stringify(parsed.data, null, 2) + '\n');
+  return parsed.success ? writeFileSafe(filePath, JSON.stringify(parsed.data, null, 2) + '\n') : err(new Error(parsed.error.message));
 }
 
 async function writeAnnotationSidecar(
@@ -227,9 +238,10 @@ async function writeAnnotationSidecar(
   outcome: SourceAcquisitionOutcome<PrecedentAnnotation>
 ): Promise<Result<void>> {
   const parsed = PrecedentAnnotationSchema.safeParse(outcome.data);
-  if (!parsed.success) return err(new Error(parsed.error.message));
-  return writeFileSafe(filePath, annotationToYaml(parsed.data));
+  return parsed.success ? writeFileSafe(filePath, annotationToYaml(parsed.data)) : err(new Error(parsed.error.message));
 }
+
+const RATE_LIMIT_MSG_RE = /\b(?:http|status)\s*429\b|\b429\s+too many requests\b|rate[\s-]?limit|too many requests/i;
 
 function recordOutcomeAndCheckBreaker<T>(
   source: EnrichmentSource,
@@ -239,7 +251,7 @@ function recordOutcomeAndCheckBreaker<T>(
   state: ExecutionState
 ): boolean {
   const isRateLimited =
-    outcome.failureKind === 'rate_limited' || outcome.httpStatus === 429 || /429|rate limit/i.test(outcome.errorMessage ?? '');
+    outcome.failureKind === 'rate_limited' || outcome.httpStatus === 429 || RATE_LIMIT_MSG_RE.test(outcome.errorMessage ?? '');
   if (isRateLimited) {
     state.rateLimitCount += 1;
     const nextStreak = (state.consecutiveRateLimits.get(source) ?? 0) + 1;
@@ -252,15 +264,11 @@ function recordOutcomeAndCheckBreaker<T>(
     state.consecutiveRateLimits.set(source, 0);
   }
   const isSuccess = outcome.status === 'success-empty' || outcome.status === 'success-nonempty';
-  const isWritablePartial = outcome.status === 'partial' && !hasPrior;
-  return (isSuccess || isWritablePartial) && !outcome.retainedPriorSnapshot;
+  return (isSuccess || (outcome.status === 'partial' && !hasPrior)) && !outcome.retainedPriorSnapshot;
 }
 
 async function safeInvokeFetcher<T>(
-  source: EnrichmentSource,
-  scope: string,
-  nowIso: string,
-  fallbackData: T,
+  source: EnrichmentSource, scope: string, nowIso: string, fallbackData: T,
   invoke: () => Promise<SourceAcquisitionOutcome<T>>
 ): Promise<SourceAcquisitionOutcome<T>> {
   try {
@@ -268,25 +276,17 @@ async function safeInvokeFetcher<T>(
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     return {
-      status: 'failed',
-      source,
-      scope,
-      observedAt: nowIso,
-      data: fallbackData,
-      retainedPriorSnapshot: false,
-      isStale: true,
-      failureKind: /429|rate limit/i.test(msg) ? 'rate_limited' : 'network_error',
+      status: 'failed', source, scope, observedAt: nowIso, data: fallbackData,
+      retainedPriorSnapshot: false, isStale: true,
+      failureKind: RATE_LIMIT_MSG_RE.test(msg) ? 'rate_limited' : 'network_error',
       errorMessage: msg,
     };
   }
 }
 
 async function runSingleSource(
-  source: EnrichmentSource,
-  section: string,
-  options: TitleEnrichmentBatchOptions,
-  config: BatchRunConfig,
-  state: ExecutionState
+  source: EnrichmentSource, section: string, options: TitleEnrichmentBatchOptions,
+  config: BatchRunConfig, state: ExecutionState
 ): Promise<void> {
   if (state.remoteCallsMade > 0) {
     const sleep = options.sleepFn ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -297,29 +297,32 @@ async function runSingleSource(
   const citation = `${config.uscTitle} U.S.C. ${section}`;
 
   let writeRes: Result<void> | null = null;
+  let outcomeStatus: SourceAcquisitionOutcome<unknown>['status'];
   if (source === 'ecfr') {
     const outFile = join(options.dataRepoPath, 'regulations', `title-${config.uscTitle}`, `section-${section}.json`);
     const prior = await loadPriorRegSnapshot(outFile);
     const outcome = await safeInvokeFetcher('ecfr', citation, nowIso, prior?.data ?? [], () =>
       options.fetchEcfr!({ uscTitle: config.uscTitle, section, priorSnapshot: prior, nowIso })
     );
+    outcomeStatus = outcome.status;
     if (recordOutcomeAndCheckBreaker('ecfr', outcome, prior !== null, config, state)) {
       writeRes = await writeEcfrSidecar(outFile, config.uscTitle, section, outcome);
     }
   } else {
     const outFile = join(options.dataRepoPath, buildAnnotationPath(citation));
-    const hasPrior = (await inspectSidecar(outFile, validateAnnotationRaw)).status === 'valid';
+    const priorAnn = await loadPriorAnnotation(outFile);
     const emptyAnn: PrecedentAnnotation = { targetSection: citation, lastSyncedET: nowIso, cases: [] };
-    const outcome = await safeInvokeFetcher('courtlistener', citation, nowIso, emptyAnn, () =>
-      options.fetchCourtListener!({ uscTitle: config.uscTitle, section, citation, priorAnnotation: null, nowIso })
+    const outcome = await safeInvokeFetcher('courtlistener', citation, nowIso, priorAnn ?? emptyAnn, () =>
+      options.fetchCourtListener!({ uscTitle: config.uscTitle, section, citation, priorAnnotation: priorAnn, nowIso })
     );
-    if (recordOutcomeAndCheckBreaker('courtlistener', outcome, hasPrior, config, state)) {
+    outcomeStatus = outcome.status;
+    if (recordOutcomeAndCheckBreaker('courtlistener', outcome, priorAnn !== null, config, state)) {
       writeRes = await writeAnnotationSidecar(outFile, outcome);
     }
   }
 
   if (writeRes?.ok) state.writtenCount += 1;
-  else state.failedCount += 1;
+  if (!writeRes?.ok || outcomeStatus === 'partial' || outcomeStatus === 'failed') state.failedCount += 1;
 }
 
 async function executeSelectedWork(

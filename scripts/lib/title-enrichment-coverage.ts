@@ -14,6 +14,8 @@ import {
   type SourceFetchFailureKind,
 } from '@civic-source/types';
 
+import { parseAnnotationYaml } from './annotation-yaml-parser.js';
+
 export type CoverageSourceFamily = 'olrc_uslm' | 'ecfr' | 'courtlistener';
 
 export interface DiscoveredTitleSection {
@@ -61,6 +63,7 @@ export interface TitleEnrichmentCoverageResult {
 export interface SidecarCheckResult {
   status: 'valid' | 'missing' | 'failed';
   reason?: string;
+  failureKind?: SourceFetchFailureKind;
 }
 
 const SAFE_TITLE_REGEX = /^0*([1-9][0-9]*)([a-zA-Z]?)$/;
@@ -154,32 +157,43 @@ export function validateEcfrRaw(raw: string): SidecarCheckResult {
   try {
     parsedJson = JSON.parse(raw);
   } catch {
-    return { status: 'failed', reason: 'Malformed regulation JSON sidecar' };
+    return { status: 'failed', reason: 'Malformed regulation JSON sidecar', failureKind: 'malformed_payload' };
   }
   const parsed = SectionRegulationsSchema.safeParse(parsedJson);
   if (!parsed.success) {
-    return { status: 'failed', reason: 'Regulation JSON failed schema validation' };
+    return { status: 'failed', reason: 'Regulation JSON failed schema validation', failureKind: 'malformed_payload' };
   }
   const refresh = parsed.data.refreshStatus;
   if (refresh?.status === 'failed' && !refresh.retainedPriorSnapshot) {
-    return { status: 'failed', reason: refresh.errorMessage ?? 'Prior eCFR fetch failed' };
+    return {
+      status: 'failed',
+      reason: refresh.errorMessage ?? 'Prior eCFR fetch failed',
+      ...(refresh.failureKind ? { failureKind: refresh.failureKind } : {}),
+    };
+  }
+  if (refresh?.status === 'partial' && !refresh.retainedPriorSnapshot) {
+    return {
+      status: 'failed',
+      reason: refresh.errorMessage ?? 'Prior eCFR pagination was incomplete',
+      failureKind: refresh.failureKind ?? 'pagination_incomplete',
+    };
   }
   return { status: 'valid' };
 }
 
-/** Validate raw annotation YAML sidecar text structurally without adding external YAML deps. */
+/** Validate raw annotation YAML sidecar text against PrecedentAnnotationSchema and refresh state. */
 export function validateAnnotationRaw(raw: string): SidecarCheckResult {
-  if (!/^targetSection:\s*\S+/m.test(raw) || !/^lastSyncedET:\s*\S+/m.test(raw) || !/^cases:/m.test(raw)) {
-    return { status: 'failed', reason: 'Annotation YAML missing required top-level keys' };
+  const parsed = parseAnnotationYaml(raw);
+  if (!parsed.ok) {
+    return { status: 'failed', reason: parsed.error.message, failureKind: 'malformed_payload' };
   }
-  const refreshMatch = /^refreshStatus:\s*\n((?:[ \t]+.*\n?)*)/m.exec(raw);
-  if (refreshMatch?.[1]) {
-    const block = refreshMatch[1];
-    const isFailed = /^\s+status:\s*['"]?failed['"]?\s*$/m.test(block);
-    const retained = /^\s+retainedPriorSnapshot:\s*true\s*$/m.test(block);
-    if (isFailed && !retained) {
-      return { status: 'failed', reason: 'Prior CourtListener fetch failed without snapshot' };
-    }
+  const refresh = parsed.value.refreshStatus;
+  if ((refresh?.status === 'failed' || refresh?.status === 'partial') && !refresh.retainedPriorSnapshot) {
+    return {
+      status: 'failed',
+      reason: refresh.errorMessage ?? `Prior CourtListener fetch ${refresh.status} without retained snapshot`,
+      ...(refresh.failureKind ? { failureKind: refresh.failureKind } : {}),
+    };
   }
   return { status: 'valid' };
 }
@@ -276,7 +290,11 @@ async function evaluateSidecarFamily(params: {
     const check = await inspectSidecar(filePath, isEcfr ? validateEcfrRaw : validateAnnotationRaw);
     if (check.status === 'valid') completedPartitions.push(sec.partitionId);
     else if (check.status === 'failed') {
-      failedPartitions.push({ partition: sec.partitionId, reason: check.reason ?? 'Sidecar validation failed' });
+      failedPartitions.push({
+        partition: sec.partitionId,
+        reason: check.reason ?? 'Sidecar validation failed',
+        ...(check.failureKind ? { failureKind: check.failureKind } : {}),
+      });
     }
   }
 

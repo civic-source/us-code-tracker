@@ -124,7 +124,7 @@ export async function runEnrichTitleCli(argv: string[]): Promise<number> {
     await mkdir(dirname(outPath), { recursive: true });
     await writeFile(outPath, JSON.stringify(res.value.coverageAfter, null, 2) + '\n', 'utf-8');
   }
-  return res.value.haltedByCircuitBreaker ? 1 : 0;
+  return res.value.haltedByCircuitBreaker || res.value.failedCount > 0 ? 1 : 0;
 }
 
 if (process.argv[1]?.endsWith('enrich-title.ts')) {
