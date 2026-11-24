@@ -76,7 +76,7 @@
   <div class="rounded bg-[var(--surface-raised)] border border-[var(--border-subtle)] p-3">
     <div class="flex items-center justify-between gap-2">
       <span class="font-semibold text-[var(--text-primary)]">Federal Register Actions</span>
-      <span class="rounded bg-teal/15 text-teal text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">
+      <span class="rounded bg-[var(--legal-valid-bg)] text-[var(--legal-valid)] text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">
         Static Snapshot ({coverageState})
       </span>
     </div>
@@ -134,7 +134,7 @@
           <div class="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-muted)] font-mono">
             {#if doc.document_number}<span>Doc: {doc.document_number}</span>{/if}
             {#if doc.citation}<span>· {doc.citation}</span>{/if}
-            <span class="rounded bg-[var(--surface-sunken)] px-1 py-0.2 text-[9px] uppercase font-sans">{doc.extractionState ?? 'candidate'}</span>
+            <span class="rounded bg-[var(--surface-sunken)] px-1 py-0.5 text-[9px] uppercase font-sans">{doc.extractionState ?? 'candidate'}</span>
           </div>
 
           {#if doc.agency_names.length > 0}

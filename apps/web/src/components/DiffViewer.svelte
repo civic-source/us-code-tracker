@@ -839,7 +839,7 @@
               >
                 {group.label}
                 {#if group.changedCount > 0}
-                  <span class="ml-1 rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-bold">
+                  <span class="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">
                     {group.changedCount}
                   </span>
                 {/if}
