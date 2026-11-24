@@ -146,5 +146,49 @@
       },
       "review": "APPROVE\n\nThe implemented archive process is robust, correctly integrating bounds checking for disk usage, subprocess limits, and rigorous SHA-256 verifications. \n\nFindings (All are informational/praise, no changes requested):\n- **Security & Data Fidelity**: The `downloadCommandBounded` correctly interposes on subprocess output strictly enforcing `maxBytes` limits *before* committing chunks to disk, cleanly mitigating decompression bombs.\n- **TOCTOU Protections**: Verifying the digest of the `archivePath` locally before *and* after the duplicate `inspect` passes correctly mitigates potential race conditions if an underlying file was maliciously or accidentally swapped.\n- **Resource Bounds**: Passing through bounds into Python (`BoundedReader`) and strictly limiting both JSON payload allocation (`MAX_MANIFEST`) and unpacked size sets proper boundaries for data ingestion without DoS vectors. \n\nGreat attention to detail on the failure paths in `downloadCommandBounded` enforcing stream closures and cleaning up partial files."
     }
+  ],
+  "followupReviews": [
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "finishReason": "stop",
+      "decision": "APPROVE",
+      "diffSha256": "7421e6eda81b54d75cda6a042f7476746aa95f555cd4e70754ae255adea2139f",
+      "promptSha256": "228c9b83dc718efde15b705ad3af74dec0b06cd56297ed813f34c7e3d0d4bcb5",
+      "requestId": "gen-1795538268-2SXvqux0pL8RF1q9ReAt",
+      "usage": {
+        "prompt_tokens": 6126,
+        "completion_tokens": 1204,
+        "total_tokens": 7330,
+        "cost": 0.0267,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0267,
+          "upstream_inference_prompt_cost": 0.012252,
+          "upstream_inference_completions_cost": 0.014448
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 938,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "files": {
+        "scripts/__tests__/ecfr-bulk-archive.test.ts": "ed60294da52ae5618f33d866994b3229bc342db967e9771a72851f669513b7b6",
+        "scripts/__tests__/ecfr-bulk-source.test.ts": "7928dc832202eb14622558f48c5fd06b54d0e38503d61d45780f5538e552ef90",
+        "scripts/ecfr-bulk.ts": "90eb87f21c3df2d08a70fb92597ce227ba52fb8951696e36de6871e20c28f793",
+        "scripts/lib/ecfr-bulk-archive-github.ts": "243f3d0725dc0a62e1db46c96d8a24e7651801f28e1bf1aeae65c058c7dd7580",
+        "scripts/lib/ecfr-bulk-source.ts": "edc2cb731efee3dec1e6525745072eb55c391280fc8b88775739006499590f87",
+        "scripts/__tests__/ecfr-bulk-producer.test.ts": "47f9db624f855475fac66b53a01e881047622d45e8c18d5b0d76171fe9c803c7",
+        "scripts/lib/ecfr-bulk-archive-release.ts": "81665bbf69cc4e18b5e5005c61e864b8d6d9ad550a1cd00e958ece831e250896",
+        "scripts/lib/ecfr-bulk-producer.ts": "960e81bc5fcfda4366fe00fd2e3e7f691939e2a1f4be60ba91ab8ae51a08d8ce"
+      },
+      "review": "APPROVE\n\nConcrete findings:\n1. **Monotonic Clock Fix**: Replacing `Date.now()` with `performance.now()` in `scripts/lib/ecfr-bulk-source.ts` successfully guarantees request pacing against system wall-clock jumps. Initialization of `lastStart = -Infinity` correctly ensures the first request executes immediately.\n2. **Draft Discovery**: The fallback implementation in `scripts/lib/ecfr-bulk-archive-release.ts` correctly scans a bounded window (10 pages) to locate unpublished draft releases by exact release ID and `tag_name`, bypassing the standard GitHub API limitation for tag lookups on drafts.\n3. **Producer Verification Security**: The shell execution in `scripts/lib/ecfr-bulk-producer.ts` (`execFileSync('git', ...)`) correctly validates `options.revision` against a strict regex (`/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/`) before passing it to the command line, preventing argument injection.\n4. **Test Coverage**: Appropriate unit tests verify the wall-clock pacing behavior (`ecfr-bulk-source.test.ts`) and draft release discovery fallback (`ecfr-bulk-archive.test.ts`)."
+    }
   ]
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { verifyEcfrProducer } from './lib/ecfr-bulk-producer.js';
 import { recordEcfrRun } from './lib/ecfr-bulk-receipt.js';
 import { writeEcfrProduct } from './lib/ecfr-bulk-output.js';
 import { parseArgs } from 'node:util';
@@ -76,7 +77,10 @@ async function githubAction(store: EcfrBulkStore, values: Flags): Promise<Result
   }
   const snapshot=await store.loadSnapshot(values.snapshot);
   if(!snapshot.ok)return snapshot;
-  return github.archiveToGithub({store,snapshotId:snapshot.value.snapshotId,repository,producerRevision:revision(true)});
+  revision(true);
+  const producer=verifyEcfrProducer({repository:fileURLToPath(new URL('../',import.meta.url)),revision:snapshot.value.producerRevision ?? '',extractorVersion:snapshot.value.extractorVersion,extractorDigest:snapshot.value.extractorDigest});
+  if(!producer.ok)return producer;
+  return github.archiveToGithub({store,snapshotId:snapshot.value.snapshotId,repository,producerRevision:producer.value});
 }
 async function run(values: Flags): Promise<Result<unknown>> {
   const store=new EcfrBulkStore(resolve(values.cache ?? '.workbench/ecfr-bulk'),{maxCacheBytes:positive(values['max-cache-gib'],16)*1024**3,minFreeBytes:positive(values['min-free-gib'],2)*1024**3});

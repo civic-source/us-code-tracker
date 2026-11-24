@@ -159,7 +159,7 @@ export class EcfrBulkSourceClient {
   private readonly transport: typeof fetch;
   private readonly interval: number;
   private readonly cap: number;
-  private lastStart = 0;
+  private lastStart = -Infinity;
   private queue: Promise<void> = Promise.resolve();
 
   constructor(options: EcfrBulkSourceClientOptions = {}) {
@@ -173,11 +173,11 @@ export class EcfrBulkSourceClient {
 
   private request(url: string, headers: Record<string, string>): Promise<Response> {
     const request = this.queue.then(async () => {
-      while (Date.now() - this.lastStart < this.interval) {
-        await delay(this.interval - (Date.now() - this.lastStart));
+      while (performance.now() - this.lastStart < this.interval) {
+        await delay(Math.ceil(this.interval - (performance.now() - this.lastStart)));
       }
-      this.lastStart = Date.now();
-      return this.transport(url, { headers, redirect: 'manual', signal: AbortSignal.timeout(120_000) });
+      try { return this.transport(url, { headers, redirect: 'manual', signal: AbortSignal.timeout(120_000) }); }
+      finally { this.lastStart = performance.now(); }
     });
     this.queue = request.then(() => undefined, () => undefined);
     return request;

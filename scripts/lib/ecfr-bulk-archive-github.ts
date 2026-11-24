@@ -1,3 +1,4 @@
+import { lookupGithubRelease } from './ecfr-bulk-archive-release.js';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -75,7 +76,9 @@ function parseRelease(raw: string, repository: string): GithubReleaseMetadata {
   return { draft: release.draft, immutable: release.immutable === true, assets };
 }
 async function releaseMetadata(options: GithubOptions, tag: string): Promise<GithubReleaseMetadata> {
-  return parseRelease(await command(options.runner ?? runGithub, ['api', `repos/${options.repository}/releases/tags/${tag}`]), options.repository);
+  const response=await lookupGithubRelease(options.repository,tag,options.runner ?? runGithub);
+  if(response.exitCode!==0)throw new Error('GitHub archive release lookup failed: '+response.stderr);
+  return parseRelease(response.stdout,options.repository);
 }
 async function fetchAsset(options: GithubOptions, metadata: GithubReleaseMetadata, name: string, path: string, maxBytes: number): Promise<void> {
   const asset = metadata.assets.find((item) => item.name === name);
@@ -155,7 +158,7 @@ export async function archiveToGithub(options: GithubOptions & { snapshotId: str
       releaseUrl: `https://github.com/${options.repository}/releases/tag/${tag}` };
     const receiptPath = join(stage, 'archive-receipt.json');
     await writeFile(receiptPath, canonicalJson(receipt) + '\n', { flag: 'wx' });
-    const existing = await runner(['api', `repos/${options.repository}/releases/tags/${tag}`]);
+    const existing = await lookupGithubRelease(options.repository,tag,runner);
     if (existing.exitCode === 0) return await verifyExisting(options, tag, stage, existing.stdout, receipt);
     if (!/release not found|HTTP 404|Not Found/i.test(existing.stderr)) throw new Error(`GitHub release lookup failed: ${existing.stderr}`);
     await verifyGithubTag(options, tag, options.producerRevision, true);

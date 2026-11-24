@@ -76,7 +76,7 @@ with tarfile.open(source,'r:gz') as original,tarfile.open(output,'w:gz') as targ
   });
 }
 
-function fakeGithub(corrupt = false) {
+function fakeGithub(corrupt = false, draftTag404 = false) {
   const assets = new Map<string, Buffer>(); const commands: readonly string[][] = [];
   const releases = new Set<string>(); const tagRefs = new Map<string, string>(); let draft = true;
   const runner: GithubRunner = async (args) => {
@@ -93,8 +93,12 @@ function fakeGithub(corrupt = false) {
       const sha = tagRefs.get(ref);
       return sha ? success(JSON.stringify({ ref, object: { sha, type: 'commit' } })) : { exitCode: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
     }
-    if (args[0] === 'api') return releases.has(args[1]!.split('/').at(-1)!) ? success(JSON.stringify({ draft, immutable: false, assets: [...assets.keys()].map((name, index) => ({ id: index + 1, name, size: assets.get(name)!.length, url: `https://api.github.com/repos/civic-source/us-code-tracker/releases/assets/${index + 1}` })) }))
-      : { exitCode: 1, stdout: '', stderr: 'release not found' };
+    if (args[0] === 'api') {
+      const metadata=(tag:string)=>({id:[...releases].indexOf(tag)+1,tag_name:tag,draft,immutable:false,assets:[...assets.keys()].map((name,index)=>({id:index+1,name,size:assets.get(name)!.length,url:`https://api.github.com/repos/civic-source/us-code-tracker/releases/assets/${index+1}`}))});
+      if(args[1]!.includes('/releases?'))return success(JSON.stringify([...releases].map(metadata)));
+      const selected=args[1]!.includes('/releases/tags/') ? args[1]!.split('/').at(-1)! : [...releases][Number(args[1]!.split('/').at(-1))-1];
+      return selected && releases.has(selected) && !(draftTag404 && draft && args[1]!.includes('/releases/tags/')) ? success(JSON.stringify(metadata(selected))) : {exitCode:1,stdout:'',stderr:'HTTP 404 Not Found'};
+    }
     if (args[1] === 'create') {
       releases.add(args[2]!); draft = true;
       for (const path of args.slice(3, 5)) assets.set(basename(path), await readFile(path));
@@ -198,4 +202,11 @@ it('peels annotated archive tags to the exact retained producer commit', async (
   };
   const target = new EcfrBulkStore(join(root, 'annotated-tag'), { minFreeBytes: 0 }); await target.init();
   expect((await restoreFromGithub({ ...options, runner, store: target, tag: archived.value.tag })).ok).toBe(true);
+});
+
+it('finds and verifies uploaded drafts when the tag endpoint exposes only published releases',async()=>{
+ const {store,snapshot}=await fixture();const github=fakeGithub(false,true);
+ const result=await archiveToGithub({store,repository:'civic-source/us-code-tracker',snapshotId:snapshot.snapshotId,producerRevision:'0'.repeat(40),runner:github.runner,downloader:github.downloader});
+ expect(result.ok).toBe(true);
+ expect(github.commands.some(args=>args[0]==='api' && args[1]?.includes('/releases?'))).toBe(true);
 });

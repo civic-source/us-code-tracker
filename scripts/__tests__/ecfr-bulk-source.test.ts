@@ -3,7 +3,7 @@ import { createServer, type Server, type ServerResponse } from 'node:http';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EcfrBulkSourceClient, type EcfrBulkSourceMetadata } from '../lib/ecfr-bulk-source.js';
 
 const rootUrl = 'https://www.govinfo.gov/bulkdata/json/ECFR';
@@ -45,13 +45,14 @@ describe('GPO bulk source public HTTP seam', () => {
     origin = `http://127.0.0.1:${address.port}`;
     transport = async (input, init) => {
       const url = String(input);
-      requests.push({ url, accept: new Headers(init?.headers).get('Accept') ?? undefined, started: Date.now() });
+      requests.push({ url, accept: new Headers(init?.headers).get('Accept') ?? undefined, started: performance.now() });
       const response = await fetch(`${origin}${new URL(url).pathname}`, init);
       return new Response(response.body, { status: response.status, headers: response.headers });
     };
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await rm(directory, { recursive: true, force: true });
@@ -73,6 +74,16 @@ describe('GPO bulk source public HTTP seam', () => {
     expect((await client.inventory([19])).ok).toBe(true);
     expect((requests[1]?.started ?? 0) - (requests[0]?.started ?? 0)).toBeGreaterThanOrEqual(25);
     expect((await client.inventory([20])).ok).toBe(false);
+  });
+
+  it('preserves minimum request spacing when the wall clock jumps forward', async () => {
+    let wallClock=0;
+    vi.spyOn(Date,'now').mockImplementation(()=>wallClock+=1000);
+    const starts: number[]=[];
+    const monitored: typeof fetch=async(input,init)=>{starts.push(performance.now());return transport(input,init);};
+    const client=new EcfrBulkSourceClient({fetch:monitored,requestIntervalMs:25});
+    expect((await client.inventory([19])).ok).toBe(true);
+    expect(starts[1]! - starts[0]!).toBeGreaterThanOrEqual(25);
   });
 
   it.each(['foreign-url', 'duplicate-title', 'fractional-size', 'wrong-name', 'duplicate-xml', 'html', 'oversize-listing'])('rejects invalid inventory: %s', async (kind) => {
