@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -221,6 +221,23 @@ describe('title-enrichment-batch (resumable batch runner & CLI)', () => {
       expect(result.ok && result.value.failedCount).toBe(1);
       expect(await readFile(regPath, 'utf-8')).toBe(original);
     }
+  });
+
+  it.each(['symlink', 'hardlink'])('refuses %s annotation targets without modifying the linked file', async (kind) => {
+    const repo = await createTempRepo();
+    await writeStatuteFixture(repo, '18', '47', '1001');
+    const target = await writeValidAnnotationSidecar(repo, '18', '2', 'Linked content');
+    const original = await readFile(target, 'utf-8');
+    const output = join(repo, 'annotations', 'title-18', 'section-1001.yaml');
+    if (kind === 'symlink') await symlink(target, output);
+    else await link(target, output);
+    const result = await runTitleEnrichmentBatch({
+      dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'], onlyMissing: false,
+      fetchCourtListener: async () => makeCourtListenerSuccess('18', '1001'),
+    });
+    expect(result.ok && result.value.writtenCount).toBe(0);
+    expect(result.ok && result.value.failedCount).toBe(1);
+    expect(await readFile(target, 'utf-8')).toBe(original);
   });
 
   it('clamps delayMs < 500 to MIN_POLITE_DELAY_MS and skips network calls during dryRun', async () => {

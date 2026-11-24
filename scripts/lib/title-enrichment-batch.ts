@@ -1,6 +1,5 @@
-import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { annotationToYaml, buildAnnotationPath } from '@civic-source/annotator';
 import {
   PrecedentAnnotationSchema,
@@ -13,6 +12,7 @@ import {
   type SourceAcquisitionOutcome,
 } from '@civic-source/types';
 import { parseAnnotationYaml } from './annotation-yaml-parser.js';
+import { writeEnrichmentSidecar } from './enrichment-sidecar-writer.js';
 import {
   computeTitleEnrichmentCoverage,
   discoverTitleSections,
@@ -174,41 +174,28 @@ function planSectionWork(
 }
 
 async function loadPriorRegSnapshot(
-  filePath: string, forOverwriteCheck = false
+  filePath: string
 ): Promise<{ data: ImplementingRegulation[]; lastSuccessAt: string } | null> {
   try {
     const parsed = SectionRegulationsSchema.safeParse(JSON.parse(await readFile(filePath, 'utf-8')));
     if (!parsed.success) return null;
     const st = parsed.data.refreshStatus;
-    if (!forOverwriteCheck && (st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
     return { data: parsed.data.regulations, lastSuccessAt: st?.lastSuccessAt ?? parsed.data.lastUpdated };
   } catch {
     return null;
   }
 }
 
-async function loadPriorAnnotation(filePath: string, forOverwriteCheck = false): Promise<PrecedentAnnotation | null> {
+async function loadPriorAnnotation(filePath: string): Promise<PrecedentAnnotation | null> {
   try {
     const parsed = parseAnnotationYaml(await readFile(filePath, 'utf-8'));
     if (!parsed.ok) return null;
     const st = parsed.value.refreshStatus;
-    if (!forOverwriteCheck && (st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
+    if ((st?.status === 'failed' || st?.status === 'partial') && !st.retainedPriorSnapshot) return null;
     return parsed.value;
   } catch {
     return null;
-  }
-}
-
-async function writeFileSafe(filePath: string, content: string): Promise<Result<void>> {
-  try {
-    const priorEntries = filePath.endsWith('.yaml') ? (await loadPriorAnnotation(filePath, true))?.cases : (await loadPriorRegSnapshot(filePath, true))?.data;
-    if (existsSync(filePath) && (!priorEntries || priorEntries.some((c) => c.extractionState === 'verified' || (c.editorialReview && c.editorialReview !== 'unreviewed'))))
-      return err(new Error('Refusing to overwrite an unreadable or editorially reviewed sidecar'));
-    await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, content, 'utf-8');
-    return ok(undefined);
-  } catch (error: unknown) {
-    return err(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
@@ -234,7 +221,7 @@ async function writeEcfrSidecar(
     refreshStatus: buildRefreshStatus(outcome),
     regulations: outcome.data,
   });
-  return parsed.success ? writeFileSafe(filePath, JSON.stringify(parsed.data, null, 2) + '\n') : err(new Error(parsed.error.message));
+  return parsed.success ? writeEnrichmentSidecar(filePath, JSON.stringify(parsed.data, null, 2) + '\n') : err(new Error(parsed.error.message));
 }
 
 async function writeAnnotationSidecar(
@@ -242,7 +229,7 @@ async function writeAnnotationSidecar(
   outcome: SourceAcquisitionOutcome<PrecedentAnnotation>
 ): Promise<Result<void>> {
   const parsed = PrecedentAnnotationSchema.safeParse(outcome.data);
-  return parsed.success ? writeFileSafe(filePath, annotationToYaml(parsed.data)) : err(new Error(parsed.error.message));
+  return parsed.success ? writeEnrichmentSidecar(filePath, annotationToYaml(parsed.data)) : err(new Error(parsed.error.message));
 }
 
 const RATE_LIMIT_MSG_RE = /\b(?:http|status)\s*429\b|\b429\s+too many requests\b|rate[\s-]?limit|too many requests/i;
