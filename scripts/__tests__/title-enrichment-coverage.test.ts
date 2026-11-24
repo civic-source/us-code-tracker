@@ -187,6 +187,36 @@ describe('title-enrichment-coverage & annotation-yaml-parser', () => {
     expect(second.value.coverageAfter.report.sources.ecfr.coverageState).toBe('complete');
   });
 
+  it('parses wrapped quoted scalars emitted by PyYAML without changing their text', () => {
+    const summary = "The court stated: this provision applies to the defendant's conduct and requires proof of knowing and willful acts beyond a reasonable doubt.";
+    const yaml = [
+      'targetSection: 18 U.S.C. 1001', `lastSyncedET: '${FIXED_NOW}'`, 'cases:',
+      '- caseName: United States v. Test', '  citation: 522 U.S. 398', '  court: SCOTUS', "  date: '1998-01-26'",
+      "  holdingSummary: 'The court stated: this provision applies to the defendant''s conduct",
+      "    and requires proof of knowing and willful acts beyond a reasonable doubt.'",
+      '  sourceUrl: https://www.courtlistener.com/opinion/118168/brogan/', '  impact: interpretation',
+    ].join('\n');
+    const parsed = parseAnnotationYaml(yaml);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value.cases[0]?.holdingSummary).toBe(summary);
+    expect(validateAnnotationRaw(yaml).status).toBe('valid');
+    const paragraphs = yaml.replace(
+      / {2}holdingSummary:[\s\S]*?\n {2}sourceUrl:/,
+      "  holdingSummary: 'The court stated: first paragraph\n\n    second paragraph\n\n\n    third paragraph'\n  sourceUrl:",
+    );
+    const multiline = parseAnnotationYaml(paragraphs);
+    expect(multiline.ok).toBe(true);
+    if (multiline.ok) expect(multiline.value.cases[0]?.holdingSummary).toBe('The court stated: first paragraph\nsecond paragraph\n\nthird paragraph');
+    const doubleQuoted = parseAnnotationYaml(paragraphs.replace("'The court stated: first paragraph", '"The court stated: first paragraph').replace("third paragraph'", 'third paragraph"'));
+    expect(doubleQuoted.ok && doubleQuoted.value.cases[0]?.holdingSummary).toBe('The court stated: first paragraph\nsecond paragraph\n\nthird paragraph');
+    const escaped = yaml.replace(/ {2}holdingSummary:[\s\S]*?\n {2}sourceUrl:/,
+      '  holdingSummary: "The court stated: Unicode \\L separator and \\Pparagraph, \\\n    continued \\x41 \\u0042 \\U0001F600"\n  sourceUrl:');
+    const unicode = parseAnnotationYaml(escaped);
+    expect(unicode.ok && unicode.value.cases[0]?.holdingSummary).toBe('The court stated: Unicode \u2028 separator and \u2029paragraph, continued A B 😀');
+    expect(parseAnnotationYaml(yaml.replace("doubt.'", 'doubt.')).ok).toBe(false);
+    expect(parseAnnotationYaml(yaml.replace('    and requires', '  and requires')).ok).toBe(false);
+  });
+
   it('rejects malformed annotation YAML (e.g. cases: [unterminated), repairs on resume, and parses real annotation formats', async () => {
     expect(validateAnnotationRaw('targetSection: "18 U.S.C. 1001"\nlastSyncedET: "2026-11-24T04:00:00.000Z"\ncases: [unterminated\n')).toEqual({
       status: 'failed', reason: 'Invalid cases value "[unterminated"; expected [] or block list', failureKind: 'malformed_payload',

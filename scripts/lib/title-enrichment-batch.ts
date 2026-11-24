@@ -235,8 +235,10 @@ async function writeEcfrSidecar(
 
 async function writeAnnotationSidecar(
   filePath: string,
-  outcome: SourceAcquisitionOutcome<PrecedentAnnotation>
+  outcome: SourceAcquisitionOutcome<PrecedentAnnotation>, prior: PrecedentAnnotation | null
 ): Promise<Result<void>> {
+  if (prior?.cases.some((c) => c.extractionState === 'verified' || (c.editorialReview && c.editorialReview !== 'unreviewed')))
+    return err(new Error('Refusing to overwrite editorially reviewed annotation sidecar'));
   const parsed = PrecedentAnnotationSchema.safeParse(outcome.data);
   return parsed.success ? writeFileSafe(filePath, annotationToYaml(parsed.data)) : err(new Error(parsed.error.message));
 }
@@ -319,7 +321,7 @@ async function runSingleSource(
     );
     outcomeStatus = outcome.status;
     if (recordOutcomeAndCheckBreaker('courtlistener', outcome, priorAnn !== null, config, state)) {
-      writeRes = await writeAnnotationSidecar(outFile, outcome);
+      writeRes = await writeAnnotationSidecar(outFile, outcome, priorAnn);
     }
   }
 

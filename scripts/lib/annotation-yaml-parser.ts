@@ -7,6 +7,10 @@
 import { PrecedentAnnotationSchema, err, ok, type PrecedentAnnotation, type Result } from '@civic-source/types';
 
 type RawObj = Record<string, unknown>;
+const YAML_ESCAPES: Readonly<Record<string, string>> = {
+  '0': '\0', a: '\x07', b: '\b', t: '\t', n: '\n', v: '\v', f: '\f', r: '\r', e: '\x1b',
+  ' ': ' ', '"': '"', '/': '/', '\\': '\\', N: '\u0085', _: '\u00a0', L: '\u2028', P: '\u2029',
+};
 
 const RFC3339_OFFSET_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const REFRESH_BOOL_KEYS = new Set(['retainedPriorSnapshot', 'isStale']);
@@ -51,15 +55,15 @@ function decodeDoubleQuoted(raw: string): Result<string> {
     i += 1;
     if (i >= raw.length - 1) return err(new Error('Dangling escape in double-quoted YAML scalar'));
     const esc = raw[i]!;
-    if (esc === '\\' || esc === '"' || esc === '/') out += esc;
-    else if (esc === 'n') out += '\n';
-    else if (esc === 'r') out += '\r';
-    else if (esc === 't') out += '\t';
-    else if (esc === 'u') {
-      const hex = raw.slice(i + 1, i + 5);
-      if (!/^[0-9a-fA-F]{4}$/.test(hex)) return err(new Error('Invalid \\u escape in YAML scalar'));
-      out += String.fromCharCode(Number.parseInt(hex, 16));
-      i += 4;
+    if (Object.hasOwn(YAML_ESCAPES, esc)) out += YAML_ESCAPES[esc];
+    else if (esc === 'x' || esc === 'u' || esc === 'U') {
+      const width = esc === 'x' ? 2 : esc === 'u' ? 4 : 8;
+      const hex = raw.slice(i + 1, i + 1 + width);
+      if (hex.length !== width || !/^[0-9a-fA-F]+$/.test(hex)) return err(new Error('Invalid hexadecimal escape in YAML scalar'));
+      const point = Number.parseInt(hex, 16);
+      if (point > 0x10ffff) return err(new Error('Invalid Unicode code point in YAML scalar'));
+      out += String.fromCodePoint(point);
+      i += width;
     } else return err(new Error(`Unsupported YAML escape sequence \\${esc}`));
   }
   return ok(out);
@@ -100,7 +104,7 @@ function parseScalarValue(rawTrimmed: string): Result<{ value: string; plain: bo
 }
 
 function parseStrictKeyValue(body: string): Result<{ key: string; rawVal: string }> {
-  const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:(?:\s+(.*))?$/.exec(body);
+  const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:(?:\s+(.*))?$/s.exec(body);
   if (!m?.[1]) return err(new Error(`Malformed YAML key-value line: "${body.slice(0, 48)}"`));
   return ok({ key: m[1], rawVal: (m[2] ?? '').trim() });
 }
@@ -224,14 +228,56 @@ function normalizeAndValidateAnnotation(doc: RawObj): Result<PrecedentAnnotation
   return parsed.success ? ok(parsed.data) : err(new Error(`Annotation schema invalid: ${parsed.error.message}`));
 }
 
+function quotedScalarIsClosed(raw: string): boolean {
+  const quote = raw[0];
+  for (let i = 1; i < raw.length; i += 1) {
+    if (quote === '"' && raw[i] === '\\') { i += 1; continue; }
+    if (raw[i] !== quote) continue;
+    if (quote === "'" && raw[i + 1] === "'") { i += 1; continue; }
+    return true;
+  }
+  return false;
+}
+
+/** Fold quoted continuation lines before the mapping parser consumes logical lines. */
+function foldQuotedLines(raw: string): Result<string[]> {
+  const logical: string[] = [];
+  let pending: { prefix: string; scalar: string; indent: number } | null = null;
+  let blanks = 0;
+  for (const line of raw.replace(/\r\n/g, '\n').split('\n')) {
+    const indent = /^ */.exec(line)![0].length;
+    if (line[indent] === '\t') return err(new Error('Tabs are forbidden in YAML indentation'));
+    if (pending) {
+      if (!line.trim()) { blanks += 1; continue; }
+      if (indent <= pending.indent) return err(new Error('Invalid quoted scalar continuation indentation'));
+      const trailingSlashes = /\\+$/.exec(pending.scalar)?.[0].length ?? 0;
+      const escapedBreak = pending.scalar[0] === '"' && trailingSlashes % 2 === 1;
+      if (escapedBreak) pending.scalar = pending.scalar.slice(0, -1);
+      pending.scalar += (blanks ? '\n'.repeat(blanks) : escapedBreak ? '' : ' ') + line.trim();
+      blanks = 0;
+      if (!quotedScalarIsClosed(pending.scalar)) continue;
+      logical.push(pending.prefix + pending.scalar);
+      pending = null;
+      continue;
+    }
+    const match = /^( *(?:-\s+)?[A-Za-z_][A-Za-z0-9_]*:\s+)(['"][\s\S]*)$/.exec(line);
+    if (match?.[1] && match[2] && !quotedScalarIsClosed(match[2])) {
+      pending = { prefix: match[1], scalar: match[2], indent: indent + (line.trimStart().startsWith('- ') ? 2 : 0) };
+    } else logical.push(line);
+  }
+  return pending ? err(new Error('Unterminated quoted YAML scalar')) : ok(logical);
+}
+
 /** Parse and validate an annotation YAML sidecar without external YAML dependencies. */
 export function parseAnnotationYaml(raw: string): Result<PrecedentAnnotation> {
   if (!raw || raw.includes('\0')) return err(new Error('Annotation YAML is empty or contains NUL bytes'));
+  const lines = foldQuotedLines(raw);
+  if (!lines.ok) return lines;
   const st: ParserState = {
     doc: {}, section: 'top', refreshObj: null, casesArr: null,
     currentCase: null, caseItemIndent: -1, flowEmptyCases: false, fold: null,
   };
-  for (const line of raw.replace(/\r\n/g, '\n').split('\n')) {
+  for (const line of lines.value) {
     if (!line.trim()) continue;
     const indent = /^ */.exec(line)![0].length;
     if (line[indent] === '\t') return err(new Error('Tabs are forbidden in YAML indentation'));

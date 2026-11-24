@@ -155,6 +155,34 @@ describe('title-enrichment-batch (resumable batch runner & CLI)', () => {
     expect(await readFile(annotationPath, 'utf-8')).toBe(completed);
   });
 
+  it.each(['accepted', 'disputed', 'superseded'] as const)('preserves %s annotations on successful and empty CourtListener refreshes', async (editorialReview) => {
+    const repo = await createTempRepo();
+    await writeStatuteFixture(repo, '18', '47', '1001');
+    const annotationPath = await writeValidAnnotationSidecar(repo, '18', '1001');
+    const original = (await readFile(annotationPath, 'utf-8')).replace('holdingSummary: "Test excerpt."',
+      "holdingSummary: 'The court stated: this provision applies to the defendant''s conduct\n      and requires knowing acts.'") +
+      `    extractionState: "verified"\n    editorialReview: "${editorialReview}"\n    reviewedProposition: "Reviewed legal proposition."\n`;
+    await writeFile(annotationPath, original);
+    const unusedFetcher = vi.fn(async () => makeCourtListenerSuccess('18', '1001'));
+    const skipped = await runTitleEnrichmentBatch({ dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'], fetchCourtListener: unusedFetcher });
+    expect(skipped.ok && skipped.value.selectedCount).toBe(0);
+    expect(unusedFetcher).not.toHaveBeenCalled();
+    for (const empty of [false, true]) {
+      const result = await runTitleEnrichmentBatch({
+        dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'], onlyMissing: false,
+        fetchCourtListener: async ({ uscTitle, section }) => {
+          const outcome = makeCourtListenerSuccess(uscTitle, section);
+          return empty ? { ...outcome, status: 'success-empty', data: { ...outcome.data, cases: [] } } : outcome;
+        },
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.writtenCount).toBe(0);
+      expect(result.value.failedCount).toBe(1);
+      expect(await readFile(annotationPath, 'utf-8')).toBe(original);
+    }
+  });
+
   it('clamps delayMs < 500 to MIN_POLITE_DELAY_MS and skips network calls during dryRun', async () => {
     expect(MIN_POLITE_DELAY_MS).toBe(500);
     expect(clampPoliteDelayMs(undefined)).toBe(500);
@@ -237,7 +265,6 @@ describe('title-enrichment-batch (resumable batch runner & CLI)', () => {
     expect(writtenYaml).toContain('targetSection: "10 U.S.C. 101"');
 
     await writeStatuteFixture(repo, '18', '47', '1001');
-    await writeFile(join(repo, 'regulations', 'title-18', 'section-1001.json').replace('section-1001.json', ''), '', 'utf-8').catch(() => {});
     const regDir = join(repo, 'regulations', 'title-18');
     await mkdir(regDir, { recursive: true });
     await writeFile(join(regDir, 'section-1001.json'), '{bad', 'utf-8');
