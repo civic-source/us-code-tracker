@@ -220,23 +220,81 @@ export function buildFailureDraftReceipt(params: {
   };
 }
 
-async function resolveDraftTransport(
-  params: GenerateEvidenceBoundDraftParams,
-  cfg?: MerlinClientConfig
-): Promise<Result<{ transport: LocalModelTransport; secrets: string[] }, LocalModelAdapterError>> {
-  if (params.transport) return ok({ transport: params.transport, secrets: params.token ? [params.token] : [] });
-  if (params.endpoint) {
-    return createEndpointTransport({
-      endpoint: params.endpoint, ...(params.caFile ? { caFile: params.caFile } : {}),
-      ...(params.token ? { token: params.token } : {}), ...(params.tokenEnv ? { tokenEnv: params.tokenEnv } : {}),
-      ...(params.tokenFile ? { tokenFile: params.tokenFile } : {}),
-    });
+interface ResolvedDraftExecution {
+  model: string;
+  maxTokens: number;
+  timeoutMs: number;
+  modelWeightsDigest: string;
+  runtimeConfig: LocalModelRuntimeConfig;
+  transport: LocalModelTransport;
+  secrets: string[];
+}
+
+async function resolveDirectOrMockExecution(
+  params: GenerateEvidenceBoundDraftParams
+): Promise<Result<ResolvedDraftExecution, LocalModelAdapterError>> {
+  const model = params.model ?? DEFAULT_MERLIN_MODEL;
+  const maxTokens = params.maxTokens ?? 1024;
+  const timeoutMs = params.timeoutMs ?? 180_000;
+  const runtimeConfig: LocalModelRuntimeConfig = {
+    endpointKind: params.endpoint ? 'openai_compatible' : 'mock',
+    modelAlias: model,
+    numCtx: params.numCtx ?? DEFAULT_MERLIN_NUM_CTX,
+    maxOutputTokens: maxTokens,
+    timeoutMs,
+  };
+  const trRes = params.transport
+    ? ok({ transport: params.transport, secrets: params.token ? [params.token] : [] })
+    : await createEndpointTransport({
+        endpoint: params.endpoint!,
+        ...(params.caFile ? { caFile: params.caFile } : {}),
+        ...(params.token ? { token: params.token } : {}),
+        ...(params.tokenEnv ? { tokenEnv: params.tokenEnv } : {}),
+        ...(params.tokenFile ? { tokenFile: params.tokenFile } : {}),
+      });
+  if (!trRes.ok) return trRes;
+  return ok({
+    model, maxTokens, timeoutMs,
+    modelWeightsDigest: params.modelWeightsDigest ?? 'unverified-runtime-profile',
+    runtimeConfig, transport: trRes.value.transport, secrets: trRes.value.secrets,
+  });
+}
+
+async function resolveRuntimeAndTransport(
+  params: GenerateEvidenceBoundDraftParams
+): Promise<Result<ResolvedDraftExecution, LocalModelAdapterError>> {
+  // Direct HTTP endpoints and caller-injected transports stay strictly disjoint from Merlin config loading.
+  if (params.endpoint || (params.transport && !params.merlinConfig)) {
+    return resolveDirectOrMockExecution(params);
   }
-  return createMerlinTransport(cfg!, {
-    ...(params.merlinBin ? { merlinBin: params.merlinBin } : {}), ...(params.caFile ? { caFile: params.caFile } : {}),
-    ...(params.token ? { token: params.token } : {}), ...(params.tokenEnv ? { tokenEnv: params.tokenEnv } : {}),
+  const cfgRes = await loadMerlinClientConfig({
+    ...(params.merlinConfig ? { configPath: params.merlinConfig } : {}),
+    ...(params.caFile ? { caFile: params.caFile } : {}),
     ...(params.tokenFile ? { tokenFile: params.tokenFile } : {}),
-    ...(params.signal ? { signal: params.signal } : {}),
+    ...(params.model ? { modelAlias: params.model } : {}),
+  });
+  if (!cfgRes.ok) return cfgRes;
+  const cfg = cfgRes.value;
+  const model = params.model ?? cfg.defaultModel;
+  const maxTokens = params.maxTokens ?? 1024;
+  const timeoutMs = params.timeoutMs ?? cfg.timeoutSeconds * 1000;
+  const runtimeConfig: LocalModelRuntimeConfig = {
+    endpointKind: 'merlin_gateway', modelAlias: model,
+    numCtx: params.numCtx ?? cfg.declaredNumCtx ?? DEFAULT_MERLIN_NUM_CTX,
+    maxOutputTokens: maxTokens, timeoutMs,
+  };
+  const trRes = params.transport
+    ? ok({ transport: params.transport, secrets: params.token ? [params.token] : [] })
+    : await createMerlinTransport(cfg, {
+        ...(params.merlinBin ? { merlinBin: params.merlinBin } : {}), ...(params.caFile ? { caFile: params.caFile } : {}),
+        ...(params.token ? { token: params.token } : {}), ...(params.tokenEnv ? { tokenEnv: params.tokenEnv } : {}),
+        ...(params.tokenFile ? { tokenFile: params.tokenFile } : {}), ...(params.signal ? { signal: params.signal } : {}),
+      });
+  if (!trRes.ok) return trRes;
+  return ok({
+    model, maxTokens, timeoutMs,
+    modelWeightsDigest: params.modelWeightsDigest ?? cfg.declaredModelWeightsDigest ?? 'unverified-runtime-profile',
+    runtimeConfig, transport: trRes.value.transport, secrets: trRes.value.secrets,
   });
 }
 
@@ -291,46 +349,35 @@ async function runTransportWithBudget(opts: {
 export async function generateEvidenceBoundDraft(params: GenerateEvidenceBoundDraftParams): Promise<Result<LocalModelDraftReceipt, LocalModelAdapterError>> {
   if (params.signal?.aborted) return err(new LocalModelAdapterError('cancelled', 'Request cancelled by caller'));
   const startedAt = performance.now();
-  const useMerlin = !params.endpoint && (!params.transport || Boolean(params.merlinConfig));
-  const cfgRes = useMerlin ? await loadMerlinClientConfig({
-    ...(params.merlinConfig ? { configPath: params.merlinConfig } : {}), ...(params.caFile ? { caFile: params.caFile } : {}),
-    ...(params.tokenFile ? { tokenFile: params.tokenFile } : {}), ...(params.model ? { modelAlias: params.model } : {}),
-  }) : ok(undefined);
-  if (!cfgRes.ok) return cfgRes;
-  const cfg = cfgRes.value;
-  const model = params.model ?? cfg?.defaultModel ?? DEFAULT_MERLIN_MODEL;
-  const maxTokens = params.maxTokens ?? 1024;
-  const timeoutMs = params.timeoutMs ?? (cfg ? cfg.timeoutSeconds * 1000 : 180_000);
-  const endpointKind: LocalModelRuntimeConfig['endpointKind'] = params.merlinConfig || (!params.endpoint && !params.transport) ? 'merlin_gateway' : params.endpoint ? 'openai_compatible' : 'mock';
-  const runtimeConfig: LocalModelRuntimeConfig = { endpointKind, modelAlias: model, numCtx: params.numCtx ?? cfg?.declaredNumCtx ?? DEFAULT_MERLIN_NUM_CTX, maxOutputTokens: maxTokens, timeoutMs };
+  const execRes = await resolveRuntimeAndTransport(params);
+  if (!execRes.ok) return execRes;
+  const exec = execRes.value;
   const prompt = buildEvidenceBoundDraftMessages({
     provisionId: params.provisionId, ...(params.provisionHeading ? { provisionHeading: params.provisionHeading } : {}),
     ...(params.releaseId ? { releaseId: params.releaseId } : {}), question: params.question, evidenceSpans: params.availableEvidenceSpans,
     ...(params.promptTemplateVersion ? { promptTemplateVersion: params.promptTemplateVersion } : {}),
   });
-  const bodyRes = buildChatCompletionBody({ model, messages: prompt.messages, maxTokens });
+  const bodyRes = buildChatCompletionBody({ model: exec.model, messages: prompt.messages, maxTokens: exec.maxTokens });
   if (!bodyRes.ok) return bodyRes;
-  const resolved = await resolveDraftTransport(params, cfg);
-  if (!resolved.ok) return resolved;
   const trOut = await runTransportWithBudget({
-    transport: resolved.value.transport, body: bodyRes.value.body, bodyJson: bodyRes.value.bodyJson,
-    timeoutMs, secrets: resolved.value.secrets, ...(params.signal ? { callerSignal: params.signal } : {}),
+    transport: exec.transport, body: bodyRes.value.body, bodyJson: bodyRes.value.bodyJson,
+    timeoutMs: exec.timeoutMs, secrets: exec.secrets, ...(params.signal ? { callerSignal: params.signal } : {}),
   });
   if (!trOut.ok) return trOut;
-  if (trOut.value.statusCode < 200 || trOut.value.statusCode >= 300) return err(mapHttpStatusToError(trOut.value, resolved.value.secrets));
-  const compRes = parseOpenAiCompletion(trOut.value.rawBody, resolved.value.secrets);
+  if (trOut.value.statusCode < 200 || trOut.value.statusCode >= 300) return err(mapHttpStatusToError(trOut.value, exec.secrets));
+  const compRes = parseOpenAiCompletion(trOut.value.rawBody, exec.secrets);
   if (!compRes.ok) return compRes;
   const payRes = parseModelDraftPayload(compRes.value.content);
   if (!payRes.ok) return payRes;
   return ok(validateLocalModelDraft({
-    modelId: model, modelWeightsDigest: params.modelWeightsDigest ?? cfg?.declaredModelWeightsDigest ?? 'unverified-runtime-profile',
+    modelId: exec.model, modelWeightsDigest: exec.modelWeightsDigest,
     promptTemplateVersion: prompt.promptTemplateVersion, promptHash: prompt.promptHash, inputProvisionVersionIds: params.inputProvisionVersionIds,
     availableEvidenceSpans: params.availableEvidenceSpans, inputEvidenceDigest: prompt.inputEvidenceDigest,
     draftSummary: payRes.value.draftSummary, citedEvidenceIds: payRes.value.citedEvidenceIds,
     ...(payRes.value.claims !== undefined ? { claims: payRes.value.claims } : {}), unresolvedQuestions: payRes.value.unresolvedQuestions,
-    runtimeConfig,
+    runtimeConfig: exec.runtimeConfig,
     budget: {
-      deadlineMs: timeoutMs, elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), maxOutputTokens: maxTokens,
+      deadlineMs: exec.timeoutMs, elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), maxOutputTokens: exec.maxTokens,
       ...(compRes.value.promptTokens !== undefined ? { promptTokens: compRes.value.promptTokens } : {}),
       ...(compRes.value.completionTokens !== undefined ? { completionTokens: compRes.value.completionTokens } : {}), status: 'completed',
     },
