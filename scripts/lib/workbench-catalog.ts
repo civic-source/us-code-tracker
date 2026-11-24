@@ -2202,16 +2202,51 @@ export function runAnalyticalCoverageAudit(
  * Validates that every factual claim cites an existing EvidenceSpan and never auto-promotes
  * a model output to an accepted legal holding.
  */
+export interface LocalModelDraftClaim {
+  statement: string;
+  citedEvidenceIds: string[];
+  supportStatus: 'supported' | 'unknown' | 'conflicting';
+}
+
+export interface LocalModelRuntimeConfig {
+  endpointKind: 'merlin_gateway' | 'openai_compatible' | 'mock';
+  modelAlias: string;
+  numCtx: number;
+  maxOutputTokens: number;
+  timeoutMs: number;
+}
+
+export interface LocalModelBudgetRecord {
+  deadlineMs: number;
+  elapsedMs: number;
+  maxOutputTokens: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  status:
+    | 'completed'
+    | 'budget_exhausted'
+    | 'cancelled'
+    | 'gateway_unavailable'
+    | 'rate_limited'
+    | 'failed';
+}
+
 export interface LocalModelDraftReceipt {
   schemaVersion: 'usct.model-draft-receipt/v1';
   receiptId: string;
   modelId: string;
   modelWeightsDigest: string;
   promptTemplateVersion: string;
+  promptHash?: string;
   inputProvisionVersionIds: string[];
   inputEvidenceIds: string[];
+  inputEvidenceDigest?: string;
   draftSummary: string;
   citedEvidenceIds: string[];
+  claims?: LocalModelDraftClaim[];
+  unresolvedQuestions?: string[];
+  runtimeConfig?: LocalModelRuntimeConfig;
+  budget?: LocalModelBudgetRecord;
   outputHash: string;
   extractionState: 'candidate';
   editorialReview: 'unreviewed' | 'rejected';
@@ -2219,40 +2254,106 @@ export interface LocalModelDraftReceipt {
   validationErrors: string[];
 }
 
+function validateDraftClaims(
+  claims: readonly LocalModelDraftClaim[],
+  availableIds: ReadonlySet<string>,
+  citedEvidenceIds: readonly string[],
+  unresolvedQuestions: readonly string[] | undefined,
+  errors: string[]
+): void {
+  if (
+    claims.length === 0 &&
+    citedEvidenceIds.length === 0 &&
+    (unresolvedQuestions?.length ?? 0) === 0
+  ) {
+    errors.push('Model draft with empty claims must cite evidence or record unresolvedQuestions');
+  }
+  claims.forEach((claim, idx) => {
+    if (!claim.statement.trim()) {
+      errors.push(`Claim ${idx} must have a non-empty statement`);
+    }
+    if (claim.supportStatus === 'supported' && claim.citedEvidenceIds.length === 0) {
+      errors.push(`Supported claim ${idx} must cite at least one supporting EvidenceSpan`);
+    }
+    // Only 'supported' claims require >= 1 citation; 'unknown'/'conflicting' claims may omit IDs,
+    // though any cited IDs supplied must still belong to availableIds.
+    for (const cid of claim.citedEvidenceIds) {
+      if (!availableIds.has(cid)) {
+        errors.push(`Claim ${idx} cited non-existent or out-of-scope evidenceId: ${cid}`);
+      }
+    }
+  });
+}
+
+function computeDraftOutputHash(params: {
+  modelId: string;
+  modelWeightsDigest: string;
+  promptTemplateVersion: string;
+  promptHash?: string;
+  inputEvidenceDigest?: string;
+  draftSummary: string;
+  citedEvidenceIds: readonly string[];
+  claims?: readonly LocalModelDraftClaim[];
+  unresolvedQuestions?: readonly string[];
+}): string {
+  return sha256Hex(
+    JSON.stringify({
+      modelId: params.modelId,
+      modelWeightsDigest: params.modelWeightsDigest,
+      promptTemplateVersion: params.promptTemplateVersion,
+      promptHash: params.promptHash ?? null,
+      inputEvidenceDigest: params.inputEvidenceDigest ?? null,
+      draftSummary: params.draftSummary,
+      citedEvidenceIds: params.citedEvidenceIds,
+      claims: params.claims ?? null,
+      unresolvedQuestions: params.unresolvedQuestions ?? null,
+    })
+  );
+}
+
 export function validateLocalModelDraft(params: {
   modelId: string;
   modelWeightsDigest: string;
   promptTemplateVersion: string;
+  promptHash?: string;
   inputProvisionVersionIds: string[];
   availableEvidenceSpans: readonly EvidenceSpan[];
+  inputEvidenceDigest?: string;
   draftSummary: string;
   citedEvidenceIds: string[];
+  claims?: readonly LocalModelDraftClaim[];
+  unresolvedQuestions?: readonly string[];
+  runtimeConfig?: LocalModelRuntimeConfig;
+  budget?: LocalModelBudgetRecord;
 }): LocalModelDraftReceipt {
   const availableIds = new Set(params.availableEvidenceSpans.map((e) => e.evidenceId));
   const validationErrors: string[] = [];
-
-  if (params.citedEvidenceIds.length === 0) {
+  if (params.claims !== undefined) {
+    validateDraftClaims(params.claims, availableIds, params.citedEvidenceIds, params.unresolvedQuestions, validationErrors);
+  } else if (params.citedEvidenceIds.length === 0) {
     validationErrors.push('Model draft must cite at least one supporting EvidenceSpan');
   }
   for (const cid of params.citedEvidenceIds) {
-    if (!availableIds.has(cid)) {
-      validationErrors.push(`Model cited non-existent or out-of-scope evidenceId: ${cid}`);
-    }
+    if (!availableIds.has(cid)) validationErrors.push(`Model cited non-existent or out-of-scope evidenceId: ${cid}`);
   }
-
-  const outputHash = sha256Hex(`${params.modelId}:${params.draftSummary}:${params.citedEvidenceIds.join(',')}`);
+  const outputHash = computeDraftOutputHash(params);
   const validationPassed = validationErrors.length === 0;
-
   return {
     schemaVersion: 'usct.model-draft-receipt/v1',
     receiptId: `model-rcpt-${outputHash.slice(0, 12)}`,
     modelId: params.modelId,
     modelWeightsDigest: params.modelWeightsDigest,
     promptTemplateVersion: params.promptTemplateVersion,
-    inputProvisionVersionIds: params.inputProvisionVersionIds,
+    ...(params.promptHash !== undefined ? { promptHash: params.promptHash } : {}),
+    inputProvisionVersionIds: [...params.inputProvisionVersionIds],
     inputEvidenceIds: [...availableIds],
+    ...(params.inputEvidenceDigest !== undefined ? { inputEvidenceDigest: params.inputEvidenceDigest } : {}),
     draftSummary: params.draftSummary,
-    citedEvidenceIds: params.citedEvidenceIds,
+    citedEvidenceIds: [...params.citedEvidenceIds],
+    ...(params.claims !== undefined ? { claims: params.claims.map((c) => ({ ...c, citedEvidenceIds: [...c.citedEvidenceIds] })) } : {}),
+    ...(params.unresolvedQuestions !== undefined ? { unresolvedQuestions: [...params.unresolvedQuestions] } : {}),
+    ...(params.runtimeConfig !== undefined ? { runtimeConfig: { ...params.runtimeConfig } } : {}),
+    ...(params.budget !== undefined ? { budget: { ...params.budget } } : {}),
     outputHash,
     extractionState: 'candidate',
     editorialReview: validationPassed ? 'unreviewed' : 'rejected',
