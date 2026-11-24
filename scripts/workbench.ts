@@ -18,6 +18,7 @@ import {
   runPilotParityAndRecoveryDrill,
   sha256Hex,
   type CatalogStateSnapshot,
+  type LocalModelRuntimeConfig,
 } from './lib/workbench-catalog.js';
 import {
   buildCanonicalVerticalSlice,
@@ -37,6 +38,162 @@ import {
   executeDuckDbParquetAudit,
   exportCatalogToParquet,
 } from './lib/parquet-duckdb.js';
+import {
+  DEFAULT_MERLIN_MODEL,
+  DEFAULT_MERLIN_NUM_CTX,
+  assertSafeDraftOutputPath,
+  buildEvidenceBoundDraftMessages,
+  buildFailureDraftReceipt,
+  generateEvidenceBoundDraft,
+} from './lib/local-gemma-adapter.js';
+import type { EvidenceSpan } from '@civic-source/types';
+
+function collectProvisionDraftContext(
+  catalog: CanonicalWorkbenchCatalog,
+  provisionId: string,
+  releaseId?: string
+): {
+  heading?: string;
+  provisionVersionIds: string[];
+  evidenceSpans: EvidenceSpan[];
+} {
+  const snap = catalog.getSnapshot();
+  const versions = releaseId
+    ? snap.memberships
+        .filter((m) => m.provisionId === provisionId && m.sourceReleaseId === releaseId)
+        .map((m) => snap.provisionVersions.find((pv) => pv.provisionVersionId === m.provisionVersionId))
+        .filter((pv): pv is NonNullable<typeof pv> => pv !== undefined)
+    : snap.provisionVersions.filter((pv) => pv.provisionId === provisionId);
+
+  const pvIds = new Set(versions.map((v) => v.provisionVersionId));
+  const evIds = new Set<string>();
+  for (const pv of versions) {
+    for (const eid of pv.evidenceIds) evIds.add(eid);
+  }
+  for (const ca of snap.citationAssignments) {
+    if (ca.provisionId === provisionId && (!releaseId || ca.releaseIds.includes(releaseId))) {
+      for (const eid of ca.evidenceIds) evIds.add(eid);
+    }
+  }
+  const baseEvidence = new Set(evIds);
+  const claimIds = new Set(snap.applicabilityClaims.filter((ac) => pvIds.has(ac.targetProvisionVersionId)).map((ac) => ac.claimId));
+  for (const as of snap.assertions) {
+    const inScope = pvIds.has(as.subjectId) || (as.subjectId === provisionId && (!releaseId ||
+      as.applicabilityClaimIds.some((id) => claimIds.has(id)) ||
+      (as.applicabilityClaimIds.length === 0 && as.evidenceIds.every((id) => baseEvidence.has(id)))));
+    if (inScope) {
+      for (const eid of as.evidenceIds) evIds.add(eid);
+    }
+  }
+  for (const ac of snap.applicabilityClaims) {
+    if (pvIds.has(ac.targetProvisionVersionId)) {
+      for (const eid of ac.evidenceIds) evIds.add(eid);
+    }
+  }
+  const heading = versions[versions.length - 1]?.heading;
+  return {
+    ...(heading !== undefined ? { heading } : {}),
+    provisionVersionIds: [...pvIds],
+    evidenceSpans: snap.evidenceSpans.filter((e) => evIds.has(e.evidenceId)),
+  };
+}
+
+async function writeDraftFailureAndExit(params: {
+  outPath: string;
+  provisionId: string;
+  heading?: string;
+  releaseId?: string;
+  question: string;
+  provisionVersionIds: string[];
+  evidenceSpans: EvidenceSpan[];
+  model: string;
+  maxTokens: number;
+  timeoutMs: number;
+  endpoint?: string;
+  errorKind: string;
+  errorMessage: string;
+  elapsedMs: number;
+  runtimeConfig?: LocalModelRuntimeConfig;
+  budgetStatus: 'completed' | 'budget_exhausted' | 'cancelled' | 'gateway_unavailable' | 'rate_limited' | 'failed';
+}): Promise<never> {
+  const promptInfo = buildEvidenceBoundDraftMessages({
+    provisionId: params.provisionId,
+    ...(params.heading !== undefined ? { provisionHeading: params.heading } : {}),
+    ...(params.releaseId !== undefined ? { releaseId: params.releaseId } : {}),
+    question: params.question,
+    evidenceSpans: params.evidenceSpans,
+  });
+  const failureReceipt = buildFailureDraftReceipt({
+    modelId: params.runtimeConfig?.modelAlias ?? params.model,
+    promptHash: promptInfo.promptHash,
+    inputProvisionVersionIds: params.provisionVersionIds,
+    availableEvidenceSpans: params.evidenceSpans,
+    inputEvidenceDigest: promptInfo.inputEvidenceDigest,
+    runtimeConfig: params.runtimeConfig ?? {
+      endpointKind: params.endpoint ? 'openai_compatible' : 'merlin_gateway',
+      modelAlias: params.model,
+      numCtx: DEFAULT_MERLIN_NUM_CTX,
+      maxOutputTokens: params.maxTokens,
+      timeoutMs: params.timeoutMs,
+    },
+    budget: { deadlineMs: params.timeoutMs, elapsedMs: params.elapsedMs, maxOutputTokens: params.maxTokens, status: params.budgetStatus },
+    errorMessage: params.errorMessage,
+  });
+  await writeFile(params.outPath, JSON.stringify(failureReceipt, null, 2) + '\n', 'utf-8');
+  console.error(JSON.stringify({ ok: false, kind: params.errorKind, message: params.errorMessage, out: params.outPath }, null, 2));
+  process.exit(1);
+}
+
+async function handleDraftNoteAction(
+  catalog: CanonicalWorkbenchCatalog,
+  values: {
+    catalog: string; provision?: string; release?: string; question?: string; model?: string;
+    'max-tokens': string; 'timeout-ms': string; endpoint?: string; 'merlin-config'?: string;
+    'merlin-bin'?: string; 'ca-file'?: string; 'token-env'?: string; 'token-file'?: string; out?: string;
+  }
+): Promise<void> {
+  const provisionId = values.provision;
+  if (!provisionId) { console.error('--provision <id> is required for --action draft-note'); process.exit(1); }
+  const maxTokens = Number.parseInt(values['max-tokens'], 10);
+  const timeoutMs = Number.parseInt(values['timeout-ms'], 10);
+  if (!/^\d+$/.test(values['max-tokens']) || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2048) { console.error('--max-tokens must be 1..2048'); process.exit(1); }
+  if (!/^\d+$/.test(values['timeout-ms']) || !Number.isInteger(timeoutMs) || timeoutMs < 100) { console.error('--timeout-ms must be >= 100'); process.exit(1); }
+  const safeId = `${provisionId}${values.release ? `-${values.release}` : ''}`.replace(/[^A-Za-z0-9_.-]/g, '_');
+  const outRes = assertSafeDraftOutputPath(values.out ?? `.workbench/drafts/${safeId}.json`);
+  if (!outRes.ok) { console.error(outRes.error.message); process.exit(1); }
+  const ctx = collectProvisionDraftContext(catalog, provisionId, values.release);
+  if (ctx.provisionVersionIds.length === 0 || ctx.evidenceSpans.length === 0) {
+    console.error(`Provision ${provisionId}${values.release ? ` (release ${values.release})` : ''} or EvidenceSpans missing in ${values.catalog}`);
+    process.exit(1);
+  }
+  const question = values.question ?? 'Summarize the statutory elements, effective timing, and linked authorities strictly from the provided evidence spans.';
+  const startedAt = performance.now();
+  const draftRes = await generateEvidenceBoundDraft({
+    provisionId, ...(ctx.heading ? { provisionHeading: ctx.heading } : {}), ...(values.release ? { releaseId: values.release } : {}),
+    question, inputProvisionVersionIds: ctx.provisionVersionIds, availableEvidenceSpans: ctx.evidenceSpans,
+    ...(values.model ? { model: values.model } : {}), maxTokens, timeoutMs,
+    ...(values.endpoint ? { endpoint: values.endpoint } : {}),
+    ...(values['merlin-config'] ? { merlinConfig: values['merlin-config'] } : {}),
+    ...(values['merlin-bin'] ? { merlinBin: values['merlin-bin'] } : {}),
+    ...(values['ca-file'] ? { caFile: values['ca-file'] } : {}),
+    ...(values['token-env'] ? { tokenEnv: values['token-env'] } : {}),
+    ...(values['token-file'] ? { tokenFile: values['token-file'] } : {}),
+  });
+  await mkdir(dirname(outRes.value), { recursive: true });
+  if (!draftRes.ok) {
+    await writeDraftFailureAndExit({
+      outPath: outRes.value, provisionId, ...(ctx.heading ? { heading: ctx.heading } : {}), ...(values.release ? { releaseId: values.release } : {}),
+      question, provisionVersionIds: ctx.provisionVersionIds, evidenceSpans: ctx.evidenceSpans, model: values.model ?? DEFAULT_MERLIN_MODEL,
+      maxTokens, timeoutMs, ...(values.endpoint ? { endpoint: values.endpoint } : {}),
+      errorKind: draftRes.error.kind, errorMessage: draftRes.error.message,
+      elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), budgetStatus: draftRes.error.budgetStatus,
+      ...(draftRes.error.runtimeConfig ? { runtimeConfig: draftRes.error.runtimeConfig } : {}),
+    });
+    return;
+  }
+  await writeFile(outRes.value, JSON.stringify(draftRes.value, null, 2) + '\n', 'utf-8');
+  console.log(JSON.stringify({ ok: true, out: outRes.value, receipt: draftRes.value }, null, 2));
+}
 
 async function main() {
   const { values } = parseArgs({
@@ -61,6 +218,18 @@ async function main() {
       'backup-file': { type: 'string', default: '.workbench/pg-backup.json' },
       'db-url': { type: 'string', default: DEFAULT_POSTGRES_URL },
       source: { type: 'string', default: 'ecfr' },
+      provision: { type: 'string' },
+      question: { type: 'string' },
+      model: { type: 'string' },
+      'max-tokens': { type: 'string', default: '1024' },
+      'timeout-ms': { type: 'string', default: '180000' },
+      endpoint: { type: 'string' },
+      'merlin-config': { type: 'string' },
+      'merlin-bin': { type: 'string' },
+      'ca-file': { type: 'string' },
+      'token-env': { type: 'string' },
+      'token-file': { type: 'string' },
+      out: { type: 'string' },
     },
   });
 
@@ -400,6 +569,8 @@ async function main() {
         2
       )
     );
+  } else if (action === 'draft-note') {
+    await handleDraftNoteAction(catalog, values);
   } else {
     console.error(`Unknown action: ${action}`);
     process.exit(1);
