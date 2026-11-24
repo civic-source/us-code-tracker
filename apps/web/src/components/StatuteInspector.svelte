@@ -251,7 +251,7 @@
       >
         <span>Precedents</span>
         {#if annotations.length > 0}
-          <span class="rounded-full bg-[var(--border-subtle)] px-1.5 py-0.2 text-[10px]">{annotations.length}</span>
+          <span class="rounded-full bg-[var(--border-subtle)] px-1.5 py-0.5 text-[10px]">{annotations.length}</span>
         {/if}
       </button>
 
@@ -266,7 +266,7 @@
         }`}
       >
         <span>CFR Rules</span>
-        <span class="rounded-full bg-[var(--legal-valid-bg)] text-[var(--legal-valid)] px-1.5 py-0.2 text-[9px] font-bold">eCFR</span>
+        <span class="rounded-full bg-[var(--legal-valid-bg)] text-[var(--legal-valid)] px-1.5 py-0.5 text-[9px] font-bold">eCFR</span>
       </button>
 
       <button
@@ -306,7 +306,7 @@
         }`}
       >
         <span>Guidance</span>
-        <span class="rounded-full bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber px-1.5 py-0.2 text-[9px] font-bold">Gov</span>
+        <span class="rounded-full bg-navy/10 text-navy dark:bg-amber/15 dark:text-amber px-1.5 py-0.5 text-[9px] font-bold">Gov</span>
       </button>
       </nav>
     </div>

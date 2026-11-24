@@ -30,7 +30,7 @@
   /* Shepard's & KeyCite Legal Signals */
   --legal-valid: #0F6E56;          /* Mint-50 (In-force, constitutional) */
   --legal-valid-bg: #D8F2EA;       /* Mint-10 */
-  --legal-caution: #8B6914;        /* Gold-50v (Narrowed, pending review) */
+  --legal-caution: #805E0F;        /* Darkened gold-50v (passes AA >= 5.2:1 on #FEF0C8) */
   --legal-caution-bg: #FEF0C8;     /* Gold-10 */
   --legal-invalid: #B50909;        /* Red-warm-50v (Unconstitutional / Repealed) */
   --legal-invalid-bg: #FDE0DB;     /* Red-10 */
