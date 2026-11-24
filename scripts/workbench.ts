@@ -18,6 +18,7 @@ import {
   runPilotParityAndRecoveryDrill,
   sha256Hex,
   type CatalogStateSnapshot,
+  type LocalModelRuntimeConfig,
 } from './lib/workbench-catalog.js';
 import {
   buildCanonicalVerticalSlice,
@@ -74,8 +75,13 @@ function collectProvisionDraftContext(
       for (const eid of ca.evidenceIds) evIds.add(eid);
     }
   }
+  const baseEvidence = new Set(evIds);
+  const claimIds = new Set(snap.applicabilityClaims.filter((ac) => pvIds.has(ac.targetProvisionVersionId)).map((ac) => ac.claimId));
   for (const as of snap.assertions) {
-    if (as.subjectId === provisionId) {
+    const inScope = pvIds.has(as.subjectId) || (as.subjectId === provisionId && (!releaseId ||
+      as.applicabilityClaimIds.some((id) => claimIds.has(id)) ||
+      (as.applicabilityClaimIds.length === 0 && as.evidenceIds.every((id) => baseEvidence.has(id)))));
+    if (inScope) {
       for (const eid of as.evidenceIds) evIds.add(eid);
     }
   }
@@ -107,6 +113,7 @@ async function writeDraftFailureAndExit(params: {
   errorKind: string;
   errorMessage: string;
   elapsedMs: number;
+  runtimeConfig?: LocalModelRuntimeConfig;
   budgetStatus: 'completed' | 'budget_exhausted' | 'cancelled' | 'gateway_unavailable' | 'rate_limited' | 'failed';
 }): Promise<never> {
   const promptInfo = buildEvidenceBoundDraftMessages({
@@ -117,12 +124,12 @@ async function writeDraftFailureAndExit(params: {
     evidenceSpans: params.evidenceSpans,
   });
   const failureReceipt = buildFailureDraftReceipt({
-    modelId: params.model,
+    modelId: params.runtimeConfig?.modelAlias ?? params.model,
     promptHash: promptInfo.promptHash,
     inputProvisionVersionIds: params.provisionVersionIds,
     availableEvidenceSpans: params.evidenceSpans,
     inputEvidenceDigest: promptInfo.inputEvidenceDigest,
-    runtimeConfig: {
+    runtimeConfig: params.runtimeConfig ?? {
       endpointKind: params.endpoint ? 'openai_compatible' : 'merlin_gateway',
       modelAlias: params.model,
       numCtx: DEFAULT_MERLIN_NUM_CTX,
@@ -180,6 +187,7 @@ async function handleDraftNoteAction(
       maxTokens, timeoutMs, ...(values.endpoint ? { endpoint: values.endpoint } : {}),
       errorKind: draftRes.error.kind, errorMessage: draftRes.error.message,
       elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), budgetStatus: draftRes.error.budgetStatus,
+      ...(draftRes.error.runtimeConfig ? { runtimeConfig: draftRes.error.runtimeConfig } : {}),
     });
     return;
   }

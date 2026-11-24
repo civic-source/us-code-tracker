@@ -13,7 +13,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { err, ok, type Result } from '@civic-source/types';
-import type { LocalModelBudgetRecord } from './workbench-catalog.js';
+import type { LocalModelBudgetRecord, LocalModelRuntimeConfig } from './workbench-catalog.js';
 
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const MAX_LOCAL_CONFIG_BYTES = 1024 * 1024;
@@ -32,11 +32,12 @@ export class LocalModelAdapterError extends Error {
   readonly budgetStatus: LocalModelBudgetStatus;
   readonly httpStatus?: number;
   readonly retryAfterSeconds?: number;
+  readonly runtimeConfig?: LocalModelRuntimeConfig;
 
   constructor(
     kind: LocalModelFailureKind,
     message: string,
-    opts?: { httpStatus?: number; retryAfterSeconds?: number; secrets?: readonly (string | undefined)[] }
+    opts?: { httpStatus?: number; retryAfterSeconds?: number; secrets?: readonly (string | undefined)[]; runtimeConfig?: LocalModelRuntimeConfig }
   ) {
     super(redactSecrets(message, opts?.secrets ?? []));
     this.name = 'LocalModelAdapterError';
@@ -46,6 +47,15 @@ export class LocalModelAdapterError extends Error {
         ? kind : 'failed';
     if (opts?.httpStatus !== undefined) this.httpStatus = opts.httpStatus;
     if (opts?.retryAfterSeconds !== undefined) this.retryAfterSeconds = opts.retryAfterSeconds;
+    if (opts?.runtimeConfig !== undefined) this.runtimeConfig = { ...opts.runtimeConfig };
+  }
+
+  withRuntimeConfig(runtimeConfig: LocalModelRuntimeConfig): LocalModelAdapterError {
+    return new LocalModelAdapterError(this.kind, this.message, {
+      ...(this.httpStatus !== undefined ? { httpStatus: this.httpStatus } : {}),
+      ...(this.retryAfterSeconds !== undefined ? { retryAfterSeconds: this.retryAfterSeconds } : {}),
+      runtimeConfig,
+    });
   }
 }
 

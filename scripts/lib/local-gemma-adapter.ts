@@ -358,17 +358,17 @@ export async function generateEvidenceBoundDraft(params: GenerateEvidenceBoundDr
     ...(params.promptTemplateVersion ? { promptTemplateVersion: params.promptTemplateVersion } : {}),
   });
   const bodyRes = buildChatCompletionBody({ model: exec.model, messages: prompt.messages, maxTokens: exec.maxTokens });
-  if (!bodyRes.ok) return bodyRes;
+  if (!bodyRes.ok) return err(bodyRes.error.withRuntimeConfig(exec.runtimeConfig));
   const trOut = await runTransportWithBudget({
     transport: exec.transport, body: bodyRes.value.body, bodyJson: bodyRes.value.bodyJson,
     timeoutMs: exec.timeoutMs, secrets: exec.secrets, ...(params.signal ? { callerSignal: params.signal } : {}),
   });
-  if (!trOut.ok) return trOut;
-  if (trOut.value.statusCode < 200 || trOut.value.statusCode >= 300) return err(mapHttpStatusToError(trOut.value, exec.secrets));
+  if (!trOut.ok) return err(trOut.error.withRuntimeConfig(exec.runtimeConfig));
+  if (trOut.value.statusCode < 200 || trOut.value.statusCode >= 300) return err(mapHttpStatusToError(trOut.value, exec.secrets).withRuntimeConfig(exec.runtimeConfig));
   const compRes = parseOpenAiCompletion(trOut.value.rawBody, exec.secrets);
-  if (!compRes.ok) return compRes;
+  if (!compRes.ok) return err(compRes.error.withRuntimeConfig(exec.runtimeConfig));
   const payRes = parseModelDraftPayload(compRes.value.content);
-  if (!payRes.ok) return payRes;
+  if (!payRes.ok) return err(payRes.error.withRuntimeConfig(exec.runtimeConfig));
   return ok(validateLocalModelDraft({
     modelId: exec.model, modelWeightsDigest: exec.modelWeightsDigest,
     promptTemplateVersion: prompt.promptTemplateVersion, promptHash: prompt.promptHash, inputProvisionVersionIds: params.inputProvisionVersionIds,
