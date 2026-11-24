@@ -233,12 +233,13 @@ export async function createEndpointTransport(opts: {
     return err(new LocalModelAdapterError('invalid_config', 'Refusing bearer token over cleartext HTTP to non-loopback host'));
   }
   const pathName = url.pathname.endsWith('/chat/completions') ? url.pathname : `${url.pathname.replace(/\/+$/, '')}/chat/completions`;
+  const hostname = url.hostname.startsWith('[') && url.hostname.endsWith(']') ? url.hostname.slice(1, -1) : url.hostname;
   const port = url.port ? Number(url.port) : (url.protocol === 'https:' ? 443 : 80);
   const secrets = tokenRes.value ? [tokenRes.value] : [];
   return ok({
     secrets,
     transport: (req) => executeNodeHttp({
-      protocol: url.protocol as 'http:' | 'https:', hostname: url.hostname, port, path: `${pathName}${url.search}`,
+      protocol: url.protocol as 'http:' | 'https:', hostname, port, path: `${pathName}${url.search}`,
       bodyJson: req.bodyJson, secrets,
       ...(tokenRes.value !== undefined ? { token: tokenRes.value } : {}),
       ...(req.signal !== undefined ? { signal: req.signal } : {}),

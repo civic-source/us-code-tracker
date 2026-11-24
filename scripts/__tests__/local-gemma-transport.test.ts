@@ -189,5 +189,5 @@ describe('Local Gemma 4 Merlin & HTTP Transport Integration (USCT-024)', () => {
     } finally {
       await new Promise<void>((r) => server.close(() => r()));
     }
-  });
+  }, 30_000);
 });

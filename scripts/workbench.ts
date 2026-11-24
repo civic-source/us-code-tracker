@@ -106,6 +106,7 @@ async function writeDraftFailureAndExit(params: {
   endpoint?: string;
   errorKind: string;
   errorMessage: string;
+  elapsedMs: number;
   budgetStatus: 'completed' | 'budget_exhausted' | 'cancelled' | 'gateway_unavailable' | 'rate_limited' | 'failed';
 }): Promise<never> {
   const promptInfo = buildEvidenceBoundDraftMessages({
@@ -128,7 +129,7 @@ async function writeDraftFailureAndExit(params: {
       maxOutputTokens: params.maxTokens,
       timeoutMs: params.timeoutMs,
     },
-    budget: { deadlineMs: params.timeoutMs, elapsedMs: 0, maxOutputTokens: params.maxTokens, status: params.budgetStatus },
+    budget: { deadlineMs: params.timeoutMs, elapsedMs: params.elapsedMs, maxOutputTokens: params.maxTokens, status: params.budgetStatus },
     errorMessage: params.errorMessage,
   });
   await writeFile(params.outPath, JSON.stringify(failureReceipt, null, 2) + '\n', 'utf-8');
@@ -139,7 +140,7 @@ async function writeDraftFailureAndExit(params: {
 async function handleDraftNoteAction(
   catalog: CanonicalWorkbenchCatalog,
   values: {
-    catalog: string; provision?: string; release?: string; question?: string; model: string;
+    catalog: string; provision?: string; release?: string; question?: string; model?: string;
     'max-tokens': string; 'timeout-ms': string; endpoint?: string; 'merlin-config'?: string;
     'merlin-bin'?: string; 'ca-file'?: string; 'token-env'?: string; 'token-file'?: string; out?: string;
   }
@@ -159,10 +160,11 @@ async function handleDraftNoteAction(
     process.exit(1);
   }
   const question = values.question ?? 'Summarize the statutory elements, effective timing, and linked authorities strictly from the provided evidence spans.';
+  const startedAt = performance.now();
   const draftRes = await generateEvidenceBoundDraft({
     provisionId, ...(ctx.heading ? { provisionHeading: ctx.heading } : {}), ...(values.release ? { releaseId: values.release } : {}),
     question, inputProvisionVersionIds: ctx.provisionVersionIds, availableEvidenceSpans: ctx.evidenceSpans,
-    model: values.model, maxTokens, timeoutMs,
+    ...(values.model ? { model: values.model } : {}), maxTokens, timeoutMs,
     ...(values.endpoint ? { endpoint: values.endpoint } : {}),
     ...(values['merlin-config'] ? { merlinConfig: values['merlin-config'] } : {}),
     ...(values['merlin-bin'] ? { merlinBin: values['merlin-bin'] } : {}),
@@ -174,9 +176,10 @@ async function handleDraftNoteAction(
   if (!draftRes.ok) {
     await writeDraftFailureAndExit({
       outPath: outRes.value, provisionId, ...(ctx.heading ? { heading: ctx.heading } : {}), ...(values.release ? { releaseId: values.release } : {}),
-      question, provisionVersionIds: ctx.provisionVersionIds, evidenceSpans: ctx.evidenceSpans, model: values.model,
+      question, provisionVersionIds: ctx.provisionVersionIds, evidenceSpans: ctx.evidenceSpans, model: values.model ?? DEFAULT_MERLIN_MODEL,
       maxTokens, timeoutMs, ...(values.endpoint ? { endpoint: values.endpoint } : {}),
-      errorKind: draftRes.error.kind, errorMessage: draftRes.error.message, budgetStatus: draftRes.error.budgetStatus,
+      errorKind: draftRes.error.kind, errorMessage: draftRes.error.message,
+      elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), budgetStatus: draftRes.error.budgetStatus,
     });
     return;
   }
@@ -209,7 +212,7 @@ async function main() {
       source: { type: 'string', default: 'ecfr' },
       provision: { type: 'string' },
       question: { type: 'string' },
-      model: { type: 'string', default: DEFAULT_MERLIN_MODEL },
+      model: { type: 'string' },
       'max-tokens': { type: 'string', default: '1024' },
       'timeout-ms': { type: 'string', default: '180000' },
       endpoint: { type: 'string' },
