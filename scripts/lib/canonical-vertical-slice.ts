@@ -10,6 +10,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { XmlToMarkdownAdapter } from '@civic-source/transformer';
+import { ok, type Result } from '@civic-source/types';
 import type {
   ApplicabilityClaim,
   CitationAssignment,
@@ -24,6 +25,7 @@ import type {
   SourceRelease,
   SourceSnapshot,
 } from '@civic-source/types';
+import { computeTitleEnrichmentCoverage } from './title-enrichment-batch.js';
 import {
   CanonicalWorkbenchCatalog,
   FencedTaskCoordinator,
@@ -1637,4 +1639,19 @@ export async function writeCuratedTopicDatasets(
   );
 
   return [dataset];
+}
+
+/**
+ * Compute title-level CollectionCoverage records across OLRC USLM, eCFR, and
+ * CourtListener by delegating to the title-parameterized coverage evaluator.
+ */
+export async function buildTitleCoverageRecords(params: {
+  dataRepoPath: string;
+  uscTitle: string;
+  releaseId: string;
+  observedAt: string;
+}): Promise<Result<CollectionCoverage[]>> {
+  const res = await computeTitleEnrichmentCoverage(params);
+  if (!res.ok) return res;
+  return ok(res.value.coverages);
 }
