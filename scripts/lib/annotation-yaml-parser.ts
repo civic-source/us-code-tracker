@@ -206,6 +206,9 @@ function normalizeAndValidateAnnotation(doc: RawObj): Result<PrecedentAnnotation
   doc.lastSyncedET = syncedRes.value;
   if (doc.refreshStatus && typeof doc.refreshStatus === 'object') {
     const rf = doc.refreshStatus as RawObj;
+    // Python CourtListener sidecars identify their refresh scope through targetSection.
+    if (rf.source === undefined) rf.source = 'courtlistener';
+    if (rf.scope === undefined) rf.scope = doc.targetSection;
     const obsRes = normalizeIsoTimestamp(rf.observedAt, 'refreshStatus.observedAt');
     if (!obsRes.ok) return obsRes;
     rf.observedAt = obsRes.value;

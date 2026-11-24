@@ -1,0 +1,20 @@
+targetSection: 18 U.S.C. § 1001
+lastSyncedET: '2026-11-24T04:00:00Z'
+totalCases: 1
+refreshStatus:
+  status: success-nonempty
+  observedAt: '2026-11-24T04:00:00Z'
+  lastSuccessAt: '2026-11-24T04:00:00Z'
+  isStale: false
+  retainedPriorSnapshot: false
+  completedPages: 1
+  expectedPages: 1
+cases:
+- caseName: United States v. Test
+  citation: 522 U.S.C. 398
+  court: SCOTUS
+  date: '1998-01-26'
+  holdingSummary: 'The court stated: this provision applies to the defendant''s conduct
+    and requires proof of knowing and willful acts beyond a reasonable doubt.'
+  sourceUrl: https://www.courtlistener.com/opinion/118168/brogan/
+  impact: unverified_mention

@@ -187,6 +187,17 @@ describe('title-enrichment-coverage & annotation-yaml-parser', () => {
     expect(second.value.coverageAfter.report.sources.ecfr.coverageState).toBe('complete');
   });
 
+  it('parses actual Python pipeline output and derives omitted CourtListener refresh identity', async () => {
+    const raw = await readFile(new URL('./fixtures/python-pipeline-annotation.yaml', import.meta.url), 'utf-8');
+    const parsed = parseAnnotationYaml(raw);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.refreshStatus).toMatchObject({ source: 'courtlistener', scope: '18 U.S.C. § 1001', completedPages: 1, expectedPages: 1 });
+    expect(parsed.value.cases[0]?.holdingSummary).toBe("The court stated: this provision applies to the defendant's conduct and requires proof of knowing and willful acts beyond a reasonable doubt.");
+    expect(validateAnnotationRaw(raw).status).toBe('valid');
+    expect(validateAnnotationRaw(raw.replace('status: success-nonempty', 'status: partial')).status).toBe('failed');
+  });
+
   it('parses wrapped quoted scalars emitted by PyYAML without changing their text', () => {
     const summary = "The court stated: this provision applies to the defendant's conduct and requires proof of knowing and willful acts beyond a reasonable doubt.";
     const yaml = [
