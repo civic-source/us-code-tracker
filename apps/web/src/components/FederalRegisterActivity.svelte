@@ -110,12 +110,13 @@
       {#each documents as doc}
         <div class="rounded border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 shadow-2xs space-y-1.5">
           <div class="flex items-start justify-between gap-1.5">
-            <span class:list={[
-              'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase shrink-0',
-              doc.type === 'Proposed Rule' ? 'bg-[var(--legal-caution-bg)] text-[var(--legal-caution)]' :
-              doc.type === 'Rule' ? 'bg-[var(--legal-valid-bg)] text-[var(--legal-valid)]' :
-              'bg-[var(--surface-sunken)] text-[var(--text-muted)]'
-            ]}>
+            <span class={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase shrink-0 ${
+              doc.type === 'Proposed Rule'
+                ? 'bg-[var(--legal-caution-bg)] text-[var(--legal-caution)]'
+                : doc.type === 'Rule'
+                ? 'bg-[var(--legal-valid-bg)] text-[var(--legal-valid)]'
+                : 'bg-[var(--surface-sunken)] text-[var(--text-muted)]'
+            }`}>
               {doc.type}
             </span>
             <span class="text-[10px] text-[var(--text-muted)] shrink-0">{doc.publication_date}</span>
