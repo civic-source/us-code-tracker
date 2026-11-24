@@ -1,0 +1,194 @@
+{
+  "baseRevision": "d6fbb0e850ffd28b26d3bd4c19e33998c836816d",
+  "reviewedRealUnifiedDiffs": true,
+  "toolsEnabled": false,
+  "fallbacksEnabled": false,
+  "partitions": [
+    {
+      "partition": "storage",
+      "model": "google/gemini-3.1-pro-preview",
+      "finishReason": "stop",
+      "decision": "APPROVE",
+      "diffSha256": "f38d11dda723287d4597b52c175c18c1cc0d5d13f62d76ea0982a5243e6418fc",
+      "promptSha256": "e2d90f65f91532f76720dec92b456e0c1dc5d5975e2553b98d4da56ec3dd4822",
+      "requestId": "gen-1795536492-b016tvr5fh1t1v93MMxo",
+      "usage": {
+        "prompt_tokens": 24453,
+        "completion_tokens": 908,
+        "total_tokens": 25361,
+        "cost": 0.059802,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.059802,
+          "upstream_inference_prompt_cost": 0.048906,
+          "upstream_inference_completions_cost": 0.010896
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 570,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "files": {
+        "packages/types/src/ecfr-bulk.ts": "1825ba2ecc1b0e8b1bc6f7843861480846e7aab41c66f036c8ec177002bda569",
+        "scripts/__tests__/ecfr-bulk-capacity.test.ts": "5d3c87894c52ee51fc714dda8ed748cca0afbd0c28079c2837329b5e799ecd0e",
+        "scripts/__tests__/ecfr-bulk-contracts.test.ts": "da1d6f9925e4c45237dac60f54eec9f838eec801314d1d126e79fb3ddc249d8a",
+        "scripts/__tests__/ecfr-bulk-parser.test.ts": "54868807c6e2566666986c982ca2aeb34896684e83df1877d88e4754eb46a481",
+        "scripts/__tests__/ecfr-bulk-source.test.ts": "92784b74398c23bedc3a0e15f2478a4f500fc16a28b090b9023ed7aeceeb4e47",
+        "scripts/__tests__/ecfr-bulk-store.test.ts": "c12d58262ee10827913635bd3e7577de677781be3a0f3d90eef4c72e8f35549c",
+        "scripts/lib/ecfr-bulk-capacity.ts": "d15d5e171c7b7b21ed441653bc16c3e3df5b8f45dfe75066ab9a906790c05af6",
+        "scripts/lib/ecfr-bulk-parser.ts": "614e0d1563598b23c5d6c810657b3c2161012372c99c4e3a3be08b7187623d32",
+        "scripts/lib/ecfr-bulk-source.ts": "99c1c614c3e9a6b2fd648da3ac1bbebeaeb5a4ebeb7cc5c6cb5643ef4e13f4b5",
+        "scripts/lib/ecfr-bulk-store.ts": "d66f8b82d98491b80a46bb67298a70d9c1f72b8bbfdc7851159c0bb10e568b22",
+        "scripts/python/ecfr_bulk_extract.py": "8be50b86d281ead4382b7ecaefd410ff508734db4a5f44e6df9ea3cdb27c73d5",
+        "packages/types/src/index.ts": "7cef67306720cbe0f3cae8583e7c7f5cd7f6bcb424c52a5c1531c0c62462cc15"
+      },
+      "review": "APPROVE\n\nThe changes introduce a defensively programmed and well-bounded data pipeline. \n\n**Strengths & Findings:**\n*   **Security (XML Parsing):** The custom Python `expat` parser in `scripts/python/ecfr_bulk_extract.py` correctly disables external entities and explicitly rejects DTD/entity declarations, effectively mitigating XXE attacks.\n*   **Resource Bounds:** Strict and explicit memory/file size limits are enforced globally. The Python script limits output (64MB), nesting depth (256), source size (256MB), and text capture (128KB). The Node client mirrors these bounds (e.g., streaming source limits to `maxSourceBytes` and chunk constraints).\n*   **Security (Process Execution):** `scripts/lib/ecfr-bulk-parser.ts` uses `execFile` with an array of arguments rather than shell strings, preventing command injection vectors. Timeouts (`120_000`ms) and buffer limits (`maxOutput`) are properly configured.\n*   **Data Fidelity (Store):** `scripts/lib/ecfr-bulk-store.ts` correctly validates cryptographic hashes before adopting blobs into the immutable store and implements robust symlink traversal checks (`checkedStagingPath`) to prevent directory escape during artifact staging.\n*   **Correctness (Typings):** Zod schemas in `packages/types/src/ecfr-bulk.ts` correctly use `.strict()` modifiers and well-defined constraints (regex patterns, integer bounds).\n\nNo security flaws, unhandled resource exhaustion vectors, or regressions identified."
+    },
+    {
+      "partition": "pipeline",
+      "model": "google/gemini-3.1-pro-preview",
+      "finishReason": "stop",
+      "decision": "APPROVE",
+      "diffSha256": "ec04b0ea066e829f597c9d51b326129d523ebf03b610dbef61bd436a7be0ffb7",
+      "promptSha256": "2da3ddc4118db539782aba94a0d264e1902c29144e661486d30dc5326466bd0a",
+      "requestId": "gen-1795536492-f7flSLBt68nhhWIMvx0k",
+      "usage": {
+        "prompt_tokens": 25353,
+        "completion_tokens": 2213,
+        "total_tokens": 27566,
+        "cost": 0.077262,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.077262,
+          "upstream_inference_prompt_cost": 0.050706,
+          "upstream_inference_completions_cost": 0.026556
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1887,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "files": {
+        "docs/data/ecfr-bulk.md": "068ae85743a5a1cc671298c326b41bfd3d9733846f34c02a214f4e73a994fb8c",
+        "docs/decisions/0001-ecfr-bulk-snapshots.md": "698571e95c4183942b4bcf95f269d4d307da21774241f427eb0b0f2cefa9b9ff",
+        "docs/specs/ecfr-bulk.md": "a56ec5c79e8c57c807cfdaab13f30372eae9020f38ff91510f445f30e684319f",
+        "docs/verification/2026-11-24-ecfr-bulk.md": "9cbd09e7789343d6d92aeb8f9dac60030382d5fc4578d01b9e8c8bb20c5d44fe",
+        "scripts/__tests__/ecfr-bulk-acquisition.test.ts": "33b6111975f29cad02bab77581af03624c9bc7cbbd21bf4a1e7519c98888609a",
+        "scripts/__tests__/ecfr-bulk-citation-regressions.test.ts": "7532397b06ea4fec70abfb2790a7a8a6cb842bfa76a22df92ef6e5252ef3528f",
+        "scripts/__tests__/ecfr-bulk-output.test.ts": "0aa9c877605e370371c3c88c65c8822abc881ff2c3103f0dfc3bceb0522e44fa",
+        "scripts/__tests__/ecfr-bulk-projection.test.ts": "529e68ae79204517154396552483ddf83a45321f84ba3777b3352e5fb766d184",
+        "scripts/__tests__/ecfr-bulk-receipt.test.ts": "b33fadf3a0e994259b49bcf53935662e09c0f7224c8a5422925a11c81a4a8544",
+        "scripts/__tests__/ecfr-bulk-sync.test.ts": "c43107e0aceb75d4be3b73fe91f26ac6205b0df8bdfd171942adefef48ea0745",
+        "scripts/ecfr-bulk.ts": "ff0020c9c656ee0ab09b5d6080b86fba7436cc796b0ed71723b7d93ac4dc7e9c",
+        "scripts/lib/ecfr-bulk-acquisition.ts": "936e1c8301df3ba5ff8899db01442c88a120673ad894ddc1dde67c64f434b802",
+        "scripts/lib/ecfr-bulk-output.ts": "cef8cb85dcc6f52a6c119463efed49e3d49225d59c4d431e3e6797d5084013b4",
+        "scripts/lib/ecfr-bulk-projection.ts": "b012c7c89cdece00ec4f8211916d3db9e48a3667d6fa4d416095bd68aa8880a7",
+        "scripts/lib/ecfr-bulk-receipt.ts": "f65be17d833a82236618352714231b690c0c62098b96633c45fbf9a634e48529",
+        "scripts/lib/ecfr-bulk-sync.ts": "03372ca4545d2d7bb399ff295514084a5b7de9e986057224b0d020e119d89622",
+        "GLOSSARY.md": "6ed8103dc20cd66784a1dab1384da65930226aa9753dd8cae6bd14be250d2949"
+      },
+      "review": "**APPROVE**\n\nThe implementation is robust, deterministic, and rigorously enforces resource limits and immutability. Data fidelity is maintained through strict hash verifications and atomic file operations (e.g., creating files in their destination directories and using `link` to avoid cross-device issues). The architecture safely handles failures without corrupting the accepted snapshot state.\n\n### Notes (Non-blocking)\n* **`scripts/lib/ecfr-bulk-projection.ts` (lines 14-25)**: The regex `^\\s*([0-9][a-zA-Z0-9()\u2013-]*(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)[0-9][a-zA-Z0-9()\u2013-]*)*)(?![a-zA-Z0-9()\u2013/-])/` includes complex nested repetitions. While the CFR text domain is tightly bounded and practically avoids catastrophic backtracking (ReDoS), consider simplifying the regex or explicitly limiting the maximum length of the string passed to `.match()` as an extra layer of defense against unforeseen malformed XML text.\n* **`scripts/lib/ecfr-bulk-output.ts` (line 19)**: The use of `link(temp, resolve(path))` ensures atomic publication on the same filesystem. Be aware that this will throw `EEXIST` if the output file already exists, which enforces a strict \"no-overwrite\" policy but might surprise operators running the `--output` command sequentially without deleting the old file first."
+    },
+    {
+      "partition": "archive",
+      "model": "google/gemini-3.1-pro-preview",
+      "finishReason": "stop",
+      "decision": "APPROVE",
+      "diffSha256": "1d15d31683320b0dce89a462d60ccdbb2dc161842a527a95566b2dfbd4fdf122",
+      "promptSha256": "b3efe0ac41903b8682cb87cf2eaa2004eda4b4623abf7779ba70d6c6db1b35b6",
+      "requestId": "gen-1795536492-GXXX5HpZnRNoU8ZoX0K3",
+      "usage": {
+        "prompt_tokens": 15923,
+        "completion_tokens": 1832,
+        "total_tokens": 17755,
+        "cost": 0.05383,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.05383,
+          "upstream_inference_prompt_cost": 0.031846,
+          "upstream_inference_completions_cost": 0.021984
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1633,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "files": {
+        "scripts/__tests__/ecfr-bulk-archive-download.test.ts": "9786f98d1538fe7d9204c162854cee072d6c18985b740629716f02b464bb1737",
+        "scripts/__tests__/ecfr-bulk-archive-output.test.ts": "cb2429c550435e078452b41dc813e59e00818cb888026325cc0ff43f3a064b73",
+        "scripts/__tests__/ecfr-bulk-archive.test.ts": "c9deef2390b54b3735416e5e08fec1fb3a007ed40fc75119ea848394891468df",
+        "scripts/lib/ecfr-bulk-archive-download.ts": "7f2791355fabb49d179ebe84c01c01a4bd6e848e88eecf06b8676b35a5bac577",
+        "scripts/lib/ecfr-bulk-archive-github.ts": "6394b1a792149163a3c0b04d4c7e220bb6776730afb462926bba28ef80538365",
+        "scripts/lib/ecfr-bulk-archive-output.ts": "cfad6e7cbedface1ca703594ffe8977314a526b1cd775db9da235ce1d6c24f52",
+        "scripts/lib/ecfr-bulk-archive.ts": "74f0ce4b8d53a2ccca8fe04e98d4ac4915620cda5dcd131e0a2cdcf994f315eb",
+        "scripts/python/ecfr_bulk_archive.py": "d3cb6361bc8e68db434d020fa61405a0bf9244b32eb100f6579ab2d6d8f5bfb9"
+      },
+      "review": "APPROVE\n\nThe implemented archive process is robust, correctly integrating bounds checking for disk usage, subprocess limits, and rigorous SHA-256 verifications. \n\nFindings (All are informational/praise, no changes requested):\n- **Security & Data Fidelity**: The `downloadCommandBounded` correctly interposes on subprocess output strictly enforcing `maxBytes` limits *before* committing chunks to disk, cleanly mitigating decompression bombs.\n- **TOCTOU Protections**: Verifying the digest of the `archivePath` locally before *and* after the duplicate `inspect` passes correctly mitigates potential race conditions if an underlying file was maliciously or accidentally swapped.\n- **Resource Bounds**: Passing through bounds into Python (`BoundedReader`) and strictly limiting both JSON payload allocation (`MAX_MANIFEST`) and unpacked size sets proper boundaries for data ingestion without DoS vectors. \n\nGreat attention to detail on the failure paths in `downloadCommandBounded` enforcing stream closures and cleaning up partial files."
+    }
+  ],
+  "followupReviews": [
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "finishReason": "stop",
+      "decision": "APPROVE",
+      "diffSha256": "7421e6eda81b54d75cda6a042f7476746aa95f555cd4e70754ae255adea2139f",
+      "promptSha256": "228c9b83dc718efde15b705ad3af74dec0b06cd56297ed813f34c7e3d0d4bcb5",
+      "requestId": "gen-1795538268-2SXvqux0pL8RF1q9ReAt",
+      "usage": {
+        "prompt_tokens": 6126,
+        "completion_tokens": 1204,
+        "total_tokens": 7330,
+        "cost": 0.0267,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0267,
+          "upstream_inference_prompt_cost": 0.012252,
+          "upstream_inference_completions_cost": 0.014448
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 938,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "files": {
+        "scripts/__tests__/ecfr-bulk-archive.test.ts": "ed60294da52ae5618f33d866994b3229bc342db967e9771a72851f669513b7b6",
+        "scripts/__tests__/ecfr-bulk-source.test.ts": "7928dc832202eb14622558f48c5fd06b54d0e38503d61d45780f5538e552ef90",
+        "scripts/ecfr-bulk.ts": "90eb87f21c3df2d08a70fb92597ce227ba52fb8951696e36de6871e20c28f793",
+        "scripts/lib/ecfr-bulk-archive-github.ts": "243f3d0725dc0a62e1db46c96d8a24e7651801f28e1bf1aeae65c058c7dd7580",
+        "scripts/lib/ecfr-bulk-source.ts": "edc2cb731efee3dec1e6525745072eb55c391280fc8b88775739006499590f87",
+        "scripts/__tests__/ecfr-bulk-producer.test.ts": "47f9db624f855475fac66b53a01e881047622d45e8c18d5b0d76171fe9c803c7",
+        "scripts/lib/ecfr-bulk-archive-release.ts": "81665bbf69cc4e18b5e5005c61e864b8d6d9ad550a1cd00e958ece831e250896",
+        "scripts/lib/ecfr-bulk-producer.ts": "960e81bc5fcfda4366fe00fd2e3e7f691939e2a1f4be60ba91ab8ae51a08d8ce"
+      },
+      "review": "APPROVE\n\nConcrete findings:\n1. **Monotonic Clock Fix**: Replacing `Date.now()` with `performance.now()` in `scripts/lib/ecfr-bulk-source.ts` successfully guarantees request pacing against system wall-clock jumps. Initialization of `lastStart = -Infinity` correctly ensures the first request executes immediately.\n2. **Draft Discovery**: The fallback implementation in `scripts/lib/ecfr-bulk-archive-release.ts` correctly scans a bounded window (10 pages) to locate unpublished draft releases by exact release ID and `tag_name`, bypassing the standard GitHub API limitation for tag lookups on drafts.\n3. **Producer Verification Security**: The shell execution in `scripts/lib/ecfr-bulk-producer.ts` (`execFileSync('git', ...)`) correctly validates `options.revision` against a strict regex (`/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/`) before passing it to the command line, preventing argument injection.\n4. **Test Coverage**: Appropriate unit tests verify the wall-clock pacing behavior (`ecfr-bulk-source.test.ts`) and draft release discovery fallback (`ecfr-bulk-archive.test.ts`)."
+    }
+  ]
+}
