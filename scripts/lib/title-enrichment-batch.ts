@@ -264,7 +264,9 @@ function recordOutcomeAndCheckBreaker<T>(
     state.consecutiveRateLimits.set(source, 0);
   }
   const isSuccess = outcome.status === 'success-empty' || outcome.status === 'success-nonempty';
-  return (isSuccess || (outcome.status === 'partial' && !hasPrior)) && !outcome.retainedPriorSnapshot;
+  // Annotation YAML omits refresh metadata, so only complete acquisitions may be persisted.
+  const persistPartial = source === 'ecfr' && outcome.status === 'partial' && !hasPrior;
+  return (isSuccess || persistPartial) && !outcome.retainedPriorSnapshot;
 }
 
 async function safeInvokeFetcher<T>(

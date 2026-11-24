@@ -119,6 +119,42 @@ describe('title-enrichment-batch (resumable batch runner & CLI)', () => {
     expect(fetched).toEqual(['1001']);
   });
 
+  it('retries partial CourtListener results without counting them as completed sidecars', async () => {
+    const repo = await createTempRepo();
+    await writeStatuteFixture(repo, '18', '47', '1001');
+    const annotationPath = join(repo, 'annotations', 'title-18', 'section-1001.yaml');
+    const fetchCourtListener = vi.fn(async ({ uscTitle, section }: { uscTitle: string; section: string }) => ({
+      ...makeCourtListenerSuccess(uscTitle, section),
+      status: 'partial' as const, isStale: true, completedPages: 1, expectedPages: 2,
+    }));
+    const options = {
+      dataRepoPath: repo, uscTitle: '18', sources: ['courtlistener'] as const,
+      onlyMissing: true, sleepFn: async () => {}, fetchCourtListener,
+    };
+    const partial = await runTitleEnrichmentBatch(options);
+    expect(partial.ok).toBe(true);
+    if (!partial.ok) return;
+    expect(partial.value.failedCount).toBe(1);
+    expect(partial.value.coverageAfter.report.sources.courtlistener.completedCount).toBe(0);
+    expect(partial.value.writtenCount).toBe(0);
+    expect(existsSync(annotationPath)).toBe(false);
+
+    const retryFetcher = vi.fn(async ({ uscTitle, section }: { uscTitle: string; section: string }) =>
+      makeCourtListenerSuccess(uscTitle, section));
+    const retry = await runTitleEnrichmentBatch({ ...options, fetchCourtListener: retryFetcher });
+    expect(retry.ok && retry.value.coverageAfter.report.sources.courtlistener.completedCount).toBe(1);
+    expect(retryFetcher).toHaveBeenCalledOnce();
+    expect(retryFetcher.mock.calls[0]?.[0]).toMatchObject({ section: '1001', priorAnnotation: null });
+    const completed = await readFile(annotationPath, 'utf-8');
+    const skipped = await runTitleEnrichmentBatch({ ...options, fetchCourtListener: retryFetcher });
+    expect(skipped.ok && skipped.value.selectedCount).toBe(0);
+    expect(retryFetcher).toHaveBeenCalledOnce();
+
+    const refresh = await runTitleEnrichmentBatch({ ...options, onlyMissing: false });
+    expect(refresh.ok && refresh.value.failedCount).toBe(1);
+    expect(await readFile(annotationPath, 'utf-8')).toBe(completed);
+  });
+
   it('clamps delayMs < 500 to MIN_POLITE_DELAY_MS and skips network calls during dryRun', async () => {
     expect(MIN_POLITE_DELAY_MS).toBe(500);
     expect(clampPoliteDelayMs(undefined)).toBe(500);
