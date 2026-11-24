@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export * from './ecfr-bulk.js';
 
 // --- Result type ---
 

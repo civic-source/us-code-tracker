@@ -72,3 +72,11 @@ One of the five canonical state-machine labels applied to an issue: `needs-triag
 | Acceptance | The validated, transactional selection of outputs as the current result for a task or scope. |
 | Publication | A complete static delivery bundle selected by an immutable manifest. |
 | Legacy derived | Historical output whose original input or full production provenance is unavailable. |
+
+### eCFR bulk snapshot
+
+A complete selected set of GPO eCFR title XML blobs, identified by exact SHA-256 and byte length, plus an immutable manifest and deterministic authority index. Its manifest distinguishes the publisher's global title inventory from the titles actually captured. Acquisition time, HTTP modification time and XML amendment text have separate meanings.
+
+### eCFR authority projection
+
+Candidate, unreviewed matches from scoped XML authority notes onto an explicit U.S. Code section cohort. The product retains raw authority evidence, source identity, searched title coverage and unresolved syntax; it does not establish editorial approval or section-level implementation.
