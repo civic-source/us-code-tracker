@@ -14,6 +14,7 @@ const root = resolve(process.cwd(), '../..');
 
 describe('actual static historical reader template', () => {
   it('builds six edition-specific cold pages and independently checks every text lane and list parent', async () => {
+    await mkdir(join(process.cwd(), '.workbench'), { recursive: true });
     const directory = await mkdtemp(join(process.cwd(), '.workbench/historical-reader-'));
     try {
       const pages = join(directory, 'src/pages/history/[release]/[title]'); await mkdir(pages, { recursive: true });
