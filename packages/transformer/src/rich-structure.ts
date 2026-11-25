@@ -16,12 +16,13 @@ export function formatSourceCredit(children: unknown[]): string {
         const attrs = getAttributes(node);
         const href = attrs['@_href'] || attrs['href'] || '';
         const refText = extractTextFromNodes(obj[USLM_ELEMENTS.ref] as unknown[]).trim();
+        const label = refText.replace(/([\\[\]])/g, '\\$1');
         const statMatch = /^\/us\/stat\/(\d+)\/(\d+)/.exec(href);
         const plMatch = /^\/us\/pl\/(\d+)\/(\d+)/.exec(href);
         if (statMatch?.[1] && statMatch[2]) {
-          parts.push(`[${refText}](${buildGovInfoStatuteUrl(statMatch[1], statMatch[2])})`);
+          parts.push(`[${label}](${buildGovInfoStatuteUrl(statMatch[1], statMatch[2])})`);
         } else if (plMatch?.[1] && plMatch[2]) {
-          parts.push(`[${refText}](${buildGovInfoPublicLawUrl(plMatch[1], plMatch[2])})`);
+          parts.push(`[${label}](${buildGovInfoPublicLawUrl(plMatch[1], plMatch[2])})`);
         } else {
           parts.push(refText);
         }
