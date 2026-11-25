@@ -1,8 +1,10 @@
 ---
 import { getCollection, render } from 'astro:content';
-import { compareSectionNumbers } from '@civic-source/shared';
+import { buildOlrcSectionUrl, compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { requiresCurrentSourceFallback } from '../../../lib/source-withdrawal';
+import publicationReceipt from '../../../../public/publication-receipt.json';
 import { routeCoordinates } from '../../../lib/citation-routes';
 import { officialChapterHeading } from '../../../lib/chapter-headings';
 import { getCurrentReleaseDisplay } from '../../../lib/release-currency';
@@ -63,7 +65,11 @@ const sectionMeta = sortedSections.map((entry) => {
 const renderedSections = await Promise.all(
   sectionMeta.map(async ({ entry, isInactive, statusLabel }) => {
     const { Content } = await render(entry);
-    return { entry, Content, isInactive, statusLabel };
+    const currentSourceUnavailable = requiresCurrentSourceFallback({
+      dataCommit: publicationReceipt.acceptedDataCommitSha, title: String(entry.data.usc_title),
+      section: entry.data.usc_section, body: entry.body ?? '',
+    });
+    return { entry, Content, isInactive, statusLabel, currentSourceUnavailable };
   })
 );
 
@@ -143,7 +149,7 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
 
   <!-- Full chapter content — statically pre-rendered at build time -->
   <div id="full-content" class:list={[isSmallChapter ? '' : 'hidden', 'mt-6 space-y-8']}>
-    {renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
+    {renderedSections.map(({ entry, Content, isInactive, statusLabel, currentSourceUnavailable }) => (
       <article
         id={`section-${entry.data.usc_section}`}
         class:list={['scroll-mt-4', isInactive && 'opacity-60']}
@@ -167,7 +173,14 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
           </div>
         </div>
         <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
-          <Content />
+          {currentSourceUnavailable ? (
+            <section data-current-source-fallback data-pagefind-ignore class="not-prose rounded-lg border border-amber-600 p-4 font-sans text-sm">
+              <h3>Current text temporarily unavailable</h3>
+              <p>This publication's rendering of {entry.data.classification} is incomplete and has been withdrawn while it is regenerated from independently retained OLRC source.</p>
+              <a href={buildOlrcSectionUrl(String(entry.data.usc_title), entry.data.usc_section)}>Read this section at the official OLRC source</a>
+              {' · '}<a href={`${base}publication-history.json`}>Retained publication records</a>
+            </section>
+          ) : <Content />}
         </div>
       </article>
     ))}

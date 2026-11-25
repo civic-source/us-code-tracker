@@ -63,6 +63,33 @@ def citation(page, base, out):
     return {'href': href, 'source_gap': gap, 'cold_anchor': not gap, 'html_sha256': hashlib.sha256(raw.encode()).hexdigest()}
 
 
+def rollup_containment(page, base):
+    results = []
+    for chapter, section in [('1', '19'), ('7', '111'), ('47', '1001')]:
+        page.goto(base + f'browse/title-18/chapter-{chapter}/', wait_until='networkidle')
+        content = page.locator('#full-content')
+        if not content.is_visible():
+            page.get_by_role('button', name='Read full chapter', exact=True).click()
+        article = page.locator(f'article#section-{section}')
+        gap = article.locator('[data-current-source-fallback]')
+        assert gap.count() == 1, f'Known faulty {section} is exposed in the chapter rollup'
+        assert gap.is_visible()
+        assert article.locator('.prose ul, .prose ol').count() == 0
+        assert gap.get_by_role('link', name='Read this section at the official OLRC source').count() == 1
+        if chapter == '1':
+            assert page.locator('article#section-2 .prose').inner_text().find('Whoever') >= 0
+            assert page.locator('article#section-2 [data-current-source-fallback]').count() == 0
+        results.append({'chapter': chapter, 'section': section, 'known_body_withheld': True})
+    return results
+
+
+def cold_rollups(browser, base):
+    page = browser.new_page(java_script_enabled=False, viewport={'width': 390, 'height': 844})
+    result = rollup_containment(page, base)
+    page.close()
+    return {'javascript': False, 'sections': result}
+
+
 def historical_scope(page, base):
     page.goto(base + 'browse/?release=pl-118-1', wait_until='networkidle')
     hydrated(page)
@@ -134,7 +161,7 @@ def main():
         page.route('https://api.github.com/**', lambda route: route.abort())
         if args.block_pagefind:
             page.route('**/pagefind/**', lambda route: route.abort())
-        receipt = {'directory': directory(page, base, args.out), 'citation': citation(page, base, args.out), 'chapters_and_gap': chapter_and_gap(page, base), 'cold_control': cold_control(browser, base), 'historical_scope': historical_scope(page, base)}
+        receipt = {'directory': directory(page, base, args.out), 'citation': citation(page, base, args.out), 'chapters_and_gap': chapter_and_gap(page, base), 'cold_control': cold_control(browser, base), 'historical_scope': historical_scope(page, base), 'rollup_containment': rollup_containment(page, base), 'cold_rollups': cold_rollups(browser, base)}
         if args.dist:
             receipt['crawl'] = crawl(args.dist)
         browser.close()
