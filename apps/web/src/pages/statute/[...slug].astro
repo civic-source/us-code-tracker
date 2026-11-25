@@ -15,6 +15,8 @@ import ArticleToc from '../../components/ArticleToc.svelte';
 import SummaryBox from '../../components/SummaryBox.astro';
 import ReadingToolbar from '../../components/ReadingToolbar.svelte';
 import HistoricalReleaseViewer from '../../components/HistoricalReleaseViewer.svelte';
+import { requiresCurrentSourceFallback } from '../../lib/source-withdrawal';
+import publicationReceipt from '../../../public/publication-receipt.json';
 
 export async function getStaticPaths() {
   const [entries, allAnnotations, allRegulations] = await Promise.all([
@@ -192,7 +194,10 @@ const isTransferred = status === 'transferred' || (entry.data.title.includes('Tr
 const isRenumbered = status === 'renumbered' || entry.data.title.includes('Renumbered');
 
 // Estimated reading time (200 words per minute for legal text)
-const rawBody = entry.body ?? '';
+const currentSourceUnavailable = requiresCurrentSourceFallback({
+  dataCommit: publicationReceipt.acceptedDataCommitSha, title: String(usc_title), section: String(usc_section), body: entry.body ?? '',
+});
+const rawBody = currentSourceUnavailable ? '' : entry.body ?? '';
 const wordCount = rawBody.split(/\s+/).filter(Boolean).length;
 const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 ---
@@ -343,6 +348,16 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         <ReadingToolbar client:load />
       </div>
 
+      {(String(usc_title) === '18' && ['111', '1001'].includes(String(usc_section))) && (
+        <aside data-source-correction data-pagefind-ignore class="not-prose mb-6 rounded-lg border border-amber-600 p-4 text-sm" aria-label="Historical source correction">
+          <strong>Historical source correction</strong>
+          <p>Constructed PL116-220 and PL119-73 snapshots of this section have been withdrawn. Those editions are unavailable pending independently retained source text; the other six legacy-derived sections remain available.</p>
+          <p>A date in the URL does not establish a historical edition. Check the source notice below for current-text availability.</p>
+          <a href="https://uscode.house.gov/download/download.shtml">Consult the official OLRC editions</a>
+          {' · '}<a href={`${base}publication-history.json`}>Prior publication records</a>
+          <noscript><p>Historical edition loading requires JavaScript. A release query in this URL does not load a historical edition; consult the official source links.</p></noscript>
+        </aside>
+      )}
       <!-- Main statute content -->
       <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
       <div
@@ -353,7 +368,17 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         data-chapter-sections={JSON.stringify(chapterSectionNums)}
         class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:border-t-2 [&>h1]:border-[var(--civic-action)] [&>h1]:pt-4 max-w-none"
       >
-        <Content />
+        {currentSourceUnavailable ? (
+          <section data-current-source-fallback data-pagefind-ignore class="not-prose rounded-lg border border-amber-600 p-4 font-sans text-sm">
+            <h2>Current text temporarily unavailable</h2>
+            <p>This publication's rendering of {classification} is incomplete and has been withdrawn while it is regenerated from independently retained OLRC source.</p>
+            <p>{String(usc_section) === '19'
+              ? 'The affected rendering omitted the introductory prose and wrapped source notes and misrepresented list structure.'
+              : 'The affected rendering omitted operative text continuing after a nested subsection list.'}</p>
+            <a href={olrcUrl}>Read this section at the official OLRC source</a>
+            {' · '}<a href={`${base}publication-history.json`}>Retained publication records</a>
+          </section>
+        ) : <Content />}
       </div>
 
       <!-- Prev / Next section navigation with title previews -->

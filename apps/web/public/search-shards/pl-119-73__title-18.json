@@ -2,102 +2,10 @@
   "schemaVersion": "usct.historical-search-shard/v1",
   "shardId": "pl-119-73__title-18",
   "releaseId": "pl-119-73",
-  "publisherReleaseLabel": "Public Law 119-73",
+  "publisherReleaseLabel": "pl-119-73 (legacy-derived Git cohort; source incomplete)",
   "uscTitle": "18",
-  "coverageState": "complete",
+  "coverageState": "partial",
   "entries": [
-    {
-      "provisionId": "prov-18-1001",
-      "provisionVersionId": "pv-18-1001-pl-119-73",
-      "releaseId": "pl-119-73",
-      "uscTitle": "18",
-      "uscChapter": "47",
-      "uscSection": "1001",
-      "citation": "18 U.S.C. 1001",
-      "aliases": [
-        "18 U.S.C. 1001"
-      ],
-      "heading": "§ 1001. Statements or entries generally",
-      "status": "active",
-      "excerpt": "- **(a)** Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully— - **(1)** falsifies, conceals, or covers up by any trick, scheme, or device a material fact; - **(2)** makes any materially false, fictitious, or fraudulent statement or representati",
-      "bodyMarkdown": "# § 1001. Statements or entries generally\n\n- **(a)** Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully—\n  - **(1)** falsifies, conceals, or covers up by any trick, scheme, or device a material fact;\n  - **(2)** makes any materially false, fictitious, or fraudulent statement or representation; or\n  - **(3)** makes or uses any false writing or document knowing the same to contain any materially false, fictitious, or fraudulent statement or entry; shall be fined under this title, imprisoned not more than 5 years or, if the offense involves international or domestic terrorism (as defined in section 2331), imprisoned not more than 8 years (or if the offense involves domestic or international terrorism or a biological select agent under section 175b, imprisoned not more than 8 years), or both.\n\n**Maximum Imprisonment Schedule Under Subsection (a)**\n\n| Offense Context | Maximum Term |\n| --- | --- |\n| Standard material false statement or concealment | 5 years |\n| Offense involving international or domestic terrorism (18 U.S.C. 2331) | 8 years |\n\n- **(b)** Subsection (a) does not apply to a party to a judicial proceeding, or that party's counsel, for statements, representations, writings or documents submitted by such party or counsel to a judge or magistrate in that proceeding.\n- **(c)** With respect to any matter within the jurisdiction of the legislative branch, subsection (a) shall apply only to—\n  - **(1)** administrative matters, including a claim for payment, a matter related to the procurement of property or services, personnel or employment practices, or support services, or a document required by law, rule, or regulation to be submitted to the Congress or any office or officer within the legislative branch; or\n  - **(2)** any investigation or review, conducted pursuant to the authority of any committee, subcommittee, commission or office of the Congress, consistent with applicable rules of the House or Senate.\n\n## Source Credit\n\n*(June 25, 1948, ch. 645, [62 Stat. 749](https://www.govinfo.gov/link/statute/62/749); [Pub. L. 104–292, § 2](https://www.govinfo.gov/link/plaw/104/public/292), Oct. 11, 1996, [110 Stat. 3459](https://www.govinfo.gov/link/statute/110/3459); [Pub. L. 108–458, title VI, § 6703(a)](https://www.govinfo.gov/link/plaw/108/public/458), Dec. 17, 2004, [118 Stat. 3766](https://www.govinfo.gov/link/statute/118/3766).)*\n\n## Notes\n\nAmendments 2004—Subsec. (a). Pub. L. 108–458, § 6703(a), inserted terrorism penalty enhancement after 5 years. 1996—Pub. L. 104–292, § 2, amended section generally, restructuring provisions into subsecs. (a) to (c).\nEffective Date of 1996 Amendment Amendment by Pub. L. 104–292 effective Oct. 11, 1996, upon enactment.",
-      "sourceCredits": [
-        "*(June 25, 1948, ch. 645, [62 Stat. 749](https://www.govinfo.gov/link/statute/62/749); [Pub. L. 104–292, § 2](https://www.govinfo.gov/link/plaw/104/public/292), Oct. 11, 1996, [110 Stat. 3459](https://www.govinfo.gov/link/statute/110/3459); [Pub. L. 108–458, title VI, § 6703(a)](https://www.govinfo.gov/link/plaw/108/public/458), Dec. 17, 2004, [118 Stat. 3766](https://www.govinfo.gov/link/statute/118/3766).)*"
-      ],
-      "notes": [
-        {
-          "noteId": "note-1",
-          "topic": "amendments",
-          "role": "amendment",
-          "heading": "Amendments",
-          "text": "Amendments 2004—Subsec. (a). Pub. L. 108–458, § 6703(a), inserted terrorism penalty enhancement after 5 years. 1996—Pub. L. 104–292, § 2, amended section generally, restructuring provisions into subsecs. (a) to (c).",
-          "locator": "/us/usc/t18/s1001/note1"
-        },
-        {
-          "noteId": "note-2",
-          "topic": "effectiveDate",
-          "role": "effective_date",
-          "heading": "Effective Date of 1996 Amendment",
-          "text": "Effective Date of 1996 Amendment Amendment by Pub. L. 104–292 effective Oct. 11, 1996, upon enactment.",
-          "locator": "/us/usc/t18/s1001/note2"
-        }
-      ],
-      "tables": [
-        {
-          "tableId": "table-1",
-          "caption": "Maximum Imprisonment Schedule Under Subsection (a)",
-          "headers": [
-            "Offense Context",
-            "Maximum Term"
-          ],
-          "rows": [
-            [
-              "Standard material false statement or concealment",
-              "5 years"
-            ],
-            [
-              "Offense involving international or domestic terrorism (18 U.S.C. 2331)",
-              "8 years"
-            ]
-          ],
-          "locator": "/us/usc/t18/s1001/a/table1"
-        }
-      ],
-      "legacyDerived": false,
-      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-47/section-1001/?release=pl-119-73"
-    },
-    {
-      "provisionId": "prov-18-111",
-      "provisionVersionId": "pv-18-111-pl-119-73",
-      "releaseId": "pl-119-73",
-      "uscTitle": "18",
-      "uscChapter": "7",
-      "uscSection": "111",
-      "citation": "18 U.S.C. 111",
-      "aliases": [
-        "18 U.S.C. 111"
-      ],
-      "heading": "§ 111. Assaulting, resisting, or impeding certain officers or employees",
-      "status": "active",
-      "excerpt": "- **(a)** In General.—Whoever— - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official d",
-      "bodyMarkdown": "# § 111. Assaulting, resisting, or impeding certain officers or employees\n\n- **(a)** In General.—Whoever—\n  - **(1)** forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties; or\n  - **(2)** forcibly assaults or intimidates any person who formerly served as a person designated in section 1114 on account of the performance of official duties during such person's term of service, shall, where the acts in violation of this section constitute only simple assault, be fined under this title or imprisoned not more than one year, or both, and where such acts involve physical contact with the victim of that assault or the intent to commit another felony, be fined under this title or imprisoned not more than 8 years, or both.\n- **(b)** Enhanced Penalty.—Whoever, in the commission of any act described in subsection (a), uses a deadly or dangerous weapon (including a weapon intended to cause death or danger but that fails to do so by reason of a defective component) or inflicts bodily injury, shall be fined under this title or imprisoned not more than 20 years, or both.\n\n## Source Credit\n\n*(June 25, 1948, ch. 645, [62 Stat. 688](https://www.govinfo.gov/link/statute/62/688); [Pub. L. 110–177, title II, § 208(b)](https://www.govinfo.gov/link/plaw/110/public/177), Jan. 7, 2008, [121 Stat. 2538](https://www.govinfo.gov/link/statute/121/2538).)*\n\n## Notes\n\nAmendments 2008—Subsec. (a). Pub. L. 110–177, § 208(b)(1), substituted physical contact or intent to commit another felony penalty clause for all other cases clause.",
-      "sourceCredits": [
-        "*(June 25, 1948, ch. 645, [62 Stat. 688](https://www.govinfo.gov/link/statute/62/688); [Pub. L. 110–177, title II, § 208(b)](https://www.govinfo.gov/link/plaw/110/public/177), Jan. 7, 2008, [121 Stat. 2538](https://www.govinfo.gov/link/statute/121/2538).)*"
-      ],
-      "notes": [
-        {
-          "noteId": "note-1",
-          "topic": "amendments",
-          "role": "amendment",
-          "heading": "Amendments",
-          "text": "Amendments 2008—Subsec. (a). Pub. L. 110–177, § 208(b)(1), substituted physical contact or intent to commit another felony penalty clause for all other cases clause.",
-          "locator": "/us/usc/t18/s111/note1"
-        }
-      ],
-      "tables": [],
-      "legacyDerived": false,
-      "historicalUrl": "/us-code-tracker/statute/title-18/chapter-7/section-111/?release=pl-119-73"
-    },
     {
       "provisionId": "prov-18-2",
       "provisionVersionId": "pv-18-2-pl-119-73",
@@ -225,5 +133,5 @@
       "historicalUrl": "/us-code-tracker/statute/title-18/chapter-96/section-1962/?release=pl-119-73"
     }
   ],
-  "shardDigest": "7d40444223a3c8ef31c8756bd0781a7da69a14e872f20ea5a9b8323047d1b3a7"
+  "shardDigest": "f343f41a39d49e75a2532a9b03ad8117a2e9e19e4487dbf7e5a83e7b3a9560d5"
 }

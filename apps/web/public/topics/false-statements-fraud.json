@@ -2,40 +2,20 @@
   "schemaVersion": "usct.curated-topic/v1",
   "topicSlug": "false-statements-fraud",
   "title": "Federal False Statements, Concealment & Official Integrity (18 U.S.C. §§ 1001, 111, 371, 1341, 1343)",
-  "summary": "Curated statutory, regulatory, and judicial vertical slice tracking material false statements to the federal government (18 U.S.C. § 1001), protection of federal officers (18 U.S.C. § 111), and related conspiracy and fraud provisions across Public Law release points.",
-  "scopeNote": "Editorial curated topic profile (non-authoritative navigation aid). Statutory text is anchored to OLRC USLM release snapshots; implementing regulations and Supreme Court holdings carry explicit verification and version-alignment states.",
-  "curator": "Civic Source Legal Architecture Working Group",
-  "lastReviewedAt": "2026-11-22T06:30:00.000Z",
+  "summary": "Historical topic source correction; retained legacy-derived provisions remain available for navigation.",
+  "scopeNote": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions. PL116-220 and PL119-73 have partial coverage. Consult the OLRC source before relying on affected text.",
+  "curator": "Civic Source source-integrity review",
+  "lastReviewedAt": "2026-11-25T00:02:04.000Z",
   "currentReleaseId": "pl-119-73",
   "memberProvisions": [
-    {
-      "provisionId": "prov-18-1001",
-      "citation": "18 U.S.C. § 1001",
-      "heading": "Statements or entries generally",
-      "url": "/us-code-tracker/statute/title-18/chapter-47/section-1001/",
-      "roleInTopic": "Primary false statements and concealment prohibition across executive, legislative, and judicial branches.",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "legacyDerived": false
-    },
-    {
-      "provisionId": "prov-18-111",
-      "citation": "18 U.S.C. § 111",
-      "heading": "Assaulting, resisting, or impeding certain officers or employees",
-      "url": "/us-code-tracker/statute/title-18/chapter-7/section-111/",
-      "roleInTopic": "Companion protection of federal investigators and officers performing official duties.",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "legacyDerived": false
-    },
     {
       "provisionId": "prov-18-371",
       "citation": "18 U.S.C. § 371",
       "heading": "Conspiracy to commit offense or to defraud United States",
       "url": "/us-code-tracker/statute/title-18/chapter-19/section-371/",
-      "roleInTopic": "General federal conspiracy and defraud clause frequently charged alongside § 1001.",
+      "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",
-      "editorialReview": "accepted",
+      "editorialReview": "unreviewed",
       "legacyDerived": true
     },
     {
@@ -43,9 +23,9 @@
       "citation": "18 U.S.C. § 1341",
       "heading": "Frauds and swindles",
       "url": "/us-code-tracker/statute/title-18/chapter-63/section-1341/",
-      "roleInTopic": "Mail fraud prohibition sharing materiality principles with § 1001.",
+      "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",
-      "editorialReview": "accepted",
+      "editorialReview": "unreviewed",
       "legacyDerived": true
     },
     {
@@ -53,89 +33,25 @@
       "citation": "18 U.S.C. § 1343",
       "heading": "Fraud by wire, radio, or television",
       "url": "/us-code-tracker/statute/title-18/chapter-63/section-1343/",
-      "roleInTopic": "Wire fraud prohibition sharing materiality principles with § 1001.",
+      "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",
-      "editorialReview": "accepted",
+      "editorialReview": "unreviewed",
       "legacyDerived": true
     }
   ],
-  "relatedAuthorities": [
-    {
-      "authorityId": "assert-scotus-brogan-interprets-18-1001",
-      "label": "Brogan v. United States, 522 U.S. 398 (1998)",
-      "authorityKind": "judicial_opinion",
-      "relationshipType": "judicial_proposition",
-      "targetCitation": "18 U.S.C. § 1001",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "summary": "Rejects the 'exculpatory no' doctrine; § 1001 covers any materially false statement of whatever kind within federal jurisdiction.",
-      "sourceUrl": "https://www.courtlistener.com/opinion/118168/brogan-v-united-states/"
-    },
-    {
-      "authorityId": "assert-cfr-19-162-authority-18-1001",
-      "label": "19 CFR Part 162 — U.S. Customs and Border Protection",
-      "authorityKind": "regulation",
-      "relationshipType": "authority_citation",
-      "targetCitation": "18 U.S.C. § 1001",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "summary": "Verified CFR authority citation: Authority: 5 U.S.C. 301; 19 U.S.C. 66, 1592, 1593a, 1624; 18 U.S.C. 1001.",
-      "sourceUrl": "https://www.ecfr.gov/current/title-19/part-162"
-    },
-    {
-      "authorityId": "assert-plaw-104-292-amends-18-1001",
-      "label": "Pub. L. 104-292, § 2 (110 Stat. 3459) — False Statements Accountability Act of 1996",
-      "authorityKind": "enacted_public_law",
-      "relationshipType": "amends",
-      "targetCitation": "18 U.S.C. § 1001",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "summary": "Enacted amendment restructuring 18 U.S.C. § 1001 into subsections (a), (b), and (c) with judicial-proceeding and legislative-branch exemptions.",
-      "sourceUrl": "https://www.govinfo.gov/content/pkg/PLAW-104publ292/pdf/PLAW-104publ292.pdf"
-    }
-  ],
+  "relatedAuthorities": [],
   "changeEvents": [
     {
-      "eventId": "evt-18-1001-pl-119-73-amendment",
-      "eventKind": "statutory_text_amendment",
-      "occurredAt": "2026-01-15T00:00:00.000Z",
-      "releaseId": "pl-119-73",
-      "affectedCitation": "18 U.S.C. § 1001",
-      "title": "Statutory Release Comparison: PL 116-220 → PL 119-73 (18 U.S.C. § 1001)",
-      "summary": "Updated 18 U.S.C. § 1001(a)(3) penalty cross-reference in the canonical vertical slice between PL 116-220 and PL 119-73.",
-      "diffUrl": "/us-code-tracker/diffs/?pair=pl-116-220_pl-119-73",
-      "evidenceLocator": "/us/usc/t18/s1001/a/3",
-      "artifactSha256": "0c3f4eb9f5fe148379cd94ed81dd005e26d9ed71db24401ad8e715f1d9a86831"
-    },
-    {
-      "eventId": "evt-18-1001-ecfr-19-162-verified",
-      "eventKind": "regulatory_authority_verification",
-      "occurredAt": "2026-11-22T06:30:00.000Z",
-      "releaseId": "pl-119-73",
-      "affectedCitation": "18 U.S.C. § 1001",
-      "title": "Verified CFR Authority Note: 19 CFR Part 162 → 18 U.S.C. § 1001",
-      "summary": "Promoted 19 CFR Part 162 from search candidate to verified authority_citation after confirming verbatim authority text.",
-      "evidenceLocator": "ecfr:title-19/part-162/authorityNote"
-    },
-    {
-      "eventId": "evt-18-1001-brogan-verified",
-      "eventKind": "judicial_proposition_review",
-      "occurredAt": "2026-11-22T06:30:00.000Z",
-      "releaseId": "pl-119-73",
-      "affectedCitation": "18 U.S.C. § 1001",
-      "title": "Opinion-Verified Holding: Brogan v. United States, 522 U.S. 398 (1998)",
-      "summary": "Recorded verbatim opinion passage and verified version alignment (pl-119-73) distinguishing the reviewed holding from unreviewed CourtListener search snippets.",
-      "evidenceLocator": "courtlistener:opinion/118168"
-    },
-    {
-      "eventId": "evt-fr-2026-09112-quarantined",
+      "eventId": "evt-constructed-history-withdrawal-v1",
       "eventKind": "source_conflict_quarantine",
-      "occurredAt": "2026-11-22T06:30:00.000Z",
+      "occurredAt": "2026-11-25T00:02:04.000Z",
       "releaseId": "pl-119-73",
-      "affectedCitation": "18 U.S.C. § 1001",
-      "title": "Audit Quarantine: Misattributed Federal Register Notice 91 FR 24100",
-      "summary": "Quarantined synthetic 91 FR 24100 entry in Finding Register (finding-fr-2026-09112-quarantine) and replaced with captured official Federal Register API notices.",
-      "evidenceLocator": "finding:finding-fr-2026-09112-quarantine"
+      "affectedCitation": "18 U.S.C. §§111,1001",
+      "title": "Constructed historical snapshots withdrawn",
+      "summary": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions. Prior publication: pub-pl-119-142-7297bf86fe00.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "evidenceLocator": "source-integrity:constructed-title18-v1"
     }
   ]
 }

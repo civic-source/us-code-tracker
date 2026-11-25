@@ -3,81 +3,17 @@
   "provisionId": "prov-18-1001",
   "citation": "18 U.S.C. 1001",
   "releaseId": "pl-119-73",
-  "edges": [
-    {
-      "assertionId": "assert-18-1001-cites-2331",
-      "direction": "outbound",
-      "relationType": "cites",
-      "peerId": "18 U.S.C. 2331",
-      "peerLabel": "18 U.S.C. 2331",
-      "authorityKind": "statute",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "Cross-references the definition of international or domestic terrorism in 18 U.S.C. § 2331 for the 8-year enhanced maximum term.",
-      "evidenceExcerpts": [
-        "imprisoned not more than 8 years (or if the offense involves domestic or international terrorism or a biological select agent under section 175b, imprisoned not more than 8 years), or both."
-      ]
-    },
-    {
-      "assertionId": "assert-18-1001-cites-175b-pl119",
-      "direction": "outbound",
-      "relationType": "cites",
-      "peerId": "18 U.S.C. 175b",
-      "peerLabel": "18 U.S.C. 175b",
-      "authorityKind": "statute",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "References biological select agent offenses under 18 U.S.C. § 175b in the PL 119-73 penalty clause.",
-      "evidenceExcerpts": [
-        "imprisoned not more than 8 years (or if the offense involves domestic or international terrorism or a biological select agent under section 175b, imprisoned not more than 8 years), or both."
-      ]
-    },
-    {
-      "assertionId": "assert-plaw-104-292-amends-18-1001",
-      "direction": "inbound",
-      "relationType": "amends",
-      "peerId": "prov-plaw-104-292-s2",
-      "peerLabel": "prov-plaw-104-292-s2",
-      "authorityKind": "statute",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "Pub. L. 104-292, § 2 (110 Stat. 3459) restructured 18 U.S.C. § 1001 into subsections (a), (b), and (c).",
-      "evidenceExcerpts": [
-        "PUBLIC LAW 104-292 (110 Stat. 3459, Oct. 11, 1996) — False Statements Accountability Act of 1996. SEC. 2. Section 1001 of title 18, United States Code, is amended to read as follows: (a) Except as otherwise provided in this section, whoever, in any matter within the jurisdiction of the executive, legislative, or judicial branch of the Government of the United States, knowingly and willfully falsifies, conceals, or covers up by any trick, scheme, or device a material fact, or makes any materially false, fictitious, or fraudulent statement or representation..."
-      ]
-    },
-    {
-      "assertionId": "assert-cfr-19-162-authority-18-1001",
-      "direction": "inbound",
-      "relationType": "authority_citation",
-      "peerId": "prov-cfr-19-162",
-      "peerLabel": "prov-cfr-19-162",
-      "authorityKind": "regulation",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "19 CFR Part 162 (Inspection, Search, and Seizure) explicitly cites 18 U.S.C. 1001 in its statutory authority note.",
-      "evidenceExcerpts": [
-        "Authority: 5 U.S.C. 301; 19 U.S.C. 66, 1592, 1593a, 1624; 18 U.S.C. 1001."
-      ]
-    },
-    {
-      "assertionId": "assert-scotus-brogan-interprets-18-1001",
-      "direction": "inbound",
-      "relationType": "judicial_proposition",
-      "peerId": "prov-scotus-brogan-1998",
-      "peerLabel": "prov-scotus-brogan-1998",
-      "authorityKind": "judicial_opinion",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "Brogan v. United States, 522 U.S. 398 (1998): 18 U.S.C. § 1001 covers any false statement of material fact within federal agency jurisdiction; there is no 'exculpatory no' exception.",
-      "evidenceExcerpts": [
-        "By its terms, 18 U.S.C. § 1001 covers 'any' false statement—that is, a false statement 'of whatever kind,' United States v. Gonzales, 520 U.S. 1, 5 (1997). We cannot find any basis in the text of § 1001 for an 'exculpatory no' exception."
-      ]
-    }
-  ]
+  "availability": "source_gap",
+  "sourceCorrection": {
+    "releaseId": "pl-119-73",
+    "provisionId": "prov-18-1001",
+    "uscTitle": "18",
+    "uscSection": "1001",
+    "eventId": "evt-constructed-history-withdrawal-v1",
+    "observedAt": "2026-11-25T00:02:04.000Z",
+    "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+    "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+    "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+  },
+  "edges": []
 }

@@ -1,36 +1,88 @@
 {
   "schemaVersion": "usct.historical-search-manifest/v1",
   "generatedForPublicationId": "pub-pl-119-142-7297bf86fe00",
-  "availableReleases": [
+  "sourceGaps": [
     {
       "releaseId": "pl-116-220",
-      "label": "Public Law 116-220",
-      "titlesAvailable": [
-        "18"
-      ],
-      "missingTitles": [],
-      "coverageState": "complete"
+      "provisionId": "prov-18-111",
+      "uscTitle": "18",
+      "uscSection": "111",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    },
+    {
+      "releaseId": "pl-116-220",
+      "provisionId": "prov-18-1001",
+      "uscTitle": "18",
+      "uscSection": "1001",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
     },
     {
       "releaseId": "pl-119-73",
-      "label": "Public Law 119-73",
+      "provisionId": "prov-18-111",
+      "uscTitle": "18",
+      "uscSection": "111",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "provisionId": "prov-18-1001",
+      "uscTitle": "18",
+      "uscSection": "1001",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    }
+  ],
+  "availableReleases": [
+    {
+      "releaseId": "pl-116-220",
+      "label": "pl-116-220 (legacy-derived Git cohort; source incomplete)",
       "titlesAvailable": [
         "18"
       ],
-      "missingTitles": [],
-      "coverageState": "complete"
+      "missingTitles": [
+        "title-18/section-111",
+        "title-18/section-1001"
+      ],
+      "coverageState": "partial"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "label": "pl-119-73 (legacy-derived Git cohort; source incomplete)",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [
+        "title-18/section-111",
+        "title-18/section-1001"
+      ],
+      "coverageState": "partial"
     }
   ],
   "shards": {
     "pl-116-220__title-18": {
       "shardPath": "search-shards/pl-116-220__title-18.json",
-      "shardDigest": "7539c795a7a25f0a7f5910ff2a5c91076e6a9071fccdb342c66890e375f3431d",
-      "entryCount": 8
+      "shardDigest": "076b331516ad0d764882a9bbd604f9a201013a2c3a7cdee96849ff4bb082e388",
+      "entryCount": 6
     },
     "pl-119-73__title-18": {
       "shardPath": "search-shards/pl-119-73__title-18.json",
-      "shardDigest": "7d40444223a3c8ef31c8756bd0781a7da69a14e872f20ea5a9b8323047d1b3a7",
-      "entryCount": 8
+      "shardDigest": "f343f41a39d49e75a2532a9b03ad8117a2e9e19e4487dbf7e5a83e7b3a9560d5",
+      "entryCount": 6
     }
   }
 }

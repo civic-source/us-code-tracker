@@ -18,6 +18,7 @@
   interface HistoricalSearchIndexManifest {
     schemaVersion: 'usct.historical-search-manifest/v1';
     generatedForPublicationId: string;
+    sourceGaps?: Array<{ releaseId: string; uscTitle: string; uscSection: string; reason: string }>;
     availableReleases: HistoricalReleaseMeta[];
     shards: Record<string, { shardPath: string; shardDigest: string; entryCount: number }>;
   }
@@ -138,6 +139,12 @@
       }
       const manifest = (await manRes.json()) as HistoricalSearchIndexManifest;
       const relMeta = manifest.availableReleases.find((r) => r.releaseId === cleanParam);
+      const sourceGap = manifest.sourceGaps?.find((gap) => gap.releaseId === cleanParam &&
+        gap.uscTitle === titleStr && gap.uscSection === secStr);
+      if (sourceGap) {
+        unavailableReason = `${sourceGap.reason} This edition is unavailable; current text is hidden.`;
+        return;
+      }
       if (!relMeta) {
         unavailableReason = `Historical release "${cleanParam}" is not in the published historical index. Current law is hidden to prevent substituting modern text.`;
         return;

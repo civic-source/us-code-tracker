@@ -1,22 +1,64 @@
 {
   "schemaVersion": "usct.relationship-neighborhood-manifest/v1",
-  "shardCount": 16,
+  "shardCount": 12,
   "shards": [
-    "pl-116-220/18-1001.json",
-    "pl-116-220/18-111.json",
     "pl-116-220/18-1341.json",
     "pl-116-220/18-1343.json",
     "pl-116-220/18-1951.json",
     "pl-116-220/18-1962.json",
     "pl-116-220/18-2.json",
     "pl-116-220/18-371.json",
-    "pl-119-73/18-1001.json",
-    "pl-119-73/18-111.json",
     "pl-119-73/18-1341.json",
     "pl-119-73/18-1343.json",
     "pl-119-73/18-1951.json",
     "pl-119-73/18-1962.json",
     "pl-119-73/18-2.json",
     "pl-119-73/18-371.json"
+  ],
+  "sourceGaps": [
+    {
+      "releaseId": "pl-116-220",
+      "provisionId": "prov-18-111",
+      "uscTitle": "18",
+      "uscSection": "111",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    },
+    {
+      "releaseId": "pl-116-220",
+      "provisionId": "prov-18-1001",
+      "uscTitle": "18",
+      "uscSection": "1001",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "provisionId": "prov-18-111",
+      "uscTitle": "18",
+      "uscSection": "111",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "provisionId": "prov-18-1001",
+      "uscTitle": "18",
+      "uscSection": "1001",
+      "eventId": "evt-constructed-history-withdrawal-v1",
+      "observedAt": "2026-11-25T00:02:04.000Z",
+      "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+      "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+      "sourceUrl": "https://uscode.house.gov/download/download.shtml"
+    }
   ]
 }
