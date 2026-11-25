@@ -575,12 +575,12 @@ describe('reformatInlineLists', () => {
           ref: [{ '#text': 'July 30, 1947, ch. 388' }],
           ':@': { href: '/us/act/1947-07-30/ch388' },
         },
-        { '#text': ',' },
+        { '#text': ', ' },
         {
           ref: [{ '#text': '61 Stat. 633' }],
           ':@': { href: '/us/stat/61/633' },
         },
-        { '#text': ';' },
+        { '#text': '; ' },
         {
           ref: [{ '#text': 'Pub. L. 111-148' }],
           ':@': { href: '/us/pl/111/148' },
@@ -596,6 +596,13 @@ describe('reformatInlineLists', () => {
 
     it('handles empty children gracefully', () => {
       expect(formatSourceCredit([])).toBe('');
+    });
+
+    it('retains punctuation adjoining references without inventing token separators', () => {
+      expect(formatSourceCredit([
+        { ref: [{ '#text': '§3' }] },
+        { '#text': '(' }, { i: [{ '#text': 'o' }] }, { '#text': ')–(3)' },
+      ])).toBe('*§3(o)–(3)*');
     });
 
     it('integrates source credit into section body', () => {

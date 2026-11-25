@@ -37,7 +37,7 @@ export function formatSourceCredit(children: unknown[]): string {
   walk(children);
 
   const cleaned = parts
-    .join(' ')
+    .join('')
     .replace(/\s+/g, ' ')
     .replace(/\(\s+/g, '(')
     .replace(/\s+([,.;:)])/g, '$1')
