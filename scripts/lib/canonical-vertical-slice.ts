@@ -1,3 +1,4 @@
+import { containHistoricalTopic, historicalSourceGaps } from './historical-withdrawal.js';
 /**
  * USCT-008 through USCT-028, USCT-034, USCT-035, USCT-036, AUD-007, AUD-008, AUD-010, AUD-013:
  * Genuine Source-Backed Canonical Vertical Slice, CAS Artifact Writer,
@@ -1383,6 +1384,14 @@ export async function writeStaticNeighborhoodShards(
     }
   }
 
+  const sourceGaps = historicalSourceGaps(snap);
+  for (const gap of sourceGaps) {
+    const target = join(outputDir, gap.releaseId, `${gap.uscTitle}-${gap.uscSection}.json`);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, JSON.stringify({ schemaVersion: 'usct.relationship-neighborhood/v1',
+      provisionId: gap.provisionId, citation: `18 U.S.C. ${gap.uscSection}`, releaseId: gap.releaseId,
+      availability: 'source_gap', sourceCorrection: gap, edges: [] }, null, 2) + '\n', 'utf8');
+  }
   await mkdir(outputDir, { recursive: true });
   await writeFile(
     join(outputDir, 'manifest.json'),
@@ -1391,6 +1400,7 @@ export async function writeStaticNeighborhoodShards(
         schemaVersion: 'usct.relationship-neighborhood-manifest/v1',
         shardCount,
         shards: Object.keys(written).sort(),
+        sourceGaps,
       },
       null,
       2
@@ -1417,7 +1427,7 @@ export interface CuratedTopicDataset {
     url: string;
     roleInTopic: string;
     extractionState: 'verified';
-    editorialReview: 'accepted';
+    editorialReview: 'accepted' | 'unreviewed';
     legacyDerived: boolean;
   }>;
   relatedAuthorities: Array<{
@@ -1446,6 +1456,8 @@ export interface CuratedTopicDataset {
     summary: string;
     diffUrl?: string;
     evidenceLocator: string;
+    sourceUrl?: string;
+    priorPublicationId?: string;
     artifactSha256?: string;
   }>;
 }
@@ -1609,10 +1621,11 @@ export async function writeCuratedTopicDatasets(
     ],
   };
 
+  const accepted = containHistoricalTopic(dataset, snap);
   await mkdir(outputDir, { recursive: true });
   await writeFile(
     join(outputDir, 'false-statements-fraud.json'),
-    JSON.stringify(dataset, null, 2) + '\n',
+    JSON.stringify(accepted, null, 2) + '\n',
     'utf-8'
   );
   await writeFile(
@@ -1622,13 +1635,13 @@ export async function writeCuratedTopicDatasets(
         schemaVersion: 'usct.curated-topic-index/v1',
         topics: [
           {
-            topicSlug: dataset.topicSlug,
-            title: dataset.title,
-            summary: dataset.summary,
-            curator: dataset.curator,
-            lastReviewedAt: dataset.lastReviewedAt,
-            memberCount: dataset.memberProvisions.length,
-            eventCount: dataset.changeEvents.length,
+            topicSlug: accepted.topicSlug,
+            title: accepted.title,
+            summary: accepted.summary,
+            curator: accepted.curator,
+            lastReviewedAt: accepted.lastReviewedAt,
+            memberCount: accepted.memberProvisions.length,
+            eventCount: accepted.changeEvents.length,
           },
         ],
       },
@@ -1638,7 +1651,7 @@ export async function writeCuratedTopicDatasets(
     'utf-8'
   );
 
-  return [dataset];
+  return [accepted];
 }
 
 /**

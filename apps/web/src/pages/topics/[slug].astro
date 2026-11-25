@@ -88,7 +88,7 @@ const base = import.meta.env.BASE_URL;
       <h2 class="text-lg font-bold text-[var(--text-primary)]">Typed Change-Event Ledger ({topic.changeEvents.length})</h2>
       <div class="space-y-2.5">
         {topic.changeEvents.map((evt) => (
-          <div class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 space-y-1">
+          <div id={evt.eventId} class="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4 space-y-1">
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span class="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase">
                 {evt.eventKind}
@@ -98,6 +98,8 @@ const base = import.meta.env.BASE_URL;
             <div class="text-sm font-bold text-[var(--text-primary)]">{evt.title}</div>
             <p class="text-xs text-[var(--text-secondary)]">{evt.summary}</p>
             <div class="text-[11px] font-mono text-[var(--text-muted)]">Evidence Locator: {evt.evidenceLocator}</div>
+            {evt.sourceUrl && <a class="text-xs underline" href={evt.sourceUrl}>Official source editions</a>}
+            {evt.priorPublicationId && <p class="text-xs"><a class="underline" href={`${base}publication-history.json`}>Prior publication record</a>: {evt.priorPublicationId}</p>}
           </div>
         ))}
       </div>

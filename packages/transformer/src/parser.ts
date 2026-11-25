@@ -25,7 +25,7 @@ function createUslmParser(): XMLParser {
     attributeNamePrefix: '@_',
     removeNSPrefix: true,
     parseTagValue: false,
-    trimValues: true,
+    trimValues: false,
     preserveOrder: true,
     processEntities: {
       maxEntityCount: MAX_ENTITY_COUNT,
