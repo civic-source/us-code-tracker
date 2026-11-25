@@ -256,11 +256,16 @@ def read_bounded(path: Path, limit: int) -> bytes:
     return value
 
 
-def verify(args: argparse.Namespace) -> dict[str, object]:
-    xml = read_bounded(args.xml, 128 * 1024 * 1024)
-    html = read_bounded(args.html, 16 * 1024 * 1024)
+@dataclass(frozen=True)
+class PreparedSource:
+    document: ET.Element
+    sha256: str
+
+
+def prepare_source(path: Path, expected_sha256: str) -> PreparedSource:
+    xml = read_bounded(path, 128 * 1024 * 1024)
     source_sha = hashlib.sha256(xml).hexdigest()
-    if source_sha != args.expected_source_sha256:
+    if source_sha != expected_sha256:
         raise ValueError("Pinned source XML digest mismatch")
     try:
         xml_text = xml.decode("utf-8-sig")
@@ -268,8 +273,14 @@ def verify(args: argparse.Namespace) -> dict[str, object]:
         raise ValueError("Source XML encoding must be UTF-8") from error
     if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", xml_text, re.IGNORECASE):
         raise ValueError("DTD and entity declarations are prohibited")
-    document = ET.fromstring(xml_text)
-    matches = [e for e in document.iter() if local(e) == "section" and e.get("identifier") == args.section]
+    return PreparedSource(ET.fromstring(xml_text), source_sha)
+
+
+def verify_prepared(source: PreparedSource, section_id: str, html_path: Path, fragment: bool) -> dict[str, object]:
+    document = source.document
+    source_sha = source.sha256
+    html = read_bounded(html_path, 16 * 1024 * 1024)
+    matches = [e for e in document.iter() if local(e) == "section" and e.get("identifier") == section_id]
     if len(matches) != 1:
         raise ValueError("Source section identity is missing or nonunique")
     section = matches[0]
@@ -279,7 +290,7 @@ def verify(args: argparse.Namespace) -> dict[str, object]:
     parser.close()
     if len(parser.stack) != 1:
         raise ValueError("Unclosed HTML element")
-    roots = [parser.root] if args.fragment else [n for n in walk(parser.root) if n.attrs.get("id") == "current-statute-body"]
+    roots = [parser.root] if fragment else [n for n in walk(parser.root) if n.attrs.get("id") == "current-statute-body"]
     if len(roots) != 1:
         raise ValueError("Rendered statute root is missing or nonunique")
     expected = source_lanes(section, parents)
@@ -295,17 +306,22 @@ def verify(args: argparse.Namespace) -> dict[str, object]:
                    any("footnote" in value.lower() for value in e.attrib.values()))]
     if unqualified:
         issues.append({"reason": "table_or_footnote_structure_not_qualified", "nodes": unqualified})
-    return {"accepted": not issues, "section": args.section, "source_xml_sha256": source_sha,
+    return {"accepted": not issues, "section": section_id, "source_xml_sha256": source_sha,
             "html_sha256": hashlib.sha256(html).hexdigest(), "normalization": "NFC-whitespace-v1",
             "normalization_unicode_version": unicodedata.unidata_version,
             "canonical_text_sha256": {lane: {
                 "source": hashlib.sha256(expected[lane].encode("utf-8")).hexdigest(),
                 "rendered": hashlib.sha256(actual[lane].encode("utf-8")).hexdigest()}
                 for lane in expected},
-            "html_kind": "renderer_fragment" if args.fragment else "statute_page",
+            "html_kind": "renderer_fragment" if fragment else "statute_page",
             "scope": "text-lanes-and-list-placement-v1",
             "word_counts": {lane: len(value.split()) for lane, value in expected.items()},
             "unknown_elements": unknown, "issues": issues}
+
+
+def verify(args: argparse.Namespace) -> dict[str, object]:
+    source = prepare_source(args.xml, args.expected_source_sha256)
+    return verify_prepared(source, args.section, args.html, args.fragment)
 
 
 def main() -> int:
