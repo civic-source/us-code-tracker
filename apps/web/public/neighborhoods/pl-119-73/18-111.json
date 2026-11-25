@@ -3,21 +3,17 @@
   "provisionId": "prov-18-111",
   "citation": "18 U.S.C. 111",
   "releaseId": "pl-119-73",
-  "edges": [
-    {
-      "assertionId": "assert-18-111-cites-1114",
-      "direction": "outbound",
-      "relationType": "cites",
-      "peerId": "18 U.S.C. 1114",
-      "peerLabel": "18 U.S.C. 1114",
-      "authorityKind": "statute",
-      "extractionState": "verified",
-      "editorialReview": "accepted",
-      "versionAlignmentState": "verified",
-      "propositionText": "Incorporates the class of federal officers and employees designated in 18 U.S.C. § 1114.",
-      "evidenceExcerpts": [
-        "forcibly assaults, resists, opposes, impedes, intimidates, or interferes with any person designated in section 1114 of this title while engaged in or on account of the performance of official duties"
-      ]
-    }
-  ]
+  "availability": "source_gap",
+  "sourceCorrection": {
+    "releaseId": "pl-119-73",
+    "provisionId": "prov-18-111",
+    "uscTitle": "18",
+    "uscSection": "111",
+    "eventId": "evt-constructed-history-withdrawal-v1",
+    "observedAt": "2026-11-25T00:02:04.000Z",
+    "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
+    "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
+    "sourceUrl": "https://uscode.house.gov/download.html"
+  },
+  "edges": []
 }

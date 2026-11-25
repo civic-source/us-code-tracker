@@ -70,14 +70,16 @@ describe.runIf(PG_AVAILABLE)('PostgreSQL 16 + Apache Parquet + DuckDB E2E Integr
 
     // 2. Real PostgreSQL FTS lexical retrieval (USCT-023)
     const ftsRes = await queryPostgresLexical(
-      { query: '18 U.S.C. 1001', releaseId: 'pl-119-73' },
+      { query: '18 U.S.C. 371', releaseId: 'pl-119-73' },
       DEFAULT_POSTGRES_URL
     );
     expect(ftsRes.ok).toBe(true);
     if (!ftsRes.ok) return;
     expect(ftsRes.value.length).toBeGreaterThan(0);
-    expect(ftsRes.value[0]?.provisionVersionId).toBe('pv-18-1001-pl-119-73');
-    expect(ftsRes.value[0]?.evidenceSpans.length).toBeGreaterThan(0);
+    expect(ftsRes.value[0]?.provisionId).toBe('prov-18-371');
+    expect(ftsRes.value[0]?.evidenceSpans).toEqual([]);
+    const withdrawn = await queryPostgresLexical({ query: '18 U.S.C. 1001', releaseId: 'pl-119-73' }, DEFAULT_POSTGRES_URL);
+    expect(withdrawn.ok && withdrawn.value).toEqual([]);
 
     // 3. Immutable conflict rejection in real PostgreSQL transaction (AUD-002 / USCT-009)
     const mutatedSnap = catalog.getSnapshot();
