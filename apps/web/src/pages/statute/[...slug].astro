@@ -324,7 +324,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         </aside>
       )}
       <!-- Main statute content -->
-      <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
+      <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} acceptedDataTag={publicationReceipt.acceptedDataTag} />
       <div
         id="current-statute-body"
         data-base={base}
