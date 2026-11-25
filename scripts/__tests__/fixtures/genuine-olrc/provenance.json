@@ -1,0 +1,53 @@
+{
+  "kind": "derived test fragments; production qualification uses original full member",
+  "records": [
+    {
+      "releaseId": "pl-119-73",
+      "section": "1001",
+      "fixture": "pl-119-73-1001.xml",
+      "fixtureSha256": "9ee586e271bf6ac5e64570ad9d0559426a72de020a20c60939c687e2d95a791a",
+      "originalMemberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+      "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "section": "111",
+      "fixture": "pl-119-73-111.xml",
+      "fixtureSha256": "5990b2e969b8943ac07e8423b5b6fabd5b9a47de3bca9232510a635b233ae06a",
+      "originalMemberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+      "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358"
+    },
+    {
+      "releaseId": "pl-119-73",
+      "section": "1114",
+      "fixture": "pl-119-73-1114.xml",
+      "fixtureSha256": "e03d0c01190e41a18c5abc5ec03bac28d83a4b55dd64ffc381218f610bc6faa5",
+      "originalMemberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+      "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358"
+    },
+    {
+      "releaseId": "pl-119-142",
+      "section": "1001",
+      "fixture": "pl-119-142-1001.xml",
+      "fixtureSha256": "06845a8065cd772a05a72ecee1992beaa9f4c598637c102f8a56d2fb6c5a6c77",
+      "originalMemberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+      "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836"
+    },
+    {
+      "releaseId": "pl-119-142",
+      "section": "111",
+      "fixture": "pl-119-142-111.xml",
+      "fixtureSha256": "ede1dc1c3c77872499a2d46aa393f8667a44ff5557a2f85d1cfbfebe4177b838",
+      "originalMemberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+      "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836"
+    },
+    {
+      "releaseId": "pl-119-142",
+      "section": "1114",
+      "fixture": "pl-119-142-1114.xml",
+      "fixtureSha256": "d86faea3add1c9627541560ebde7ba9d2e4e7644508be053b249c4499e3c7651",
+      "originalMemberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+      "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836"
+    }
+  ]
+}
