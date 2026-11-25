@@ -1,0 +1,215 @@
+import { z } from 'zod';
+import { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.js';
+
+/** Section status — derived from heading text during transformation */
+export const SectionStatusSchema = z.enum([
+  'active', 'repealed', 'reserved', 'omitted', 'transferred', 'renumbered',
+]);
+
+export type SectionStatus = z.infer<typeof SectionStatusSchema>;
+
+/** Zod schema for YAML frontmatter validation */
+export const FrontmatterSchema = z.object({
+  title: z.string().min(1),
+  usc_title: z.union([z.string().min(1), z.number().int().positive()]).transform((val) => String(val)),
+  usc_section: z.string().min(1),
+  chapter: z.number().int().nonnegative(),
+  current_through: z.string().default('Unknown'),
+  classification: z.string().min(1),
+  generated_at: z.string().min(1),
+  status: SectionStatusSchema.default('active'),
+});
+
+export type Frontmatter = z.infer<typeof FrontmatterSchema>;
+
+/** Detect section status from heading text */
+export function detectSectionStatus(heading: string): SectionStatus {
+  if (heading.includes('Repealed')) return 'repealed';
+  if (heading.includes('Reserved')) return 'reserved';
+  if (heading.includes('Omitted')) return 'omitted';
+  if (heading.includes('Renumbered')) return 'renumbered';
+  if (heading.includes('Transferred') && !heading.includes('Transferred or reemployed')) return 'transferred';
+  return 'active';
+}
+
+/**
+ * Pattern to detect inline legal list markers like (a), (b), (1), (A), (i), (ii).
+ * Matches when preceded by whitespace (or start of string).
+ * Groups: full match includes leading space; capture group 1 is the marker itself.
+ */
+const INLINE_MARKER_PATTERN =
+  /(?<=\s)(\([a-z]\)|\(\d{1,2}\)|\([A-Z]\)|\([ivxlcdm]+\))\s/g;
+
+/**
+ * Determine indentation depth for an inline marker based on its type.
+ * - (a)-(z) lowercase alpha → depth 0
+ * - (1)-(99) numeric → depth 1
+ * - (A)-(Z) uppercase alpha → depth 2
+ * - (i)-(xx) lowercase roman → depth 3
+ */
+function markerDepth(marker: string): number {
+  const inner = marker.slice(1, -1); // strip parens
+  if (/^\d{1,2}$/.test(inner)) return 1;     // (1)-(99)
+  if (/^[A-Z]$/.test(inner)) return 2;       // (A)-(Z)
+  // Multi-char roman numerals are unambiguous: (ii), (iii), (iv), (vi), etc.
+  // Single-char (i), (v), (x) are treated as roman per legal convention
+  // (legal alpha lists rarely reach these letters before switching to roman)
+  if (/^[ivxlcdm]{2,}$/.test(inner)) return 3;  // (ii), (iii), (iv), etc.
+  if (/^[ivx]$/.test(inner)) return 3;           // (i), (v), (x) — roman
+  if (/^[a-z]$/.test(inner)) return 0;           // (a)-(h), (j)-(z)
+  return 0;
+}
+
+/**
+ * Reformat inline legal list markers into proper markdown list items.
+ *
+ * Detects lines containing multiple inline markers like:
+ *   "(a) Definitions In this section— ... (b) First offense ..."
+ * and splits them into separate markdown list items with correct indentation.
+ *
+ * Only processes lines that don't already contain `- **` markers.
+ */
+export function reformatInlineLists(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+
+  for (const line of lines) {
+    // Skip lines already formatted as markdown list items
+    if (/^\s*- \*\*/.test(line)) {
+      result.push(line);
+      continue;
+    }
+
+    // Skip headings and empty lines
+    if (line.startsWith('#') || line.trim() === '') {
+      result.push(line);
+      continue;
+    }
+
+    // Collect all marker positions: { offset, fullMatch, marker }
+    const markers: Array<{ offset: number; fullLength: number; marker: string }> = [];
+
+    // Check for marker at start of string (no preceding whitespace)
+    const startMatch = line.match(/^(\([a-z]\)|\(\d{1,2}\)|\([A-Z]\)|\([ivxlcdm]+\))\s/);
+    if (startMatch) {
+      markers.push({ offset: 0, fullLength: startMatch[0].length, marker: startMatch[1] ?? '' });
+    }
+
+    // Collect inline markers preceded by whitespace
+    INLINE_MARKER_PATTERN.lastIndex = 0;
+    let inlineMatch: RegExpExecArray | null;
+    while ((inlineMatch = INLINE_MARKER_PATTERN.exec(line)) !== null) {
+      markers.push({
+        offset: inlineMatch.index,
+        fullLength: inlineMatch[0].length,
+        marker: inlineMatch[1] ?? '',
+      });
+    }
+
+    if (markers.length < 2) {
+      result.push(line);
+      continue;
+    }
+
+    // Split line at each marker position
+    for (let idx = 0; idx < markers.length; idx++) {
+      const entry = markers[idx];
+      if (!entry) continue;
+
+      const depth = markerDepth(entry.marker);
+      const indent = ' '.repeat(depth * INDENT_PER_LEVEL);
+
+      // Text runs from after this marker to the start of the next marker (or end of line)
+      const textStart = entry.offset + entry.fullLength;
+      const nextEntry = markers[idx + 1];
+      const textEnd = nextEntry !== undefined ? nextEntry.offset : line.length;
+      const itemText = line.slice(textStart, textEnd).trim();
+
+      result.push(`${indent}- **${entry.marker}** ${itemText}`);
+    }
+  }
+
+  return result.join('\n');
+}
+
+/** Build the output file path for a section */
+export function buildSectionPath(titleNum: string, chapterNum: string, sectionNum: string): string {
+  return `statutes/title-${titleNum}/chapter-${chapterNum}/section-${sectionNum}.md`;
+}
+
+/**
+ * Serialize a string as a YAML double-quoted scalar.
+ *
+ * Statute headings carry untrusted OLRC content (e.g. defined terms quoted as
+ * `"employee"`); interpolating them raw into `title: "..."` produces invalid
+ * YAML and is a frontmatter-injection vector. Escape per the YAML double-quoted
+ * rules: backslash first, then the quote, then the whitespace control chars
+ * that `extractTextFromNodes` collapses but public callers may still pass.
+ */
+function yamlQuote(value: string): string {
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    // Remaining C0/DEL control chars are invalid raw inside a YAML
+    // double-quoted scalar; emit \uXXXX so the scalar stays parseable.
+    // eslint-disable-next-line no-control-regex -- intentionally matching control chars to escape them
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, (c) =>
+      `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+    );
+  return `"${escaped}"`;
+}
+
+/** Generate YAML frontmatter string from validated data */
+export function generateFrontmatter(data: {
+  title: string;
+  usc_title: string | number;
+  usc_section: string;
+  chapter: number;
+  current_through: string;
+  classification: string;
+  generated_at: string;
+  status: SectionStatus;
+}): string {
+  const titleStr = String(data.usc_title);
+  const formattedTitle = /^\d+$/.test(titleStr) ? titleStr : yamlQuote(titleStr);
+  const lines = [
+    '---',
+    `title: ${yamlQuote(data.title)}`,
+    `usc_title: ${formattedTitle}`,
+    `usc_section: ${yamlQuote(data.usc_section)}`,
+    `chapter: ${data.chapter}`,
+    `current_through: ${yamlQuote(data.current_through)}`,
+    `classification: ${yamlQuote(data.classification)}`,
+    `generated_at: ${yamlQuote(data.generated_at)}`,
+    `status: ${yamlQuote(data.status)}`,
+    '---',
+    '',
+  ];
+  return lines.join('\n');
+}
+
+/** Format a legal list item as a markdown unordered list entry with bold marker */
+export function formatListItem(marker: string, text: string, depth: number): string {
+  const indent = ' '.repeat(Math.min(depth, MAX_NESTING_DEPTH) * INDENT_PER_LEVEL);
+  const boldMarker = marker ? `**${marker}**` : '';
+  return `${indent}- ${boldMarker}${text ? ' ' + text : ''}`;
+}
+
+/**
+ * Determine nesting depth for a USLM element type.
+ * subsection=0, paragraph=1, subparagraph=2, clause=3, subclause=4
+ */
+export function nestingDepthFor(elementName: string): number {
+  const depthMap: Record<string, number> = {
+    [USLM_ELEMENTS.subsection]: 0,
+    [USLM_ELEMENTS.paragraph]: 1,
+    [USLM_ELEMENTS.subparagraph]: 2,
+    [USLM_ELEMENTS.clause]: 3,
+    [USLM_ELEMENTS.subclause]: 4,
+  };
+  return depthMap[elementName] ?? 0;
+}
+
