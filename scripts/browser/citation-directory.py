@@ -59,6 +59,9 @@ def citation(page, base, out):
     if not gap:
         assert 'id="subsec-a-1"' in raw, 'Pinpoint requires a cold HTML anchor'
         assert page.locator('#current-statute-body #subsec-a-1').count() == 1
+    else:
+        assert page.locator('#current-statute-body [id^=subsec-]').count() == 0
+        assert 'id="subsec-a-1"' not in raw
     page.screenshot(path=str(out / 'citation-result.png'), full_page=True)
     return {'href': href, 'source_gap': gap, 'cold_anchor': not gap, 'html_sha256': hashlib.sha256(raw.encode()).hexdigest()}
 
@@ -81,6 +84,24 @@ def rollup_containment(page, base):
             assert page.locator('article#section-2 [data-current-source-fallback]').count() == 0
         results.append({'chapter': chapter, 'section': section, 'known_body_withheld': True})
     return results
+
+
+def alphanumeric_navigation(page, base):
+    page.set_viewport_size({'width': 1440, 'height': 900})
+    page.goto(base + 'statute/title-12/chapter-6a/section-635t/', wait_until='networkidle')
+    hydrated(page)
+    crumb = page.locator('nav[aria-label="Breadcrumb"] a[href$="/browse/title-12/chapter-6a/"]')
+    assert crumb.count() == 1
+    source = page.locator('astro-island[component-url*="DiffViewer"]').get_attribute('props')
+    source_path = json.loads(source)['sectionPath'][1]
+    assert source_path == 'statutes/title-12/chapter-6A/section-635t.md', source_path
+    chapter_link = crumb.get_attribute('href')
+    crumb.click()
+    page.wait_for_load_state('networkidle')
+    assert urlparse(page.url).path.endswith('/browse/title-12/chapter-6a/')
+    assert page.locator('a[href$="/statute/title-12/chapter-6a/section-635t/"]').count() >= 1
+    assert page.locator('a[href*="NaN"]').count() == 0
+    return {'chapter_href': chapter_link, 'source_path': source_path, 'literal_chapter_preserved': True}
 
 
 def cold_rollups(browser, base):
@@ -161,7 +182,7 @@ def main():
         page.route('https://api.github.com/**', lambda route: route.abort())
         if args.block_pagefind:
             page.route('**/pagefind/**', lambda route: route.abort())
-        receipt = {'directory': directory(page, base, args.out), 'citation': citation(page, base, args.out), 'chapters_and_gap': chapter_and_gap(page, base), 'cold_control': cold_control(browser, base), 'historical_scope': historical_scope(page, base), 'rollup_containment': rollup_containment(page, base), 'cold_rollups': cold_rollups(browser, base)}
+        receipt = {'directory': directory(page, base, args.out), 'citation': citation(page, base, args.out), 'chapters_and_gap': chapter_and_gap(page, base), 'cold_control': cold_control(browser, base), 'historical_scope': historical_scope(page, base), 'rollup_containment': rollup_containment(page, base), 'cold_rollups': cold_rollups(browser, base), 'alphanumeric_navigation': alphanumeric_navigation(page, base)}
         if args.dist:
             receipt['crawl'] = crawl(args.dist)
         browser.close()
