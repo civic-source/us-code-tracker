@@ -17,7 +17,7 @@ import {
 } from './workbench-catalog.js';
 
 import { runPythonPgScript } from './postgres-payload.js';
-import { reviewedHistoricalVersions, historicalCollectionIdentity } from './historical-qualification.js';
+import { reviewedHistoricalVersions, historicalMembership } from './historical-qualification.js';
 import { historicalWithdrawalIdentifiers } from './historical-withdrawal.js';
 
 const execFileAsync = promisify(execFile);
@@ -479,7 +479,7 @@ try:
                         continue
                     if [prov_id, title, sec, heading, body] != [approved["provisionId"], approved["uscTitle"], approved["uscSection"], approved["heading"], approved["bodyMarkdown"]]:
                         continue
-                    if release_id and release_id != reviewed_collections[approved["sourceQualification"]["releaseId"]]:
+                    if release_id and release_id != reviewed_collections[approved["provisionVersionId"]]:
                         continue
                 matched_ca = None
                 for ca in assignments:
@@ -514,7 +514,7 @@ finally:
     conn.close()
 `;
   return runPythonPgScript(script, { ...params, withdrawal: historicalWithdrawalIdentifiers(), reviewedHistoricalVersions: reviewedHistoricalVersions(), reviewedHistoricalCollections: Object.fromEntries(
-    ['pl-119-73', 'pl-119-142'].map(releaseId => [releaseId, historicalCollectionIdentity(releaseId).releaseId])) }, dbUrl);
+    reviewedHistoricalVersions().map(version => [version.provisionVersionId, historicalMembership(version).sourceReleaseId])) }, dbUrl);
 }
 
 /**

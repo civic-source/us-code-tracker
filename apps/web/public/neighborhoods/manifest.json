@@ -1,7 +1,13 @@
 {
   "schemaVersion": "usct.relationship-neighborhood-manifest/v1",
-  "shardCount": 18,
+  "shardCount": 24,
   "shards": [
+    "olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18-1001.json",
+    "olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18-111.json",
+    "olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18-1114.json",
+    "olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18-1001.json",
+    "olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18-111.json",
+    "olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18-1114.json",
     "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-1001.json",
     "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-111.json",
     "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-1114.json",

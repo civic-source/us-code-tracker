@@ -84,8 +84,26 @@
       "coverageState": "partial"
     },
     {
+      "releaseId": "olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b",
+      "label": "Online@119-73 (source-qualified pilot, 3 of 1399; compiler generation ec6bdb638f41)",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
+      "coverageState": "partial"
+    },
+    {
       "releaseId": "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0",
       "label": "Online@119-142 (source-qualified pilot, 3 of 1399)",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
+      "coverageState": "partial"
+    },
+    {
+      "releaseId": "olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad",
+      "label": "Online@119-142 (source-qualified pilot, 3 of 1399; compiler generation ec6bdb638f41)",
       "titlesAvailable": [
         "18"
       ],
@@ -106,12 +124,22 @@
     },
     "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba__title-18": {
       "shardPath": "search-shards/olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba__title-18.json",
-      "shardDigest": "ca459738c8564e94f4e67128bdaf5d9390a2668675c43e08171b340bcb989f4f",
+      "shardDigest": "743ae8004e47b90a935fcde569a2685019598f42440d28864e0148ddf08544b2",
+      "entryCount": 3
+    },
+    "olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b__title-18": {
+      "shardPath": "search-shards/olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b__title-18.json",
+      "shardDigest": "df26141d3d2c42b8148eb698d8c2c969e05d5a8bd5d7e491742904cb6bf1c30f",
       "entryCount": 3
     },
     "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0__title-18": {
       "shardPath": "search-shards/olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0__title-18.json",
-      "shardDigest": "3c0d6db6c7e5356f78b666e9d2f434681dc3056de80c7a857c906511f9320714",
+      "shardDigest": "607959bdf339863be41dde3041d9c64822a3921597babbaa6ed31870f0d4af38",
+      "entryCount": 3
+    },
+    "olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad__title-18": {
+      "shardPath": "search-shards/olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad__title-18.json",
+      "shardDigest": "58dfb56bc298d87ec7c43a80a71d607d34230ec43a784ec6d17ac058d887f1e1",
       "entryCount": 3
     }
   }

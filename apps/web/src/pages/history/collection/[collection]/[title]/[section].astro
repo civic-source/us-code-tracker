@@ -1,0 +1,18 @@
+---
+import HistoricalReader from '../../../../../components/HistoricalReader.astro';
+import { readReviewedHistoricalVersions } from '../../../../../../../../scripts/lib/genuine-history-catalog';
+import { historicalCollectionIdentity } from '../../../../../../../../scripts/lib/historical-qualification';
+import type { ProvisionVersion } from '@civic-source/types';
+export async function getStaticPaths() {
+  const versions = await readReviewedHistoricalVersions();
+  return versions.map(version => {
+    const proof = version.sourceQualification!;
+    const collectionId = historicalCollectionIdentity(proof.releaseId, proof.recipeSha256).releaseId;
+    return { params: { collection: collectionId, title: version.uscTitle, section: version.uscSection },
+      props: { version, collectionId, peers: versions.filter(peer => peer.sourceQualification!.releaseId === proof.releaseId
+        && peer.sourceQualification!.recipeSha256 === proof.recipeSha256) } };
+  });
+}
+interface Props { version: ProvisionVersion; peers: ProvisionVersion[]; collectionId: string }
+---
+<HistoricalReader {...Astro.props} />

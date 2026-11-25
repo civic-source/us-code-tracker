@@ -1,46 +1,17 @@
 ---
-import BaseLayout from '../../../../layouts/BaseLayout.astro';
-import { readReviewedHistoricalVersions } from '../../../../../../../scripts/lib/genuine-history-catalog';
-import { historicalSourcePins } from '../../../../../../../scripts/lib/olrc-historical-sources';
+import HistoricalReader from '../../../../components/HistoricalReader.astro';
+import { readActiveHistoricalVersions } from '../../../../../../../scripts/lib/genuine-history-catalog';
+import { historicalCollectionIdentity } from '../../../../../../../scripts/lib/historical-qualification';
 import type { ProvisionVersion } from '@civic-source/types';
-
 export async function getStaticPaths() {
-  const versions = await readReviewedHistoricalVersions();
-  return versions.map(version => ({ params: { release: version.sourceQualification!.releaseId,
-    title: version.uscTitle, section: version.uscSection }, props: { version } }));
+  const versions = await readActiveHistoricalVersions();
+  return versions.map(version => {
+    const proof = version.sourceQualification!;
+    return { params: { release: proof.releaseId, title: version.uscTitle, section: version.uscSection },
+      props: { version, peers: versions.filter(peer => peer.sourceQualification!.releaseId === proof.releaseId),
+        collectionId: historicalCollectionIdentity(proof.releaseId, proof.recipeSha256).releaseId } };
+  });
 }
-interface Props { version: ProvisionVersion }
-const { version } = Astro.props;
-const proof = version.sourceQualification!;
-const source = historicalSourcePins.find(item => item.releaseId === proof.releaseId)!;
-const base = import.meta.env.BASE_URL;
-const peers = (await readReviewedHistoricalVersions()).filter(item => item.sourceQualification!.releaseId === proof.releaseId);
+interface Props { version: ProvisionVersion; peers: ProvisionVersion[]; collectionId: string }
 ---
-<BaseLayout title={`18 U.S.C. §${version.uscSection} — ${source.publisherEdition}`}>
-  <section data-pagefind-ignore="all" aria-labelledby="historical-heading" class="space-y-5">
-    <header class="space-y-3">
-      <p class="font-sans text-sm font-semibold">Retained publisher edition: {source.publisherEdition}</p>
-      <h1 id="historical-heading" class="text-3xl font-bold">18 U.S.C. §{version.uscSection} — {version.heading}</h1>
-      <p>This is the selected OLRC source snapshot, including its source credits and editorial notes. It is not a statement of current law or of when a legal change took effect.</p>
-      <p>Coverage: 3 of {source.canonicalProvisionCount} canonical Title 18 provisions independently checked for text, list placement and note lanes. Tables and footnotes are outside this qualification scope. Other historical records remain unavailable or explicitly legacy-derived.</p>
-      <a href={source.requestedUrl} class="underline">Original OLRC archive for this exact edition</a>
-    </header>
-    <nav aria-label="Independently checked provisions in this same edition" class="flex flex-wrap gap-4">
-      {peers.map(peer => <a href={`${base}history/${proof.releaseId}/18/${peer.uscSection}/`} class="underline">18 U.S.C. §{peer.uscSection}</a>)}
-    </nav>
-    <article id="current-statute-body" data-historical-source-body data-release-id={proof.releaseId}
-      class="prose prose-slate dark:prose-invert max-w-none" set:html={version.renderedHtml!} />
-    <details class="border-t pt-3 text-sm">
-      <summary>Source and replay provenance</summary>
-      <dl class="space-y-2 break-all">
-        <dt>Source acquired (observed time)</dt><dd>{source.retrievedAt}</dd>
-        <dt>Archive SHA-256</dt><dd><code>{proof.archiveSha256}</code></dd>
-        <dt>Original member</dt><dd><code>{proof.memberName}: {proof.memberSha256}</code></dd>
-        <dt>Source section identity</dt><dd><code>{proof.sectionIdentifier}</code></dd>
-        <dt>Compiler and renderer recipe</dt><dd><code>{proof.recipeSha256}</code></dd>
-        <dt>Independent witness</dt><dd><code>{proof.witnessSha256}</code></dd>
-      </dl>
-      <p>Acquisition and processing times do not establish publication, enactment or effective dates. Snapshot and compiler differences are not legal amendment claims.</p>
-    </details>
-  </section>
-</BaseLayout>
+<HistoricalReader {...Astro.props} activeAlias={true} />

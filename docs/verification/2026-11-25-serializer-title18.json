@@ -1,0 +1,87 @@
+{
+  "schema_version": "civic.serializer-fidelity-verification/v1",
+  "state": "code-tested and bounded historical-source products proposed; current corpus not accepted or deployed",
+  "source": {
+    "release": "PL119-142",
+    "archive_sha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+    "member": "usc18.xml",
+    "member_sha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2"
+  },
+  "full_title18_diagnostic": {
+    "canonical_records": 1399,
+    "raw_section_elements": 1431,
+    "quoted_nested_sections_excluded": 32,
+    "fresh_cli_source_checks": 2731,
+    "final_core_prepared_checks": 2731,
+    "prepared_cli_result_differences": 0,
+    "classifications": {
+      "stored_failure_current_fragment_pass": 1117,
+      "both_fragment_pass": 66,
+      "current_candidate_blocked": 198,
+      "identity_unresolved": 18
+    },
+    "newly_passing": [
+      "/us/usc/t18/s7",
+      "/us/usc/t18/s433",
+      "/us/usc/t18/s474",
+      "/us/usc/t18/s481",
+      "/us/usc/t18/s504",
+      "/us/usc/t18/s511",
+      "/us/usc/t18/s659",
+      "/us/usc/t18/s924",
+      "/us/usc/t18/s1029",
+      "/us/usc/t18/s1791",
+      "/us/usc/t18/s2113",
+      "/us/usc/t18/s2117",
+      "/us/usc/t18/s2118",
+      "/us/usc/t18/s2241",
+      "/us/usc/t18/s2243",
+      "/us/usc/t18/s2246",
+      "/us/usc/t18/s2251",
+      "/us/usc/t18/s2252",
+      "/us/usc/t18/s2261A",
+      "/us/usc/t18/s2313",
+      "/us/usc/t18/s2320",
+      "/us/usc/t18/s2325",
+      "/us/usc/t18/s2326",
+      "/us/usc/t18/s2339B",
+      "/us/usc/t18/s3127",
+      "/us/usc/t18/s3166",
+      "/us/usc/t18/s3293",
+      "/us/usc/t18/s4004",
+      "/us/usc/t18/s4013",
+      "/us/usc/t18/s6001",
+      "/us/usc/t18/s6005"
+    ],
+    "regressions": [],
+    "source_credit_mismatches_before": 42,
+    "source_credit_mismatches_after": 0,
+    "remaining_continuation_failures": {
+      "/us/usc/t18/s922": "unsupported proviso",
+      "/us/usc/t18/s2511": "unsupported level",
+      "/us/usc/t18/s2512": "unsupported level",
+      "/us/usc/t18/s2518": "unsupported level"
+    },
+    "unsupported_flags_unchanged": true,
+    "full_audit_sha256": "356a6bf004dfaec591ae22300db255d3d079269f60e05ed0e0b62cf45289a625"
+  },
+  "history": {
+    "recipe": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+    "original_materializations_qualifications_six_witnesses_byte_identical": true,
+    "new_materializations": 6,
+    "unique_qualified_provisions_per_edition": 3,
+    "canonical_provisions_per_edition": 1399,
+    "two_cold_replays_identical": true,
+    "cold_page_full_member_checks": 18,
+    "javascript_and_nojavascript_blocked_api_traversals": 8,
+    "unknown_collection_and_absent_member_404_checks": 4,
+    "pagefind_indexed_history_pages": 0,
+    "legacy_shard_bytes_unchanged": true
+  },
+  "limitations": [
+    "Full-title diagnostics are renderer fragments, not built current-corpus pages or legal-data acceptance.",
+    "The18 historical pages use production router, reader, BaseLayout and configuration in a bounded static build; current corpus navigation collection is intentionally absent. This is not a full56k-page site build.",
+    "Historical compiler generations cover the same three provisions in each edition; they do not increase source coverage.",
+    "No current corpus, checkpoint, revision tag or publication promotion changed."
+  ]
+}
