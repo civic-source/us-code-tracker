@@ -52,3 +52,8 @@ whitespace), not every future edition of those citations. An annotation-only or
 timestamp-only commit cannot restore the identical withdrawn body. A newly accepted regenerated
 data publication restores those current bodies; historical source withdrawal is
 separate. Unrelated current text and retained old Git records remain available.
+
+The same current-body guard withholds the page comparison widget: fetching a
+retained Git revision must not reintroduce the withdrawn current rendering as
+accepted comparison text. Its explicit comparison source gap preserves access to
+publication records and does not delete raw diff or Git history objects.

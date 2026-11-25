@@ -401,7 +401,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
 
       <!-- Diff viewer for change history -->
       <div data-pagefind-ignore class="not-prose mt-8">
-        <DiffViewer client:idle sectionPath={sectionPath} />
+        {currentSourceUnavailable ? (
+          <section data-current-comparison-unavailable class="rounded-lg border border-amber-600 p-4 font-sans text-sm" aria-label="Comparison source gap">
+            <h2>Comparison temporarily unavailable</h2>
+            <p>This publication's incomplete section text is withheld from comparisons until an independently accepted correction is published.</p>
+            <p>Prior Git objects and publication records remain retained; this notice does not assert that the law was unchanged.</p>
+            <a href={`${base}publication-history.json`}>Retained publication records</a>
+          </section>
+        ) : <DiffViewer client:idle sectionPath={sectionPath} />}
       </div>
 
       <!-- Case law references (USCT-004: distinguish retrieval excerpts from reviewed propositions) -->
