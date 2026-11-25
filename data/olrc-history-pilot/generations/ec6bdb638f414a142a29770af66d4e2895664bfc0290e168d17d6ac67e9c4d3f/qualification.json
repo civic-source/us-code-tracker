@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "usct.reviewed-history-materializations/v1",
+  "records": [
+    {
+      "provisionVersionId": "pv-olrc-pilot-42326526a43c5bf29067da8203d3d8cb6c8649cd8a34c75dcfb1e9d316b9ab0e",
+      "recordSha256": "e08694f2ce257608165f0fab3abd0c68353cab4e750cffbc53fa0eb5e99c47b2",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-73",
+        "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358",
+        "memberName": "usc18.xml",
+        "memberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+        "sectionIdentifier": "/us/usc/t18/s1001",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "41e14af891ce76c4760e0532b9def00a58b11209eb64567dde01971ba6bb7ca2",
+        "htmlSha256": "71df7acde8f7558c89b2761b8779a3947102be6c055b891d7e7ea6d0fad3cb10",
+        "witnessSha256": "c622e37fcb24960dadb8e807ccd4118559e0632097ac0cf962a1aa9ece948d13",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    },
+    {
+      "provisionVersionId": "pv-olrc-pilot-fc924fb2120afaa5cf098ffaa9de7bda017bada1b10d2d766b1b2531395504f9",
+      "recordSha256": "97619841d1ae3d65bcb893cce3128662d860040bd30375322521d62dbe57d9be",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-73",
+        "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358",
+        "memberName": "usc18.xml",
+        "memberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+        "sectionIdentifier": "/us/usc/t18/s111",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "b47a76677cdf3891ccf6f5332499bce9fb6fbac010b2df20fabd73a890926c06",
+        "htmlSha256": "5899115a86e5ec816266d0c8c4bd352f4a3834d6e13a8d93f2d937ca7b89b960",
+        "witnessSha256": "cece15179d7066e14127926d58395fbdc7e4369ff48a167676ed8f5591301dfa",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    },
+    {
+      "provisionVersionId": "pv-olrc-pilot-f83dc121ceef43d7b928e4fccfa4f4254b2ee1d7a0862dbc6d164d9a5393fc27",
+      "recordSha256": "149bcfef704582e391cdd67ca6faedfb707f7bfd59640585a8a0fabc1adaa772",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-73",
+        "archiveSha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358",
+        "memberName": "usc18.xml",
+        "memberSha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+        "sectionIdentifier": "/us/usc/t18/s1114",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "7ea3994c45883b3f974eb1dd5cb9edf60c73df208fac29b19bb8de0af1c8dfc9",
+        "htmlSha256": "421ab110acdffc173cd9edfa934858a89da017f07475b8048f60f0b318bb203a",
+        "witnessSha256": "05c3d09eeb782ef5dca75b922975819a242fd12204a06f02177e646da05ea851",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    },
+    {
+      "provisionVersionId": "pv-olrc-pilot-dd4eabe32efeaa56ebe9d4736089783b7e5bea0a3c3708f3095e59cc6e772865",
+      "recordSha256": "f604eb14724d4c47f11f80034154eef64f833c04562b8848f0805001d87bd340",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-142",
+        "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+        "memberName": "usc18.xml",
+        "memberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+        "sectionIdentifier": "/us/usc/t18/s1001",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "41e14af891ce76c4760e0532b9def00a58b11209eb64567dde01971ba6bb7ca2",
+        "htmlSha256": "71df7acde8f7558c89b2761b8779a3947102be6c055b891d7e7ea6d0fad3cb10",
+        "witnessSha256": "ba5552bac38e20ab28e78d1ed56924dee75fd71f59d842fa3c40479634ff53fd",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    },
+    {
+      "provisionVersionId": "pv-olrc-pilot-0614e73eda20f3ecd9f6803d2d8fa5f551d6da9465114e34b1eebe530c618370",
+      "recordSha256": "d8a12f4157044b748a4ea016e10d8bba1e5bb4d2a7c2bd0e61ff912ee1d8eee4",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-142",
+        "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+        "memberName": "usc18.xml",
+        "memberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+        "sectionIdentifier": "/us/usc/t18/s111",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "b47a76677cdf3891ccf6f5332499bce9fb6fbac010b2df20fabd73a890926c06",
+        "htmlSha256": "5899115a86e5ec816266d0c8c4bd352f4a3834d6e13a8d93f2d937ca7b89b960",
+        "witnessSha256": "c9ebeb910c4b5dcd5d26412a3205a592139a622895c14eb5cf23ab007d5b9512",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    },
+    {
+      "provisionVersionId": "pv-olrc-pilot-3b8c5951494e6e3deb67513c2f7fd5a5028d29a52f27761ab9df9227aa6df9ea",
+      "recordSha256": "95f45f568ee1f905a163c018b94677af7b3c0871b6eb92f6ba84b3a5b47dc5ad",
+      "sourceQualification": {
+        "schemaVersion": "usct.historical-source-qualification/v1",
+        "releaseId": "pl-119-142",
+        "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+        "memberName": "usc18.xml",
+        "memberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+        "sectionIdentifier": "/us/usc/t18/s1114",
+        "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+        "markdownSha256": "7ea3994c45883b3f974eb1dd5cb9edf60c73df208fac29b19bb8de0af1c8dfc9",
+        "htmlSha256": "421ab110acdffc173cd9edfa934858a89da017f07475b8048f60f0b318bb203a",
+        "witnessSha256": "220f7bdbb6f5569010ad3a0adfce39fa3c69bb59c3c5d1aea19a4998610e7b42",
+        "scope": "text-lanes-and-list-placement-v1"
+      }
+    }
+  ]
+}

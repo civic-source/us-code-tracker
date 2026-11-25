@@ -1840,7 +1840,7 @@ export function buildHistoricalSearchShards(
         sourceQualification: pv.sourceQualification,
         renderedHtml: pv.renderedHtml,
         subsectionAnchorIds: pv.sourceQualification ? [...(pv.renderedHtml ?? '').matchAll(/id="(subsec-[a-zA-Z0-9-]+)"/g)].map(match => match[1]!) : undefined,
-        historicalUrl: pv.sourceQualification ? `${baseUrl}history/${pv.sourceQualification.releaseId}/${pv.uscTitle}/${pv.uscSection}/` : `${baseUrl}statute/title-${pv.uscTitle}/chapter-${pv.uscChapter}/section-${pv.uscSection}/?release=${encodeURIComponent(rel.releaseId)}`,
+        historicalUrl: pv.sourceQualification ? `${baseUrl}history/collection/${rel.releaseId}/${pv.uscTitle}/${pv.uscSection}/` : `${baseUrl}statute/title-${pv.uscTitle}/chapter-${pv.uscChapter}/section-${pv.uscSection}/?release=${encodeURIComponent(rel.releaseId)}`,
       };
 
       if (!byTitle.has(pv.uscTitle)) byTitle.set(pv.uscTitle, []);

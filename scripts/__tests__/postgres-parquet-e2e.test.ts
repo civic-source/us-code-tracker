@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   FencedTaskCoordinator,
+  type CanonicalWorkbenchCatalog,
   runPilotParityAndRecoveryDrill,
   sha256Hex,
 } from '../lib/workbench-catalog.js';
@@ -37,6 +38,22 @@ function isPostgresAvailable(dbUrl: string): boolean {
 }
 
 const PG_AVAILABLE = isPostgresAvailable(DEFAULT_POSTGRES_URL);
+
+async function assertQualifiedGenerationQueries(catalog: CanonicalWorkbenchCatalog): Promise<void> {
+  const sourceCollections = catalog.getSnapshot().releases.filter(item => item.publisherReleaseId === 'pl-119-73');
+  expect(sourceCollections).toHaveLength(2);
+  const generationHits: string[] = [];
+  for (const release of sourceCollections) {
+    const hit = await queryPostgresLexical({ query: '18 U.S.C. 1001', releaseId: release.releaseId }, DEFAULT_POSTGRES_URL);
+    if (!hit.ok) throw hit.error;
+    expect(hit.value).toHaveLength(1);
+    const member = catalog.getSnapshot().memberships.find(item => item.sourceReleaseId === release.releaseId
+      && item.provisionId === 'prov-18-1001')!;
+    expect(hit.value[0]!.provisionVersionId).toBe(member.provisionVersionId);
+    generationHits.push(hit.value[0]!.provisionVersionId);
+  }
+  expect(new Set(generationHits).size).toBe(2);
+}
 
 describe.runIf(PG_AVAILABLE)('PostgreSQL 16 + Apache Parquet + DuckDB E2E Integration (AUD-010 / USCT-009 / USCT-022 / USCT-023 / USCT-028 / USCT-035)', () => {
   let sliceWorkDir = '';
@@ -93,6 +110,7 @@ describe.runIf(PG_AVAILABLE)('PostgreSQL 16 + Apache Parquet + DuckDB E2E Integr
     expect(qualified.value).toHaveLength(1);
     expect(qualified.value[0]?.provisionVersionId).toMatch(/^pv-olrc-pilot-/);
     expect(qualified.value.some(item => item.provisionVersionId === 'pv-18-1001-pl-119-73')).toBe(false);
+    await assertQualifiedGenerationQueries(catalog);
     const original = catalog.getSnapshot().provisionVersions.find(item => item.provisionVersionId === qualified.value[0]!.provisionVersionId)!;
     const alterBody = (body: string) => execFileSync('python3', ['-c',
       'import json,sys,psycopg2; p=json.load(sys.stdin); c=psycopg2.connect(sys.argv[1]); cur=c.cursor(); cur.execute("UPDATE provision_versions SET body_markdown=%s WHERE provision_version_id=%s",(p["body"],p["id"])); c.commit(); c.close()',

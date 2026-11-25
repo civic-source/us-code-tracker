@@ -2,17 +2,22 @@ import { SourceArtifactSchema, SourceSnapshotSchema, SourceReleaseSchema,
   ProvisionSchema, CitationAssignmentSchema, CollectionCoverageSchema,
   err, ok, type Result } from '@civic-source/types';
 import type { CatalogStateSnapshot } from './workbench-catalog.js';
-import { historicalSourcePins } from './olrc-historical-sources.js';
+import { historicalSourcePins, type HistoricalSourcePin } from './olrc-historical-sources.js';
 import { historicalRecipeDigest } from './olrc-history-materialize.js';
-import { reviewedHistoricalVersions, historicalCollectionIdentity, historicalMembership } from './historical-qualification.js';
+import { historicalCollectionIdentity, historicalMembership, readHistoricalGenerations, originalHistoricalRecipe } from './historical-qualification.js';
 
 /** Build-time materializations are reviewed products; publisher archives remain outside Pages. */
 export async function readReviewedHistoricalVersions() {
   const recipe = await historicalRecipeDigest();
-  return reviewedHistoricalVersions().map(parsed => {
-    if (parsed.sourceQualification?.recipeSha256 !== recipe) throw new Error('Historical compiler/renderer recipe changed; requalification required');
-    return parsed;
-  });
+  const registry = readHistoricalGenerations();
+  if (Object.values(registry.active).some(active => active !== recipe)) throw new Error('Historical compiler/renderer recipe changed; requalification required');
+  return registry.generations.flatMap(generation => generation.versions);
+}
+
+export async function readActiveHistoricalVersions() {
+  const versions = await readReviewedHistoricalVersions();
+  const { active } = readHistoricalGenerations();
+  return versions.filter(version => version.sourceQualification!.recipeSha256 === active[version.sourceQualification!.releaseId]);
 }
 
 /** Rebuild a fresh catalog, retaining legacy rows without relabelling them as publisher-qualified. */
@@ -21,37 +26,48 @@ export async function withGenuineHistoricalSources(snapshot: CatalogStateSnapsho
     const result = structuredClone(snapshot);
     const versions = await readReviewedHistoricalVersions();
     for (const source of historicalSourcePins) {
-      const collection = historicalCollectionIdentity(source.releaseId);
-      if (result.releases.some(item => item.releaseId === collection.releaseId)) continue;
-      const selected = versions.filter((version) => version.sourceQualification?.releaseId === source.releaseId);
-      const archiveId = `art-olrc-zip-${source.archive.sha256}`;
-      const memberId = `art-olrc-member-${source.member.sha256}`;
-      const snapshotId = `snap-olrc-pilot-${source.archive.sha256}`;
-      result.artifacts.push(SourceArtifactSchema.parse({ artifactId: archiveId, ...source.archive,
-        mediaType: 'application/zip', storageLocator: `sha256:${source.archive.sha256}`, license: 'CC0-1.0' }),
-      SourceArtifactSchema.parse({ artifactId: memberId, sha256: source.member.sha256, byteLength: source.member.byteLength,
-        mediaType: 'application/xml', storageLocator: `zip:sha256:${source.archive.sha256}!/usc18.xml`,
-        parentArchiveArtifactId: archiveId, license: 'CC0-1.0' }));
-      result.snapshots.push(SourceSnapshotSchema.parse({ snapshotId, sourceRegistryId: 'olrc-releasepoints',
-        requestedUrl: source.requestedUrl, finalUrl: source.finalUrl, publisher: source.publisher,
-        authorityKind: 'statute', artifactId: memberId, retrievedAt: source.retrievedAt,
-        publisherReleaseLabel: source.publisherEdition }));
-      appendVersions(result, selected, collection.releaseId);
-      const law = source.releaseId.split('-')[2]!;
-      result.releases.push(SourceReleaseSchema.parse({ ...collection, publisherReleaseId: source.releaseId,
-        publisherReleaseLabel: `${source.publisherEdition} (source-qualified pilot, 3 of 1399)`,
-        releaseSegment: 'Title 18 bounded source-qualified pilot; legacy cohorts are separate collections.',
-        congress: 119, lawIdentifier: law, snapshotIds: [snapshotId], coverageId: `cov-${collection.releaseId}`,
-        observedAt: source.retrievedAt }));
-      result.coverages.push(CollectionCoverageSchema.parse({ coverageId: `cov-${collection.releaseId}`,
-        sourceScope: `olrc:${source.releaseId}:title-18:qualified-3-of-${source.canonicalProvisionCount}`,
-        sourceFamily: 'olrc_uslm', releaseId: collection.releaseId, titleFilter: '18',
-        expectedPartitions: ['title-18'], completedPartitions: [], coverageState: 'partial',
-        failedPartitions: [{ partition: 'title-18', reason: `Only 3 of ${source.canonicalProvisionCount} canonical provisions independently qualified; legacy members do not increase this count.` }],
-        lastAttemptedAt: source.retrievedAt }));
+      const recipes = [...new Set(versions.filter(version => version.sourceQualification!.releaseId === source.releaseId)
+        .map(version => version.sourceQualification!.recipeSha256))];
+      for (const recipe of recipes) {
+        const collection = historicalCollectionIdentity(source.releaseId, recipe);
+        if (result.releases.some(item => item.releaseId === collection.releaseId)) continue;
+        const selected = versions.filter(version => version.sourceQualification!.releaseId === source.releaseId && version.sourceQualification!.recipeSha256 === recipe);
+        const snapshotId = appendSource(result, source);
+        appendVersions(result, selected, collection.releaseId);
+        const law = source.releaseId.split('-')[2]!;
+        result.releases.push(SourceReleaseSchema.parse({ ...collection, publisherReleaseId: source.releaseId,
+          publisherReleaseLabel: recipe === originalHistoricalRecipe
+            ? `${source.publisherEdition} (source-qualified pilot, 3 of 1399)`
+            : `${source.publisherEdition} (source-qualified pilot, 3 of 1399; compiler generation ${recipe.slice(0, 12)})`,
+          releaseSegment: 'Title 18 bounded source-qualified pilot; legacy cohorts are separate collections.',
+          congress: 119, lawIdentifier: law, snapshotIds: [snapshotId], coverageId: `cov-${collection.releaseId}`,
+          observedAt: source.retrievedAt }));
+        result.coverages.push(CollectionCoverageSchema.parse({ coverageId: `cov-${collection.releaseId}`,
+          sourceScope: `olrc:${source.releaseId}:title-18:qualified-3-of-${source.canonicalProvisionCount}`,
+          sourceFamily: 'olrc_uslm', releaseId: collection.releaseId, titleFilter: '18',
+          expectedPartitions: ['title-18'], completedPartitions: [], coverageState: 'partial',
+          failedPartitions: [{ partition: 'title-18', reason: `Only 3 of ${source.canonicalProvisionCount} canonical provisions independently qualified; legacy members do not increase this count.` }],
+          lastAttemptedAt: source.retrievedAt }));
+      }
     }
     return ok(result);
   } catch (error) { return err(error instanceof Error ? error : new Error(String(error))); }
+}
+
+function appendSource(result: CatalogStateSnapshot, source: HistoricalSourcePin): string {
+  const archiveId = `art-olrc-zip-${source.archive.sha256}`;
+  const memberId = `art-olrc-member-${source.member.sha256}`;
+  const snapshotId = `snap-olrc-pilot-${source.archive.sha256}`;
+  if (!result.artifacts.some(item => item.artifactId === archiveId)) result.artifacts.push(SourceArtifactSchema.parse({ artifactId: archiveId, ...source.archive,
+    mediaType: 'application/zip', storageLocator: `sha256:${source.archive.sha256}`, license: 'CC0-1.0' }));
+  if (!result.artifacts.some(item => item.artifactId === memberId)) result.artifacts.push(SourceArtifactSchema.parse({ artifactId: memberId, sha256: source.member.sha256, byteLength: source.member.byteLength,
+    mediaType: 'application/xml', storageLocator: `zip:sha256:${source.archive.sha256}!/usc18.xml`,
+    parentArchiveArtifactId: archiveId, license: 'CC0-1.0' }));
+  if (!result.snapshots.some(item => item.snapshotId === snapshotId)) result.snapshots.push(SourceSnapshotSchema.parse({ snapshotId, sourceRegistryId: 'olrc-releasepoints',
+    requestedUrl: source.requestedUrl, finalUrl: source.finalUrl, publisher: source.publisher,
+    authorityKind: 'statute', artifactId: memberId, retrievedAt: source.retrievedAt,
+    publisherReleaseLabel: source.publisherEdition }));
+  return snapshotId;
 }
 
 function appendVersions(snapshot: CatalogStateSnapshot, versions: Awaited<ReturnType<typeof readReviewedHistoricalVersions>>, releaseId: string) {
