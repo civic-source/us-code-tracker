@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { closeSync, constants, existsSync, fstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ProvisionVersionSchema, type ProvisionVersion, SnapshotMembershipSchema } from '@civic-source/types';
 import original from '../../data/olrc-history-pilot/materializations.json' with { type: 'json' };
@@ -122,14 +122,29 @@ export function readHistoricalGenerations(): Registry {
   const root = [process.cwd(), resolve(process.cwd(), '../..')].find(path => existsSync(join(path, 'pnpm-lock.yaml')));
   if (!root) throw new Error('Historical registry requires the source checkout');
   const directory = join(root, 'data/olrc-history-pilot');
-  const read = (relative: string) => {
-    const path = join(directory, relative); const info = lstatSync(path);
+  const read = (relative: string) => readGenerationFile(join(directory, relative));
+  return parseHistoricalGenerations(JSON.parse(read('generations.json')), read);
+}
+
+function readGenerationFile(path: string): string {
+  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const info = fstatSync(descriptor);
     if (!info.isFile() || info.nlink !== 1 || info.size > 8 * 1024 ** 2 || realpathSync(path) !== resolve(path)) {
       throw new Error('Invalid historical generation file');
     }
-    return readFileSync(path, 'utf8');
-  };
-  return parseHistoricalGenerations(JSON.parse(read('generations.json')), read);
+    const bytes = Buffer.alloc(info.size + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(descriptor, bytes, length, bytes.length - length, length);
+      if (!count) break;
+      length += count;
+    }
+    if (length !== info.size) throw new Error('Historical generation file changed size during read');
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, length));
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 export function reviewedHistoricalVersions(): ProvisionVersion[] {
