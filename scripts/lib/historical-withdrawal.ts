@@ -121,7 +121,7 @@ export const HISTORICAL_SOURCE_CORRECTION = {
   observedAt: '2026-11-25T00:02:04.000Z',
   priorPublicationId: 'pub-pl-119-142-7297bf86fe00',
   reason: 'Constructed historical snapshots were withdrawn pending independently retained OLRC editions.',
-  sourceUrl: 'https://uscode.house.gov/download/download.shtml',
+  sourceUrl: 'https://uscode.house.gov/download.html',
 } as const;
 
 /** Independently constructed topic literals pass the same source acceptance boundary. */

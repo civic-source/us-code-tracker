@@ -36,7 +36,7 @@ describe('constructed history producer containment', () => {
     const { manifest, shards } = buildHistoricalSearchShards(catalog, 'publication-control');
     expect(catalog.getSnapshot().releases.every((release) => release.legacyDerived && release.publisherReleaseLabel.includes('legacy-derived'))).toBe(true);
     expect(manifest.sourceGaps).toHaveLength(4);
-    expect(manifest.sourceGaps?.[0]?.sourceUrl).toBe('https://uscode.house.gov/download/download.shtml');
+    expect(manifest.sourceGaps?.[0]?.sourceUrl).toBe('https://uscode.house.gov/download.html');
     expect(manifest.availableReleases.map((release) => release.coverageState)).toEqual(['partial', 'partial']);
     for (const shard of shards.values()) {
       expect(shard.entries.map((entry) => entry.uscSection)).toEqual(['2', '371', '1341', '1343', '1951', '1962']);
