@@ -27,6 +27,14 @@
       "sectionSha256": "91cf6473925610fbfa74118c1d180ed6aa65486631343bf676a94bf64639e507",
       "sourceByteStart": 1832291,
       "sourceByteEnd": 1845102
+    },
+    {
+      "section": "2241",
+      "fixture": "pl-119-142-section-2241.xml",
+      "fixtureSha256": "6788f4c01563fcf04da543cf803939c99f5d52d082643cc5851b0ccdfbb1e430",
+      "sectionSha256": "4750d90be953c9fe07683cd2bea18307e9b09ada53b3c092acb453dbcaf4fc76",
+      "sourceByteStart": 6499088,
+      "sourceByteEnd": 6512917
     }
   ]
 }
