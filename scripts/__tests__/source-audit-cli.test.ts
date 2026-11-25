@@ -322,4 +322,35 @@ syncBuiltinESMExports();
     await expect(readFile(join(root, 'fifo-input/audit-manifest.json'))).rejects.toMatchObject({ code: 'ENOENT' });
   }, 10_000);
 
+  it('reads the physical accepted commit rather than mutable local Git replacement views', async () => {
+    const originalRef = acceptedRef;
+    const original = await readFile(join(repository, 'statutes/title-18/chapter-2/section-31.md'));
+    await writeFile(join(repository, 'statutes/title-18/chapter-2/section-31.md'), '---\ncurrent_through: "PL 119-142"\n---\n# Replacement view.\n');
+    execFileSync('git', ['-C', repository, 'add', '.']);
+    execFileSync('git', ['-C', repository, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+      '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'replacement fixture']);
+    const replacement = execFileSync('git', ['-C', repository, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    execFileSync('git', ['-C', repository, 'replace', originalRef, replacement]);
+    const result = run('replacement-view');
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    const report = JSON.parse(await readFile(join(root, 'replacement-view/audit-manifest.json'), 'utf8')) as {
+      records: Array<{ storedSha256: string }>;
+    };
+    expect(report.records[0]?.storedSha256).toBe(digest(original));
+  }, 30_000);
+
+  it('does not lazily fetch missing accepted blobs from a promisor repository', async () => {
+    const upstream = join(root, 'promisor.git');
+    execFileSync('git', ['clone', '--quiet', '--local', '--no-hardlinks', '--bare', repository, upstream]);
+    const blob = execFileSync('git', ['-C', repository, 'rev-parse', `${acceptedRef}:statutes/title-18/chapter-2/section-31.md`], { encoding: 'utf8' }).trim();
+    execFileSync('git', ['-C', repository, 'remote', 'add', 'origin', upstream]);
+    for (const [key, value] of [['core.repositoryformatversion', '1'], ['extensions.partialClone', 'origin'],
+      ['remote.origin.promisor', 'true'], ['remote.origin.partialclonefilter', 'blob:none']]) execFileSync('git', ['-C', repository, 'config', key!, value!]);
+    await rm(join(repository, '.git/objects', blob.slice(0, 2), blob.slice(2)));
+    const result = run('missing-blob');
+    expect(result.status, result.stdout + result.stderr).toBe(2);
+    const remainsMissing = spawnSync('git', ['--no-lazy-fetch', '-C', repository, 'cat-file', '-e', blob]);
+    expect(remainsMissing.status).not.toBe(0);
+  }, 30_000);
+
 });

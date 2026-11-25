@@ -55,25 +55,30 @@ export async function auditSource(archive: string, inventory: AuditInventory): P
   return result.value;
 }
 
+function acceptedGit(repository: string, args: string[]) {
+  return auditCommand('git', ['--no-replace-objects', '--no-lazy-fetch', '--no-optional-locks',
+    '--literal-pathspecs', '-C', repository, ...args]);
+}
+
 export async function requireAuditCommit(repository: string, ref: string): Promise<void> {
   if (!/^[a-f0-9]{40}$/.test(ref)) throw new Error('Accepted ref must be a full immutable commit SHA');
-  const result = await auditCommand('git', ['-C', repository, 'cat-file', '-t', ref]);
+  const result = await acceptedGit(repository, ['cat-file', '-t', ref]);
   if (result.code !== 0 || result.stdout.toString().trim() !== 'commit') throw new Error('Accepted ref is not an available immutable commit');
 }
 
 export async function acceptedAuditBytes(repository: string, ref: string, path: string): Promise<Buffer | null> {
   if (!/^statutes\/title-\d+[a-z]?\/chapter-[A-Za-z0-9-]+\/section-[A-Za-z0-9-]+\.md$/.test(path)) throw new Error('Unsafe accepted statute path');
-  const listed = await auditCommand('git', ['-C', repository, 'ls-tree', '-z', ref, '--', path]);
+  const listed = await acceptedGit(repository, ['ls-tree', '-z', ref, '--', path]);
   if (listed.code !== 0) throw new Error('Could not inspect immutable accepted path');
   if (!listed.stdout.length) return null;
   if (!/^100(?:644|755) blob [a-f0-9]{40}\t/.test(listed.stdout.toString())) throw new Error('Accepted statute is not a regular Git blob');
-  const result = await auditCommand('git', ['-C', repository, 'show', `${ref}:${path}`]);
+  const result = await acceptedGit(repository, ['show', `${ref}:${path}`]);
   if (result.code !== 0) throw new Error('Could not read bounded immutable accepted bytes');
   return result.stdout;
 }
 
 export async function acceptedAuditInventory(repository: string, ref: string, title: string, sourcePaths: string[]) {
-  const listed = await auditCommand('git', ['-C', repository, 'ls-tree', '-r', '-z', '--name-only', ref, '--', `statutes/title-${title}`]);
+  const listed = await acceptedGit(repository, ['ls-tree', '-r', '-z', '--name-only', ref, '--', `statutes/title-${title}`]);
   if (listed.code !== 0) throw new Error('Could not enumerate immutable accepted statute paths');
   const paths = new TextDecoder('utf-8', { fatal: true }).decode(listed.stdout).split('\0').filter(Boolean).sort();
   const pattern = new RegExp(`^statutes/title-${title}/chapter-[A-Za-z0-9-]+/section-[A-Za-z0-9-]+\\.md$`);
