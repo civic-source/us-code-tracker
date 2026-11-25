@@ -1,0 +1,17 @@
+---
+import HistoricalReleaseViewer from '../../components/HistoricalReleaseViewer.svelte';
+import { requiresCurrentSourceFallback } from '../../lib/source-withdrawal';
+interface Props { body: string; html: string }
+const { body, html } = Astro.props;
+if (requiresCurrentSourceFallback({ dataCommit: 'a'.repeat(40), title: '18', section: '1001', body })) {
+  throw new Error('This integration fixture requires the actual corrected body to remain present');
+}
+---
+<html lang="en">
+  <head><meta charset="utf-8"/><meta name="base-url" content="/us-code-tracker/"/><title>Corrected source data-revision fixture</title></head>
+  <body>
+    <p>Test fixture: publisher PL119-142; accepted test data revision pl-119-142-rev2. This is not a publication.</p>
+    <HistoricalReleaseViewer client:load uscTitle="18" uscSection="1001" currentRelease="PL 119-142" acceptedDataTag="pl-119-142-rev2" />
+    <div id="current-statute-body" set:html={html} />
+  </body>
+</html>
