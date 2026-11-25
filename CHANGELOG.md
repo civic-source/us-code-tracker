@@ -67,6 +67,41 @@
 * **web:** replace regex HTML sanitization with sanitize-html ([#171](https://github.com/civic-source/us-code-tracker/issues/171)) ([23297e9](https://github.com/civic-source/us-code-tracker/commit/23297e9446d04adf0b7c3da913fb8f0562759c37))
 * **web:** resolve 404s on Recently Changed Sections links ([#108](https://github.com/civic-source/us-code-tracker/issues/108)) ([ba8451e](https://github.com/civic-source/us-code-tracker/commit/ba8451ea123dbc34cf91d8f7e5488b4195502073))
 
+## [0.8.0](https://github.com/civic-source/us-code-tracker/compare/v0.7.0...v0.8.0) (2026-11-25)
+
+
+### Features
+
+* **data:** add reproducible eCFR bulk ingestion and recovery ([#354](https://github.com/civic-source/us-code-tracker/issues/354)) ([fce1bec](https://github.com/civic-source/us-code-tracker/commit/fce1bec5c376a32b6bb638bf1b63bba4a31d6801))
+* **data:** add title-parameterized enrichment coverage and resumable batch runner ([#344](https://github.com/civic-source/us-code-tracker/issues/344)) ([d093409](https://github.com/civic-source/us-code-tracker/commit/d093409120bed7b9b6606f35f82a20494c43bde1))
+* **data:** stage reproducible source corrections ([#375](https://github.com/civic-source/us-code-tracker/issues/375)) ([babbbe6](https://github.com/civic-source/us-code-tracker/commit/babbbe67e29342bf1468142270328fd1b77847bf))
+* **fidelity:** add bounded reproducible source audits ([#389](https://github.com/civic-source/us-code-tracker/issues/389)) ([f2e62a4](https://github.com/civic-source/us-code-tracker/commit/f2e62a4a4f10e005ee4c40f695cab3e7e8344827))
+* **history:** retain verified OLRC pilot snapshots ([#376](https://github.com/civic-source/us-code-tracker/issues/376)) ([dcc725a](https://github.com/civic-source/us-code-tracker/commit/dcc725a1078c7aab701b013b84d9c92ffffff0f8))
+* **security,docs:** add transformer fuzzing, update SECURITY.md, and reconcile plan docs ([#335](https://github.com/civic-source/us-code-tracker/issues/335)) ([e4448a8](https://github.com/civic-source/us-code-tracker/commit/e4448a8be89753eb1f9a7152e349a2d24496ec53))
+* **validation:** verify scoped USLM source and page fidelity ([#372](https://github.com/civic-source/us-code-tracker/issues/372)) ([6917cda](https://github.com/civic-source/us-code-tracker/commit/6917cda62ec8cf41570d823474a594024bb18e7e))
+* **web:** add safe responsive reading and exact citation navigation ([#373](https://github.com/civic-source/us-code-tracker/issues/373)) ([4c073aa](https://github.com/civic-source/us-code-tracker/commit/4c073aa6bf6349e1a75d530c00e4da4a13ab4269))
+* **workbench:** wire opt-in local Gemma 4 evidence-bound draft adapter ([#346](https://github.com/civic-source/us-code-tracker/issues/346)) ([d6fbb0e](https://github.com/civic-source/us-code-tracker/commit/d6fbb0e850ffd28b26d3bd4c19e33998c836816d))
+
+
+### Bug Fixes
+
+* **a11y:** fix dark-mode pill contrast, caution token ratio, and invalid py-0.2 class ([#345](https://github.com/civic-source/us-code-tracker/issues/345)) ([91d06c7](https://github.com/civic-source/us-code-tracker/commit/91d06c7cf4b423c44f41a3d3f5cfe8fa7bc51d37))
+* **audit:** remediate AUD-001 through AUD-016 and complete canonical vertical slice ([#322](https://github.com/civic-source/us-code-tracker/issues/322)) ([2688b79](https://github.com/civic-source/us-code-tracker/commit/2688b79cf43e60c07d358cf8ba39340c4a493465))
+* **ci:** overhaul sync-law.yml with typed CLI, scoped annotation, and PR promotion ([#336](https://github.com/civic-source/us-code-tracker/issues/336)) ([16dea7f](https://github.com/civic-source/us-code-tracker/commit/16dea7f303dba44b502ab867f58d5a8f5585142a))
+* **deploy:** raise git maxBuffer in promote-publication for large import-state ([#323](https://github.com/civic-source/us-code-tracker/issues/323)) ([df4128e](https://github.com/civic-source/us-code-tracker/commit/df4128e9cb03a2f7c6e8b47a068e1ae8aab90b31))
+* **history:** withdraw unsupported published source claims ([#371](https://github.com/civic-source/us-code-tracker/issues/371)) ([80f8388](https://github.com/civic-source/us-code-tracker/commit/80f838890c2bee8c065a5e23b8ad711dcbb304d5))
+* **links:** update OLRC URLs, centralize URL builders, and add link validation ([#325](https://github.com/civic-source/us-code-tracker/issues/325)) ([aafe8d2](https://github.com/civic-source/us-code-tracker/commit/aafe8d29679a8b42482104c45a73c258bcb00418))
+* **transformer:** preserve official text and editorial notes ([#370](https://github.com/civic-source/us-code-tracker/issues/370)) ([19ea87c](https://github.com/civic-source/us-code-tracker/commit/19ea87c46b056abd5de6a5b319a193d2a564154d))
+* **transformer:** preserve source boundaries and reviewed history ([#388](https://github.com/civic-source/us-code-tracker/issues/388)) ([648dd32](https://github.com/civic-source/us-code-tracker/commit/648dd32c3a5875ba4c77c92f81d9863af1637213))
+* **web:** distinguish data revisions from publisher editions ([#374](https://github.com/civic-source/us-code-tracker/issues/374)) ([3a6e5e3](https://github.com/civic-source/us-code-tracker/commit/3a6e5e3a1ab206c9cd37db053f92a4d792dfb40c))
+* **web:** replace class:list with Svelte class expression in FederalRegisterActivity ([#341](https://github.com/civic-source/us-code-tracker/issues/341)) ([f0f8db6](https://github.com/civic-source/us-code-tracker/commit/f0f8db6a595d11209636b412212d2299545050e5))
+* **web:** replace floating mobile inspector button with inline disclosure card ([#338](https://github.com/civic-source/us-code-tracker/issues/338)) ([216ec8a](https://github.com/civic-source/us-code-tracker/commit/216ec8aeeaa7621356b667c174eb075ef7196054))
+
+
+### Performance Improvements
+
+* **web:** shrink static HTML artifact below GitHub Pages 10GB limit ([#340](https://github.com/civic-source/us-code-tracker/issues/340)) ([86aaaa6](https://github.com/civic-source/us-code-tracker/commit/86aaaa665021963b645114165d6524e0f7ce5457))
+
 ## [0.7.0](https://github.com/civic-source/us-code-tracker/compare/v0.6.1...v0.7.0) (2026-11-22)
 
 
