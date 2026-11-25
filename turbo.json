@@ -2,15 +2,53 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "lint": {},
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "@civic-source/web#build": {
+      "dependsOn": [
+        "^build",
+        "@civic-source/transformer#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@civic-source/web#test": {
+      "dependsOn": [
+        "^build",
+        "@civic-source/transformer#build"
+      ]
+    },
+    "@civic-source/web#typecheck": {
+      "dependsOn": [
+        "^build",
+        "@civic-source/transformer#build"
+      ]
     }
-  }
+  },
+  "globalDependencies": [
+    "data/olrc-history-pilot/**",
+    "scripts/lib/olrc-*.ts",
+    "scripts/lib/genuine-history-catalog.ts",
+    "scripts/lib/historical-qualification.ts",
+    "scripts/lib/ecfr-bulk-capacity.ts",
+    "scripts/python/olrc_*.py",
+    "scripts/python/uslm_fidelity.py"
+  ]
 }

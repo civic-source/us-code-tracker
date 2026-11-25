@@ -316,11 +316,13 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       {(String(usc_title) === '18' && ['111', '1001'].includes(String(usc_section))) && (
         <aside data-source-correction data-pagefind-ignore class="not-prose mb-6 rounded-lg border border-amber-600 p-4 text-sm" aria-label="Historical source correction">
           <strong>Historical source correction</strong>
-          <p>Constructed PL116-220 and PL119-73 snapshots of this section have been withdrawn. Those editions are unavailable pending independently retained source text; the other six legacy-derived sections remain available.</p>
+          <p>Constructed PL116-220 and PL119-73 records of this section remain withdrawn. The original legacy cohorts are partial. Separately retained OLRC snapshots of this section are available below.</p>
           <p>A date in the URL does not establish a historical edition. Check the source notice below for current-text availability.</p>
-          <a href="https://uscode.house.gov/download.html">Consult the official OLRC editions</a>
+          <a href={`${base}history/pl-119-73/18/${String(usc_section)}/`}>Read the retained OLRC 119-73 snapshot</a>
+          {' · '}<a href={`${base}history/pl-119-142/18/${String(usc_section)}/`}>Read the retained OLRC 119-142 snapshot</a>
+          {' · '}<a href="https://uscode.house.gov/download.html">Consult the official OLRC editions</a>
           {' · '}<a href={`${base}publication-history.json`}>Prior publication records</a>
-          <noscript><p>Historical edition loading requires JavaScript. A release query in this URL does not load a historical edition; consult the official source links.</p></noscript>
+          <noscript><p>Selecting a release query requires JavaScript. A query in this URL does not load a historical edition; the retained snapshot links above work without JavaScript.</p></noscript>
         </aside>
       )}
       <!-- Main statute content -->

@@ -4,7 +4,9 @@
  */
 
 import { execFile } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { type Result, ok, err } from '@civic-source/types';
 import {
@@ -76,7 +78,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 out_dir = Path(sys.argv[1])
-payload = json.loads(os.environ["PARQUET_PAYLOAD_JSON"])
+payload = json.load(open(os.environ["PARQUET_PAYLOAD_FILE"], encoding="utf-8"))
 snap = payload["snap"]
 catalog_digest = payload["catalogDigest"]
 
@@ -233,22 +235,29 @@ manifest = {
 print(json.dumps({"ok": True, "data": manifest}))
 `;
 
+  let payloadDirectory: string | undefined;
+  let result: Result<ParquetExportManifest>;
   try {
+    payloadDirectory = await mkdtemp(join(tmpdir(), 'usct-parquet-payload-'));
+    const payloadPath = join(payloadDirectory, 'payload.json');
+    await writeFile(payloadPath, JSON.stringify({ snap, catalogDigest: auditReport.catalogDigest }), { flag: 'wx', mode: 0o600 });
     const { stdout } = await execFileAsync('python3', ['-c', script, outputDir], {
       maxBuffer: 64 * 1024 * 1024,
       env: {
         ...process.env,
-        PARQUET_PAYLOAD_JSON: JSON.stringify({
-          snap,
-          catalogDigest: auditReport.catalogDigest,
-        }),
+        PARQUET_PAYLOAD_FILE: payloadPath,
       },
     });
     const parsed = JSON.parse(stdout.trim()) as { ok: boolean; data: ParquetExportManifest };
-    return ok(parsed.data);
+    result = ok(parsed.data);
   } catch (e: unknown) {
-    return err(e instanceof Error ? e : new Error(String(e)));
+    result = err(e instanceof Error ? e : new Error(String(e)));
   }
+  if (payloadDirectory) {
+    try { await rm(payloadDirectory, { recursive: true }); }
+    catch (error) { return err(error instanceof Error ? error : new Error(String(error))); }
+  }
+  return result;
 }
 
 /**

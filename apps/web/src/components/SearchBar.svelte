@@ -53,6 +53,9 @@
     excerpt: string;
     bodyMarkdown?: string;
     historicalUrl: string;
+    publisherReleaseId?: string;
+    sourceQualification?: { releaseId: string; sectionIdentifier: string };
+    subsectionAnchorIds?: string[];
   }
 
   interface HistoricalSearchShard {
@@ -161,6 +164,9 @@
         (raw as { schemaVersion?: unknown }).schemaVersion === 'usct.historical-search-manifest/v1'
       ) {
         historicalManifest = raw as HistoricalSearchIndexManifest;
+        selectedRelease = searchEditionScope(new URL(window.location.href).searchParams.get('release'),
+          document.querySelector('meta[name="accepted-release"]')?.getAttribute('content') ?? '',
+          historicalManifest.availableReleases.map(release => release.releaseId));
       }
     } catch {
       // Static historical shards optional if not yet built

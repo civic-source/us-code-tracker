@@ -444,6 +444,7 @@ export const SourceReleaseSchema = z.object({
   schemaVersion: z.literal('usct.source-release/v1').default('usct.source-release/v1'),
   releaseId: z.string().min(1),
   publisherReleaseLabel: z.string().min(1),
+  publisherReleaseId: z.string().regex(/^pl-[0-9]+-[0-9]+$/).optional(),
   releaseSegment: z.string().min(1),
   congress: z.number().int().positive(),
   lawIdentifier: z.string().min(1),

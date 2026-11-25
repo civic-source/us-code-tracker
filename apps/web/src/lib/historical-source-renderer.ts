@@ -1,7 +1,8 @@
 import { unified } from '@astrojs/markdown-remark';
 import rehypeSanitize from 'rehype-sanitize';
+import subsectionAnchors from './subsection-anchors.js';
 
-const processor = unified({ rehypePlugins: [rehypeSanitize] });
+const processor = unified({ rehypePlugins: [rehypeSanitize, subsectionAnchors] });
 let renderer: ReturnType<typeof processor.createRenderer> | undefined;
 
 /** The retained historical fragment uses the same sanitized Markdown pipeline as the reader. */

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "usct.curated-topic/v1",
   "topicSlug": "false-statements-fraud",
-  "title": "Federal False Statements, Concealment & Official Integrity (18 U.S.C. §§ 1001, 111, 371, 1341, 1343)",
-  "summary": "Historical topic source correction; retained legacy-derived provisions remain available for navigation.",
-  "scopeNote": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions. PL116-220 and PL119-73 have partial coverage. Consult the OLRC source before relying on affected text.",
+  "title": "False Statements and Fraud — retained navigation",
+  "summary": "Historical source correction with retained legacy-derived navigation members.",
+  "scopeNote": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions. Coverage remains partial. Source qualification is not legal amendment or applicability review.",
   "curator": "Civic Source source-integrity review",
   "lastReviewedAt": "2026-11-25T00:02:04.000Z",
   "currentReleaseId": "pl-119-73",
@@ -11,7 +11,7 @@
     {
       "provisionId": "prov-18-371",
       "citation": "18 U.S.C. § 371",
-      "heading": "Conspiracy to commit offense or to defraud United States",
+      "heading": "§ 371. Conspiracy to commit offense or to defraud United States",
       "url": "/us-code-tracker/statute/title-18/chapter-19/section-371/",
       "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",
@@ -21,7 +21,7 @@
     {
       "provisionId": "prov-18-1341",
       "citation": "18 U.S.C. § 1341",
-      "heading": "Frauds and swindles",
+      "heading": "§ 1341. Frauds and swindles",
       "url": "/us-code-tracker/statute/title-18/chapter-63/section-1341/",
       "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",
@@ -31,7 +31,7 @@
     {
       "provisionId": "prov-18-1343",
       "citation": "18 U.S.C. § 1343",
-      "heading": "Fraud by wire, radio, or television",
+      "heading": "§ 1343. Fraud by wire, radio, or television",
       "url": "/us-code-tracker/statute/title-18/chapter-63/section-1343/",
       "roleInTopic": "Retained legacy-derived navigation member; topical proposition awaiting source review.",
       "extractionState": "verified",

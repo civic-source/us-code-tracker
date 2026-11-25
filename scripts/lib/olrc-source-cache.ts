@@ -51,11 +51,21 @@ export async function readSourceBlob(options: { cacheDir: string; pin: SourceBlo
   } catch (error: unknown) { return err(message(error)); }
 }
 
+interface SourceAdoption { cacheDir: string; inputPath: string; pin: SourceBlobPin }
+interface AdoptionStage { path?: string; created: boolean }
+
 /** Retain verified input bytes without replacing an existing immutable cache object. */
-export async function adoptSourceBlob(options: {
-  cacheDir: string; inputPath: string; pin: SourceBlobPin;
-}): Promise<Result<string>> {
-  let stage: string | undefined; let created = false;
+export async function adoptSourceBlob(options: SourceAdoption): Promise<Result<string>> {
+  const stage: AdoptionStage = { created: false };
+  const result = await adoptVerifiedSource(options, stage);
+  if (stage.path && stage.created) {
+    try { await unlink(stage.path); }
+    catch (error) { return err(message(error)); }
+  }
+  return result;
+}
+
+async function adoptVerifiedSource(options: SourceAdoption, stage: AdoptionStage): Promise<Result<string>> {
   try {
     const bytes = await pinnedBytes(options.inputPath, options.pin);
     await rootPath(options.cacheDir);
@@ -69,21 +79,15 @@ export async function adoptSourceBlob(options: {
     }
     const capacity = await checkStoreCapacity(options.cacheDir, bytes.length, {});
     if (!capacity.ok) return capacity;
-    stage = join(options.cacheDir, '.stage-' + randomUUID());
-    const file = await open(stage, 'wx', 0o600); created = true;
+    stage.path = join(options.cacheDir, '.stage-' + randomUUID());
+    const file = await open(stage.path, 'wx', 0o600); stage.created = true;
     try { await file.writeFile(bytes); await file.sync(); }
     finally { await file.close(); }
-    await link(stage, target);
-    await unlink(stage); stage = undefined;
+    await link(stage.path, target);
+    await unlink(stage.path); stage.path = undefined;
     const directory = await open(options.cacheDir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     try { await directory.sync(); } finally { await directory.close(); }
     await pinnedBytes(target, options.pin);
     return ok(target);
   } catch (error: unknown) { return err(message(error)); }
-  finally {
-    if (stage && created) {
-      try { await unlink(stage); }
-      catch (error: unknown) { return err(message(error)); }
-    }
-  }
 }

@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { requireHistoricalQualification, requireHistoricalCollections } from './historical-qualification.js';
 import { containHistoricalSources, historicalSourceGaps } from './historical-withdrawal.js';
 
 import {
@@ -852,13 +853,14 @@ COMMIT;
           (e, i) =>
             e.manifestDigest === i.manifestDigest &&
             e.releaseSegment === i.releaseSegment &&
-            e.revisionNumber === i.revisionNumber
+            e.revisionNumber === i.revisionNumber && e.publisherReleaseId === i.publisherReleaseId
         );
       }
       for (const p of partial.provisions ?? []) {
         upsert(next.provisions, ProvisionSchema.parse(p), (x) => x.provisionId);
       }
       for (const pv of partial.provisionVersions ?? []) {
+        requireHistoricalQualification(ProvisionVersionSchema.parse(pv));
         insertImmutable(
           'ProvisionVersion',
           next.provisionVersions,
@@ -922,6 +924,7 @@ COMMIT;
         upsert(next.derivedArtifacts, da, (x) => x.artifactKey);
       }
 
+      requireHistoricalCollections(next);
       this.state = containHistoricalSources(next);
       return ok(undefined);
     } catch (e: unknown) {
@@ -1751,6 +1754,10 @@ export interface HistoricalSearchShardEntry {
   tables?: ProvisionVersion['tables'];
   legacyDerived?: boolean;
   historicalUrl: string;
+  publisherReleaseId?: string;
+  sourceQualification?: ProvisionVersion['sourceQualification'];
+  renderedHtml?: string;
+  subsectionAnchorIds?: string[];
 }
 
 export interface HistoricalSearchShard {
@@ -1829,7 +1836,11 @@ export function buildHistoricalSearchShards(
         notes: pv.notes,
         tables: pv.tables,
         legacyDerived: pv.legacyDerived,
-        historicalUrl: `${baseUrl}statute/title-${pv.uscTitle}/chapter-${pv.uscChapter}/section-${pv.uscSection}/?release=${encodeURIComponent(rel.releaseId)}`,
+        publisherReleaseId: rel.publisherReleaseId,
+        sourceQualification: pv.sourceQualification,
+        renderedHtml: pv.renderedHtml,
+        subsectionAnchorIds: pv.sourceQualification ? [...(pv.renderedHtml ?? '').matchAll(/id="(subsec-[a-zA-Z0-9-]+)"/g)].map(match => match[1]!) : undefined,
+        historicalUrl: pv.sourceQualification ? `${baseUrl}history/${pv.sourceQualification.releaseId}/${pv.uscTitle}/${pv.uscSection}/` : `${baseUrl}statute/title-${pv.uscTitle}/chapter-${pv.uscChapter}/section-${pv.uscSection}/?release=${encodeURIComponent(rel.releaseId)}`,
       };
 
       if (!byTitle.has(pv.uscTitle)) byTitle.set(pv.uscTitle, []);

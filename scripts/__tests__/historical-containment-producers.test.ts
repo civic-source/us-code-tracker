@@ -32,7 +32,7 @@ async function retainedLegacyCohort() {
 describe('constructed history producer containment', () => {
   it('exports the six retained legacy controls with partial coverage after source withdrawal', async () => {
     const { root, repo } = await retainedLegacyCohort();
-    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo });
+    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo, legacyOnly: true });
     const { manifest, shards } = buildHistoricalSearchShards(catalog, 'publication-control');
     expect(catalog.getSnapshot().releases.every((release) => release.legacyDerived && release.publisherReleaseLabel.includes('legacy-derived'))).toBe(true);
     expect(manifest.sourceGaps).toHaveLength(4);
@@ -45,7 +45,7 @@ describe('constructed history producer containment', () => {
   });
   it('does not republish withdrawn history through independently constructed topic claims and events', async () => {
     const { root, repo } = await retainedLegacyCohort();
-    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo });
+    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo, legacyOnly: true });
     const [topic] = await writeCuratedTopicDatasets(catalog, join(root, 'topics'));
     expect(topic?.memberProvisions.map((member) => member.provisionId)).toEqual([
       'prov-18-371', 'prov-18-1341', 'prov-18-1343',
@@ -57,7 +57,7 @@ describe('constructed history producer containment', () => {
 
   it('replaces prior direct relationship shards with explicit source gaps while retaining legacy shards', async () => {
     const { root, repo } = await retainedLegacyCohort();
-    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo });
+    const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo, legacyOnly: true });
     const output = join(root, 'neighborhoods');
     await mkdir(join(output, 'pl-119-73'), { recursive: true });
     await writeFile(join(output, 'pl-119-73/18-1001.json'), JSON.stringify({ edges: [{ propositionText: 'withdrawn' }] }));

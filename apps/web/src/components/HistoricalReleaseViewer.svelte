@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { retainedCitation } from '../lib/published-citation';
   import { isAcceptedCurrentRelease } from '../lib/accepted-release-context';
 
   interface Props {
@@ -20,7 +21,7 @@
   interface HistoricalSearchIndexManifest {
     schemaVersion: 'usct.historical-search-manifest/v1';
     generatedForPublicationId: string;
-    sourceGaps?: Array<{ releaseId: string; uscTitle: string; uscSection: string; reason: string }>;
+    sourceGaps?: Array<{ releaseId: string; uscTitle: string; uscSection: string; reason: string; replacementPath?: string }>;
     availableReleases: HistoricalReleaseMeta[];
     shards: Record<string, { shardPath: string; shardDigest: string; entryCount: number }>;
   }
@@ -55,6 +56,9 @@
     }>;
     legacyDerived?: boolean;
     historicalUrl: string;
+    publisherReleaseId?: string;
+    sourceQualification?: { releaseId: string; sectionIdentifier: string };
+    subsectionAnchorIds?: string[];
   }
 
   interface HistoricalSearchShard {
@@ -75,6 +79,8 @@
   let releaseLabel = $state<string | null>(null);
   let coverageState = $state<string>('not_collected');
   let historicalEntry = $state<HistoricalSearchShardEntry | null>(null);
+  let sourceReplacementUrl = $state<string | null>(null);
+  let historicalSourceUrl = $state<string | null>(null);
   let unavailableReason = $state<string | null>(null);
 
   function getBaseUrl(): string {
@@ -139,7 +145,8 @@
       const sourceGap = manifest.sourceGaps?.find((gap) => gap.releaseId === cleanParam &&
         gap.uscTitle === titleStr && gap.uscSection === secStr);
       if (sourceGap) {
-        unavailableReason = `${sourceGap.reason} This edition is unavailable; current text is hidden.`;
+        if (sourceGap.replacementPath === `history/${cleanParam}/${titleStr}/${secStr}/`) sourceReplacementUrl = base + sourceGap.replacementPath;
+        unavailableReason = `${sourceGap.reason} This withdrawn record is unavailable in the retained collection; current text is hidden.`;
         return;
       }
       if (!relMeta) {
@@ -175,6 +182,11 @@
         return;
       }
 
+      if (match.sourceQualification) {
+        const resolved = retainedCitation([match], cleanParam, { display: match.citation, title: titleStr, section: secStr }, base);
+        if (!resolved.ok) { unavailableReason = resolved.error.message; return; }
+        historicalSourceUrl = resolved.value;
+      }
       historicalEntry = match;
       preserveReleaseInNav(cleanParam);
     } catch (e: unknown) {
@@ -218,6 +230,7 @@
           </a>
         </div>
         <p>{unavailableReason}</p>
+        {#if sourceReplacementUrl}<p><a href={sourceReplacementUrl} class="underline font-semibold">Open the separately retained source-checked edition</a></p>{/if}
       </div>
     {:else if historicalEntry}
       <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 font-sans text-xs text-amber-950 dark:text-amber-100 space-y-2" role="status">
@@ -228,7 +241,7 @@
             </span>
             <span class="font-mono text-[11px]">Version ID: {historicalEntry.provisionVersionId}</span>
             <span class="rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-              {historicalEntry.legacyDerived ? 'Legacy-Derived Git Blob' : 'USLM Canonical Source'}
+              {historicalEntry.sourceQualification ? 'Independently checked OLRC snapshot' : historicalEntry.legacyDerived ? 'Legacy-Derived Git Blob' : 'Unqualified record'}
             </span>
             <span class="rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] border border-[var(--border-subtle)]">
               Scope Coverage: {coverageState}
@@ -242,7 +255,7 @@
           </a>
         </div>
         <p class="text-[11px]">
-          You are reading <strong>{historicalEntry.citation}</strong> as recorded in <strong>{releaseLabel ?? requestedRelease}</strong> ({historicalEntry.releaseId}), not current codified law.
+          Selected historical record: <strong>{historicalEntry.citation}</strong> in <strong>{releaseLabel ?? requestedRelease}</strong> ({historicalEntry.releaseId}), not current codified law.
         </p>
       </div>
 
@@ -251,7 +264,10 @@
           {historicalEntry.heading}
         </h1>
 
-        {#if historicalEntry.bodyMarkdown}
+        {#if historicalSourceUrl}
+          <p><a href={historicalSourceUrl} class="underline font-semibold">Read the complete source-checked edition, including source credits and editorial notes</a></p>
+          <p>This retained static page works without JavaScript. The qualification covers this provision, not the complete title or legal applicability.</p>
+        {:else if historicalEntry.bodyMarkdown}
           {@const mdLines = historicalEntry.bodyMarkdown.split('\n')}
           {@const firstSectionIdx = mdLines.findIndex((line) => line.trim().startsWith('## '))}
           {@const bodySlice = firstSectionIdx >= 0 ? mdLines.slice(0, firstSectionIdx) : mdLines}
@@ -266,7 +282,7 @@
           <p class="text-base leading-relaxed text-[var(--text-primary)]">{historicalEntry.excerpt}</p>
         {/if}
 
-        {#if historicalEntry.tables && historicalEntry.tables.length > 0}
+        {#if !historicalSourceUrl && historicalEntry.tables && historicalEntry.tables.length > 0}
           {#each historicalEntry.tables as tbl}
             <div class="overflow-x-auto font-sans text-xs border border-[var(--border-subtle)] rounded-lg p-3 bg-[var(--surface-sunken)]">
               {#if tbl.caption}
@@ -294,7 +310,7 @@
           {/each}
         {/if}
 
-        {#if historicalEntry.notes && historicalEntry.notes.length > 0}
+        {#if !historicalSourceUrl && historicalEntry.notes && historicalEntry.notes.length > 0}
           <div class="border-t border-[var(--border-subtle)] pt-3 font-sans text-xs space-y-1.5">
             <div class="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Historical Statutory Notes</div>
             {#each historicalEntry.notes as note}

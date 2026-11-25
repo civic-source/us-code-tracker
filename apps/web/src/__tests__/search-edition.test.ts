@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { searchEditionScope } from '../lib/search-edition';
 
 describe('same-edition search scope', () => {
+  it('selects an immutable source collection only when it appears in the actual retained manifest', () => {
+    const source = 'olrc-pilot-' + 'a'.repeat(64);
+    expect(searchEditionScope(source, 'pl-119-142', [source])).toBe(source);
+    expect(searchEditionScope(source, 'pl-119-142', [])).toBe('unavailable');
+    expect(searchEditionScope('olrc-pilot-' + 'b'.repeat(64), 'pl-119-142', [source])).toBe('unavailable');
+    expect(searchEditionScope('pl-119-142-rev99', 'pl-119-142', ['pl-119-142-rev99'])).toBe('unavailable');
+  });
   it('keeps requested old or unavailable editions instead of silently searching current law', () => {
     expect(searchEditionScope('pl-119-73', 'pl-119-142')).toBe('pl-119-73');
     expect(searchEditionScope('pl-118-1', 'pl-119-142')).toBe('pl-118-1');
