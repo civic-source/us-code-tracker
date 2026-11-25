@@ -6,9 +6,11 @@
  * Attributes live in a ":@" sibling key on the same object.
  */
 
+import { USLM_ELEMENTS } from './constants.js';
+
 /**
  * Recursively walk nodes and concatenate all #text values in document order.
- * Joins segments with a single space and collapses whitespace.
+ * Preserves inline text boundaries and separates block elements.
  *
  * Security: the parser decodes XML entities, so `&lt;img&gt;` in the source
  * arrives here as the literal characters `<img>`. This text is later written
@@ -21,6 +23,20 @@
  * element identifiers, not this text.
  */
 export function extractTextFromNodes(nodes: unknown[]): string {
+  return collectSourceText(nodes)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+const TEXT_BLOCKS = new Set([
+  'p', 'heading', 'num', 'content', 'chapeau', 'continuation', 'note',
+  'section', 'subsection', 'paragraph', 'subparagraph', 'clause', 'subclause',
+  'sourceCredit', 'table', 'tr', 'td', 'th', 'caption',
+]);
+
+function collectSourceText(nodes: unknown[]): string {
   const segments: string[] = [];
   for (const node of nodes) {
     if (!isObject(node)) continue;
@@ -31,18 +47,13 @@ export function extractTextFromNodes(nodes: unknown[]): string {
       for (const [key, val] of Object.entries(obj)) {
         if (key === ':@') continue;
         if (Array.isArray(val)) {
-          segments.push(extractTextFromNodes(val));
+          const text = collectSourceText(val);
+          segments.push(TEXT_BLOCKS.has(key) ? ` ${text} ` : text);
         }
       }
     }
   }
-  return segments
-    .filter((s) => s.length > 0)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return segments.join('');
 }
 
 /**
@@ -99,3 +110,12 @@ export function getElementName(node: unknown): string | null {
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
+
+/** Extract heading text from node children */
+export function extractHeading(children: unknown[]): string {
+  const headings = findElements(children, USLM_ELEMENTS.heading);
+  const first = headings[0];
+  if (!first) return '';
+  return extractTextFromNodes(first.children).trim();
+}
+
