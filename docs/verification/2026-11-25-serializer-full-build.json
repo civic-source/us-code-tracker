@@ -1,0 +1,124 @@
+{
+  "schema_version": "civic.full-static-build-verification/v1",
+  "state": "full-build-completed; no current-corpus repair or deployment claim",
+  "producer_commit": "d16e0d87d55a234ae8ea0d6bfa578b4439e9050c",
+  "accepted_data_commit": "7297bf86fe00c0f850e1da9df5af5a03383fea70",
+  "tracked_and_present_statute_markdown_files": 56127,
+  "command": "pnpm build",
+  "exit_code": 0,
+  "astro_pages": 59072,
+  "pagefind_indexed_pages": 59054,
+  "historical_pages_excluded": 18,
+  "turbo_tasks_succeeded": 6,
+  "elapsed": "9m38.104s",
+  "log_sha256": "209da326ebdcb10124165683bbbe5f9f8a02f6c954b639c2c9ac3aa5c963fae9",
+  "historical_full_member_witnesses": [
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18/1114/index.html",
+      "html_sha256": "c4bc4fc5216e9d45523b6fe3389852767f468aa3e377eccbb2961fc0d9564e53",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18/1001/index.html",
+      "html_sha256": "c14a20aae52f5d07fd88d59d1adfe0999a96908d15c072a10add51642cae1208",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18/111/index.html",
+      "html_sha256": "962282adb322543c1604097e041d2048f7e78b7aac1c08d5165d1a060d03f6f4",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18/1114/index.html",
+      "html_sha256": "1e0c9a0d62557c5df494d39302d6560a0f376e0e5bed66d250e6e2c490a56778",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18/1001/index.html",
+      "html_sha256": "5e232fcd3538c2bbd4ad2dc07ad74995e70cc64aea39b5757f6b84c448b68062",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18/111/index.html",
+      "html_sha256": "3b34e3017be426346fa90db0f976fe6fd65bce0bd2d6925869e11e39f5dcd117",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18/1114/index.html",
+      "html_sha256": "7f45fefceb786bec19d9c26187c7c73b00286c284c33d597b2c0bc19935edd02",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18/1001/index.html",
+      "html_sha256": "4058aeb4d2a2b295dd01d1cfd14d35aa9002c686efb9c39d4fbf15e89edda67a",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-5264964aa90d521b91e8c9f4fbe6a5e252eae8e2b7a65f091bb408bf2706c0ad/18/111/index.html",
+      "html_sha256": "bd24232fe7987f10ac7a0971141335518b515fae5ba517c35813692ba894c867",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18/1114/index.html",
+      "html_sha256": "04ff13c94c61d60f07e3780ab34b7cd624ea48d09514d3aabe2036d142295f39",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18/1001/index.html",
+      "html_sha256": "03a255e95196e0fc171a9fa26f5f92a3d4fbc1d661163926dbf87136ff7d0f25",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/collection/olrc-pilot-6048623a16c93f24943da7a2e8248d47573282e880787064b4a892c35208456b/18/111/index.html",
+      "html_sha256": "f12bd62c512ce9eb83a5db0a8b4af0e942a12d6787873db2ffef77f664d2366c",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-142/18/1114/index.html",
+      "html_sha256": "768e19a9de36684b2374dbc60df9025e66976345fb15d372068c8befda6622d2",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-142/18/1001/index.html",
+      "html_sha256": "3bece409770f0d29d2e3d9b2e9e57950de9170bc5e2c4dda404cc120b8437de1",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-142/18/111/index.html",
+      "html_sha256": "c6d1f5a2e4f816754289c1120a051226da043bea27bd14fc020956acaaf6681e",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-73/18/1114/index.html",
+      "html_sha256": "05dc36ac2b32865a4ccf5bfdc3a30eb81c496d4b1cb3f6fa9974e7b5c556132e",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-73/18/1001/index.html",
+      "html_sha256": "3932582d8ff18743d440f1422cb1661c5f02b778a3a84ca524752684080e1dd0",
+      "accepted": true
+    },
+    {
+      "path": "apps/web/dist/history/pl-119-73/18/111/index.html",
+      "html_sha256": "0350b22c536125599dca9d1ba2b34f70c27d18ac6dfb35169f3c06953e8fca3f",
+      "accepted": true
+    }
+  ],
+  "source_members": {
+    "pl-119-73": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+    "pl-119-142": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2"
+  },
+  "browser_checks": {
+    "api_github": "blocked",
+    "javascript_enabled_and_disabled": true,
+    "collection_traversals": 8,
+    "alias_checks": 4,
+    "unknown_collection_and_absent_member_404_checks": 4,
+    "result": "PASS"
+  },
+  "limits": [
+    "Existing accepted current corpus remains unchanged and is not newly source-qualified by this build.",
+    "This is a local full static build, not live deployment verification.",
+    "Source-qualified historical coverage remains3of1399 unique provisions in each edition, across retained and current compiler generations."
+  ]
+}
