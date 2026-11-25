@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content';
+import { withSubsectionAnchors } from '../../lib/anchored-entry';
 import {
   buildCourtListenerSearchUrl,
   buildOlrcSectionUrl,
@@ -148,7 +149,9 @@ const {
   sectionRegulations = [],
   regulationRefreshStatus,
 } = Astro.props;
-const { Content } = await render(entry);
+const anchoredEntry = await withSubsectionAnchors(entry);
+if (!anchoredEntry.ok) throw anchoredEntry.error;
+const { Content } = await render(anchoredEntry.value);
 
 // Compute prev/next section links (with cross-chapter fallback)
 const currentIdx = chapterSiblings.findIndex((s: typeof entry) => s.id === entry.id);

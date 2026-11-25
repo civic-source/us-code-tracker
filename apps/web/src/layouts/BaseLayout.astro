@@ -7,7 +7,7 @@ import CivicBanner from '../components/CivicBanner.astro';
 import ThemeToggle from '../components/ThemeToggle.svelte';
 import SearchBar from '../components/SearchBar.svelte';
 import BackToTop from '../components/BackToTop.svelte';
-import { TITLE_NAMES } from '../data/title-names';
+import { collectedNavigation } from '../lib/collected-navigation';
 import { getCurrentReleaseDisplay } from '../lib/release-currency';
 
 interface Props {
@@ -25,15 +25,10 @@ const {
 const base = import.meta.env.BASE_URL;
 const releaseDisplay = getCurrentReleaseDisplay();
 
-// Determine the current title number from the URL for highlighting
 const pathname = Astro.url.pathname;
-const titleMatch = pathname.match(/\/browse\/title-(\d+)/);
-const currentTitleNum = titleMatch ? Number(titleMatch[1]) : null;
-
-// Build sorted title entries
-const titleEntries = Object.entries(TITLE_NAMES)
-  .map(([num, name]) => ({ num: Number(num), name }))
-  .sort((a, b) => a.num - b.num);
+const titleMatch = pathname.match(/\/(?:browse|statute)\/title-(\d+[a-z]?)(?:\/|$)/);
+const currentTitleNum = titleMatch?.[1] ?? null;
+const titleEntries = await collectedNavigation();
 ---
 
 <!doctype html>
@@ -45,6 +40,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
     <meta name="base-url" content={base} />
+    <meta name="accepted-release" content={releaseDisplay.tag} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <link rel="alternate" type="application/rss+xml" title="US Code Tracker — Recent Updates" href={`${base}feed.xml`} />
     <!-- Open Graph -->
@@ -102,16 +98,16 @@ const titleEntries = Object.entries(TITLE_NAMES)
             class="mb-2.5 w-full rounded border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-900 placeholder-gray-400 focus:border-state-blue focus:outline-none focus:ring-1 focus:ring-state-blue dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-amber dark:focus:ring-amber"
           />
           <ul id="title-list" class="space-y-0.5 overflow-y-auto text-xs lg:max-h-[calc(100vh-270px)]">
-            {titleEntries.map(({ num, name }) => {
+            {titleEntries.map(({ id: num, name, available }) => {
               const isActive = currentTitleNum === num;
               const linkClass = isActive ? 'sidenav-link sidenav-link-active' : 'sidenav-link';
               return (
                 <li data-title-num={num} data-title-name={name.toLowerCase()}>
-                  <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
+                  {available ? <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
                     <span class="sidenav-num">{num}</span>
                     <span class="mx-1">&mdash;</span>
                     <span>{name}</span>
-                  </a>
+                  </a> : <span class="sidenav-link text-gray-500"><span class="sidenav-num">{num}</span> — {name}<span class="ml-1 text-[10px]">({num === '53' ? 'reserved; uncollected' : 'uncollected'})</span></span>}
                 </li>
               );
             })}

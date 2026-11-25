@@ -2,6 +2,7 @@ export interface CitationJump {
   title: string;
   section: string;
   display: string;
+  pinpoint?: string[];
 }
 
 /**
@@ -17,7 +18,7 @@ export function parseCitation(input: string): CitationJump | null {
   if (!trimmed) return null;
 
   // Pattern 1: Title prefix or plain number, optional U.S.C./§, section
-  const pattern = /^(?:title\s+)?(\d+[a-z]?)\s*(?:u\.?s\.?c\.?a?|title|:|§)?\s*(?:sec(?:tion)?\.?|§|:|-)?\s*(\d+[a-z]?(?:-\d+)?)$/i;
+  const pattern = /^(?:title\s+)?(\d+[a-z]?)\s*(?:u\.?s\.?c\.?a?|title|:|§)?\s*(?:sec(?:tion)?\.?|§|:|-)?\s*(\d+[a-z]*(?:-\d+[a-z]*)*)((?:\([a-zA-Z0-9]+\)){0,5})$/i;
   const match = trimmed.match(pattern);
 
   if (!match) return null;
@@ -27,9 +28,11 @@ export function parseCitation(input: string): CitationJump | null {
 
   if (!title || !section) return null;
 
+  const pinpoint = [...(match[3] ?? '').matchAll(/\(([a-zA-Z0-9]+)\)/g)].map(part => part[1]!);
   return {
     title,
     section,
-    display: `${title.toUpperCase()} U.S.C. § ${section}`,
+    display: `${title.toUpperCase()} U.S.C. § ${section}${match[3] ?? ''}`,
+    ...(pinpoint.length ? { pinpoint } : {}),
   };
 }

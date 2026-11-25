@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { filterTitles, readDirectoryState, writeDirectoryState, TITLE_FILTER_CATEGORIES as categories } from '../lib/title-directory-search';
   import type { TitleCategory } from '../data/title-categories';
 
   export interface TitleEntry {
@@ -18,8 +19,49 @@
   let { titles, totalSections }: Props = $props();
 
   let searchQuery = $state('');
-  let selectedCategory = $state<string>('All');
+  let selectedCategory = $state<TitleCategory | 'All'>('All');
   let viewMode = $state<'grid' | 'table'>('grid');
+  let queryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function restoreFilters(): void {
+    if (queryTimer !== undefined) clearTimeout(queryTimer);
+    const state = readDirectoryState(new URL(window.location.href));
+    searchQuery = state.query;
+    selectedCategory = state.category;
+  }
+
+  function rememberFilters(): void {
+    const url = writeDirectoryState(new URL(window.location.href), { query: searchQuery, category: selectedCategory });
+    if (url.href !== window.location.href) window.history.pushState(null, '', url);
+  }
+
+  function changeQuery(query: string): void {
+    searchQuery = query;
+    if (queryTimer !== undefined) clearTimeout(queryTimer);
+    queryTimer = setTimeout(rememberFilters, 250);
+  }
+
+  function changeCategory(category: TitleCategory | 'All'): void {
+    if (queryTimer !== undefined) clearTimeout(queryTimer);
+    selectedCategory = category;
+    rememberFilters();
+  }
+
+  function resetFilters(): void {
+    searchQuery = '';
+    changeCategory('All');
+  }
+
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    restoreFilters();
+    window.addEventListener('popstate', restoreFilters);
+    return () => {
+      window.removeEventListener('popstate', restoreFilters);
+      if (queryTimer !== undefined) clearTimeout(queryTimer);
+    };
+  });
+
 
   $effect(() => {
     if (typeof window === 'undefined') return;
@@ -40,29 +82,9 @@
     }
   }
 
-  const categories = [
-    'All',
-    'Administration & Governance',
-    'Judiciary & Criminal Law',
-    'Commerce, Tax & Finance',
-    'Health, Education & Resources',
-    'Defense, Security & Foreign Affairs',
-  ];
 
-  let filteredTitles = $derived(
-    titles.filter((t) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        q === '' ||
-        t.num.toLowerCase().includes(q) ||
-        t.name.toLowerCase().includes(q);
 
-      const matchesCat =
-        selectedCategory === 'All' || t.category === selectedCategory;
-
-      return matchesSearch && matchesCat;
-    })
-  );
+  let filteredTitles = $derived(filterTitles(titles, searchQuery, selectedCategory));
 
   let categoryCounts = $derived.by(() => {
     const counts: Record<string, number> = { All: titles.length };
@@ -87,7 +109,8 @@
         </div>
         <input
           type="search"
-          bind:value={searchQuery}
+          value={searchQuery}
+          oninput={(event) => changeQuery(event.currentTarget.value)}
           placeholder="Filter by title number or subject (e.g., 18, crimes, tax, patent, armed forces)..."
           class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-10 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] shadow-xs transition-colors focus:border-[var(--civic-action)] focus:outline-none focus:ring-1 focus:ring-[var(--civic-action)]"
           aria-label="Filter United States Code titles"
@@ -95,7 +118,7 @@
         {#if searchQuery}
           <button
             type="button"
-            onclick={() => { searchQuery = ''; }}
+            onclick={() => changeQuery('')}
             class="absolute inset-y-0 right-0 flex items-center pr-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
             aria-label="Clear filter"
           >
@@ -148,7 +171,7 @@
           type="button"
           role="tab"
           aria-selected={selectedCategory === cat}
-          onclick={() => { selectedCategory = cat; }}
+          onclick={() => changeCategory(cat)}
           class={`rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
             selectedCategory === cat
               ? 'bg-[var(--civic-navy)] text-white shadow-xs'
@@ -162,9 +185,11 @@
     </div>
   </div>
 
+  <noscript><p>Filters require JavaScript; the full current title directory follows.</p></noscript>
+
   <!-- Results Count Bar -->
   <div class="mb-4 flex items-center justify-between text-xs text-[var(--text-muted)]">
-    <span>
+    <span role="status" aria-live="polite" aria-atomic="true">
       Showing <strong class="text-[var(--text-primary)] tabular-nums">{filteredTitles.length}</strong> of {titles.length} titles
       {#if searchQuery}
         for "<span class="font-medium text-[var(--text-primary)]">{searchQuery}</span>"
@@ -280,7 +305,7 @@
       <p class="mt-1 text-xs text-[var(--text-muted)]">No titles match "{searchQuery}" in "{selectedCategory}".</p>
       <button
         type="button"
-        onclick={() => { searchQuery = ''; selectedCategory = 'All'; }}
+        onclick={resetFilters}
         class="mt-4 inline-flex items-center rounded-lg bg-[var(--civic-navy)] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[var(--civic-navy-dark)] cursor-pointer"
       >
         Reset filters

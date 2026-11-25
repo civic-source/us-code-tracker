@@ -1,5 +1,7 @@
 <script lang="ts">
   import { sanitizeExcerpt } from "../lib/sanitize";
+  import { searchEditionScope } from "../lib/search-edition";
+  import { publishedCitation, retainedCitation } from "../lib/published-citation";
   import { parseCitation } from "../lib/citation-parser";
 
   // Pagefind types for the dynamically imported module
@@ -79,25 +81,32 @@
 
   let citationJump = $derived(parseCitation(query));
 
-  function resolveCitationJumpUrl(jump: { title: string; section: string }): string {
-    const base = getBaseUrl();
-    if (selectedRelease !== 'current') {
-      const shard = shardCache.get(`${selectedRelease}__title-${jump.title}`);
-      const match = shard?.entries.find(
-        (e) => e.uscTitle === jump.title && e.uscSection === jump.section
-      );
-      if (match) return match.historicalUrl;
-      return `${base}browse/title-${jump.title}/?release=${encodeURIComponent(selectedRelease)}#section-${jump.section}`;
-    }
-    return `${base}browse/title-${jump.title}/#section-${jump.section}`;
-  }
+  let citationJumpHref = $state<string | null>(null);
+  let citationRouteWarning = $state<string | null>(null);
 
-  let citationJumpHref = $derived(
-    citationJump
-      ? (results.find((r) => r.url.includes(`/section-${citationJump.section}/`))?.url ??
-          resolveCitationJumpUrl(citationJump))
-      : '#'
-  );
+  $effect(() => {
+    const jump = citationJump;
+    const release = selectedRelease;
+    void results;
+    citationJumpHref = null;
+    citationRouteWarning = null;
+    let stale = false;
+    if (jump) {
+      if (release === 'current') {
+        publishedCitation(jump, getBaseUrl()).then(result => {
+          if (stale) return;
+          if (result.ok) citationJumpHref = result.value;
+          else citationRouteWarning = `${result.error.message}. Browse available titles or check the official source.`;
+        });
+      } else {
+        const retained = shardCache.get(`${release}__title-${jump.title}`);
+        const result = retainedCitation(retained?.entries ?? [], release, jump, getBaseUrl());
+        if (result.ok) citationJumpHref = result.value;
+        else citationRouteWarning = 'Exact historical citation routing requires a retained source for this edition; current law is not substituted.';
+      }
+    }
+    return () => { stale = true; };
+  });
 
   function getBaseUrl(): string {
     if (typeof document !== 'undefined') {
@@ -110,10 +119,12 @@
 
   // Load Pagefind + historical shard manifest on mount + register "/" shortcut
   $effect(() => {
+    selectedRelease = searchEditionScope(new URL(window.location.href).searchParams.get('release'),
+      document.querySelector('meta[name="accepted-release"]')?.getAttribute('content') ?? '');
     loadPagefind();
     loadHistoricalManifest();
     function onGlobalKeydown(e: KeyboardEvent): void {
-      if (e.key === '/' && !devMode && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         document.getElementById('search-input')?.focus();
       }
@@ -183,6 +194,8 @@
   async function performSearch(q: string): Promise<void> {
     historicalWarning = null;
     if (!pagefind || q.length === 0) {
+      results = [];
+      if (q.length && !pagefind) historicalWarning = 'Full-text search is unavailable; exact citation lookup remains available.';
       loading = false;
       return;
     }
@@ -293,7 +306,7 @@
       return;
     }
 
-    if (!showResults || results.length === 0) return;
+    if (!showResults) return;
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -305,7 +318,7 @@
       if (activeIndex >= 0 && results[activeIndex]) {
         event.preventDefault();
         window.location.href = results[activeIndex].url;
-      } else if (citationJump) {
+      } else if (citationJumpHref) {
         event.preventDefault();
         window.location.href = citationJumpHref;
       }
@@ -316,7 +329,6 @@
 <div class="relative min-w-0 w-full font-sans space-y-1" role="search">
   <label for="search-input" class="sr-only">Search the US Code</label>
   <noscript><p class="text-xs">Search requires JavaScript. <a href={`${getBaseUrl()}browse/`} class="underline">Browse all titles</a>.</p></noscript>
-  {#if historicalManifest && historicalManifest.availableReleases.length > 0}
     <div class="flex items-center justify-between gap-1 text-[10px]">
       <label for="search-release-scope" class="text-gray-500 dark:text-gray-400">Scope:</label>
       <select
@@ -325,12 +337,14 @@
         class="min-w-0 max-w-full flex-1 rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
       >
         <option value="current">Current Law</option>
-        {#each historicalManifest.availableReleases as rel}
+        {#if selectedRelease !== 'current' && !historicalManifest?.availableReleases.some(rel => rel.releaseId === selectedRelease)}
+          <option value={selectedRelease}>Requested edition: {selectedRelease} (unavailable)</option>
+        {/if}
+        {#each (historicalManifest?.availableReleases ?? []) as rel}
           <option value={rel.releaseId}>{rel.label} ({rel.coverageState})</option>
         {/each}
       </select>
     </div>
-  {/if}
   <div class="relative">
     <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -340,8 +354,7 @@
     <input
       id="search-input"
       type="search"
-      placeholder={devMode && selectedRelease === 'current' ? 'Search available in production build' : 'Search (press /)'}
-      disabled={devMode && selectedRelease === 'current'}
+      placeholder={devMode && selectedRelease === 'current' ? 'Enter an exact citation (full-text unavailable)' : 'Search (press /)'}
       bind:value={query}
       onfocusin={() => { if (query.length > 0) showResults = true; }}
       onfocusout={closeResults}
@@ -369,7 +382,10 @@
           {historicalWarning}
         </li>
       {/if}
-      {#if citationJump}
+      {#if citationRouteWarning}
+        <li role="presentation" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">{citationRouteWarning}</li>
+      {/if}
+      {#if citationJump && citationJumpHref}
         <li role="presentation" class="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-850">
           <a
             href={citationJumpHref}
