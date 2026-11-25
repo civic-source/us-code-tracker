@@ -16,7 +16,7 @@ function validatePin(pin: SourceBlobPin): void {
 
 async function pinnedBytes(path: string, pin: SourceBlobPin): Promise<Buffer> {
   validatePin(pin);
-  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const stat = await file.stat();
     if (!stat.isFile() || stat.nlink !== 1 || stat.size !== pin.byteLength) throw new Error('Retained source identity or size mismatch');
@@ -84,7 +84,7 @@ async function adoptVerifiedSource(options: SourceAdoption, stage: AdoptionStage
     try { await file.writeFile(bytes); await file.sync(); }
     finally { await file.close(); }
     await link(stage.path, target);
-    await unlink(stage.path); stage.path = undefined;
+    await unlink(stage.path); delete stage.path;
     const directory = await open(options.cacheDir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     try { await directory.sync(); } finally { await directory.close(); }
     await pinnedBytes(target, options.pin);

@@ -1,0 +1,8 @@
+{
+  "basis": "derived-test-envelope-not-original-member",
+  "sourceArchiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+  "sourceMemberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+  "sectionIdentifier": "/us/usc/t18/s31",
+  "derivedSha256": "cff9b0ca20c706fea73d96c71097e5ff59e0e1802684dbc891459f20a368d69a",
+  "derivedByteLength": 17307
+}

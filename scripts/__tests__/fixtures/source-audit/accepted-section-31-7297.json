@@ -1,0 +1,8 @@
+{
+  "basis": "exact-persisted-regression-fixture-not-current-source-acceptance",
+  "repository": "civic-source/us-code",
+  "commit": "7297bf86fe00c0f850e1da9df5af5a03383fea70",
+  "path": "statutes/title-18/chapter-2/section-31.md",
+  "gitBlob": "460214c2b56e77f4c6c32804e1d0c5f4ed0ef86c",
+  "sha256": "4ec7ff4ed0e38f3c6c8ce383a7ee47c893a3bdf590eb0934b91c2d8bee7b63c0"
+}
