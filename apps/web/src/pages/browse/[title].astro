@@ -4,6 +4,9 @@ import { compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import TitleFilter from '../../components/TitleFilter.svelte';
+import { routeCoordinates } from '../../lib/citation-routes';
+import { officialChapterHeading } from '../../lib/chapter-headings';
+import { getCurrentReleaseDisplay } from '../../lib/release-currency';
 import { TITLE_NAMES } from '../../data/title-names';
 
 export async function getStaticPaths() {
@@ -46,16 +49,18 @@ function sectionChangedIn(section: string): string[] {
 }
 
 // Group entries by chapter, sort sections within each
-const byChapter = new Map<number, typeof entries>();
+const byChapter = new Map<string, typeof entries>();
 for (const entry of entries) {
-  const ch = entry.data.chapter;
+  const coordinates = routeCoordinates(entry.id);
+  if (!coordinates.ok) throw coordinates.error;
+  const ch = coordinates.value.chapter;
   if (!byChapter.has(ch)) {
     byChapter.set(ch, []);
   }
   byChapter.get(ch)!.push(entry);
 }
 
-const sortedChapters = [...byChapter.entries()].sort((a, b) => a[0] - b[0]);
+const sortedChapters = [...byChapter.entries()].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true }));
 for (const [, chapterEntries] of sortedChapters) {
   chapterEntries.sort((a, b) => compareSectionNumbers(a.data.usc_section, b.data.usc_section));
 }
@@ -75,10 +80,11 @@ interface SectionView {
 }
 
 interface ChapterView {
-  chapterNum: number;
+  chapterNum: string;
   activeCount: number;
   inactiveCount: number;
   chapterHint: string | undefined;
+  officialHeading: string | null;
   sections: SectionView[];
 }
 
@@ -114,7 +120,7 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
     return { id: entry.id, uscSection: entry.data.usc_section, displayTitle, isInactive, statusLabel, lastChange, lastChangeLabel };
   });
 
-  return { chapterNum, activeCount, inactiveCount, chapterHint, sections };
+  return { chapterNum, activeCount, inactiveCount, chapterHint, sections, officialHeading: officialChapterHeading(getCurrentReleaseDisplay().tag, titleNum, String(chapterNum)) };
 });
 ---
 
@@ -178,8 +184,8 @@ const chapters: ChapterView[] = sortedChapters.map(([chapterNum, chapterEntries]
             >
               Ch. {ch.chapterNum}
             </a>
-            {ch.chapterHint && (
-              <span class="truncate text-xs text-slate dark:text-gray-400">&mdash; {ch.chapterHint}</span>
+            {(ch.officialHeading || ch.chapterHint) && (
+              <span class="truncate text-xs text-slate dark:text-gray-400">&mdash; {ch.officialHeading ?? `Example provision: ${ch.chapterHint}`}</span>
             )}
           </span>
           <span class="ml-auto flex items-center gap-2 text-xs text-gray-400">

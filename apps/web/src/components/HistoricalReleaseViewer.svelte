@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { isAcceptedCurrentRelease } from '../lib/accepted-release-context';
 
   interface Props {
     uscTitle: string | number;
     uscSection: string;
     currentRelease: string;
+    acceptedDataTag?: string;
   }
 
   interface HistoricalReleaseMeta {
@@ -66,7 +68,7 @@
     shardDigest: string;
   }
 
-  let { uscTitle, uscSection, currentRelease }: Props = $props();
+  let { uscTitle, uscSection, currentRelease, acceptedDataTag = '' }: Props = $props();
 
   let requestedRelease = $state<string | null>(null);
   let loading = $state(false);
@@ -82,10 +84,6 @@
     }
     const envBase = import.meta.env.BASE_URL || '/us-code-tracker/';
     return envBase.endsWith('/') ? envBase : `${envBase}/`;
-  }
-
-  function normalizeReleaseSlug(raw: string): string {
-    return raw.toLowerCase().replace(/^public law\s+/i, 'pl-').replace(/\s+/g, '-');
   }
 
   function preserveReleaseInNav(releaseId: string): void {
@@ -117,8 +115,7 @@
     if (!param || !param.trim()) return;
 
     const cleanParam = param.trim();
-    const currentSlug = normalizeReleaseSlug(currentRelease);
-    if (normalizeReleaseSlug(cleanParam) === currentSlug) {
+    if (isAcceptedCurrentRelease(cleanParam, acceptedDataTag || currentRelease)) {
       return;
     }
 
@@ -187,6 +184,14 @@
     }
   });
 </script>
+
+<noscript>
+  <section data-edition-query-unavailable aria-label="Edition selection without JavaScript" class="not-prose mb-4 rounded border border-amber-600 p-3 text-sm">
+    <p>This page's static text uses publisher release {currentRelease}; accepted data tag: {acceptedDataTag || 'not supplied'}.</p>
+    <p>Query parameters do not select another edition without JavaScript. Another or unknown requested edition is unavailable in this view; the text below is not a substitute for it.</p>
+    <a href="https://uscode.house.gov/download.html">Consult the official source editions</a>
+  </section>
+</noscript>
 
 {#if requestedRelease}
   <section

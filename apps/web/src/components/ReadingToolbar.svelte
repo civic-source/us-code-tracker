@@ -76,10 +76,12 @@
   }
 </script>
 
+<details class="reading-preferences not-prose mb-4 font-sans text-sm">
+  <summary class="cursor-pointer rounded py-2 font-medium text-[var(--civic-action)] focus-visible:outline-2 focus-visible:outline-offset-2">Reading preferences and version history</summary>
 <div
   role="toolbar"
   aria-label="Reader customization controls"
-  class="not-prose mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-[var(--border-default)] py-2 font-sans text-xs"
+  class="not-prose mt-2 mb-2 flex flex-wrap items-center justify-between gap-3 border-y border-[var(--border-default)] py-2 font-sans text-xs"
 >
   <!-- Reading Preferences -->
   <div class="flex flex-wrap items-center gap-2">
@@ -136,3 +138,5 @@
     </a>
   </div>
 </div>
+
+</details>

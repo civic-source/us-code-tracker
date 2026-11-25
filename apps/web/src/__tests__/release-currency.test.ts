@@ -24,8 +24,9 @@ describe('release-currency helper', () => {
 
     expect(formatReleaseTag('pl-119-73-rev2')).toEqual({
       tag: 'pl-119-73-rev2',
-      shortLabel: 'PL 119-73-rev2',
-      formalLabel: 'Pub. L. 119-73-rev2',
+      shortLabel: 'PL 119-73',
+      formalLabel: 'Pub. L. 119-73',
+      dataRevision: 2,
     });
   });
 

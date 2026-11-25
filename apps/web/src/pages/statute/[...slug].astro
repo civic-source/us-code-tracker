@@ -1,9 +1,11 @@
 ---
 import { getCollection, render } from 'astro:content';
+import { routeCoordinates } from '../../lib/citation-routes';
+import { sectionNavigation, sectionSourcePath } from '../../lib/section-navigation';
+import { withSubsectionAnchors } from '../../lib/anchored-entry';
 import {
   buildCourtListenerSearchUrl,
   buildOlrcSectionUrl,
-  compareSectionNumbers,
 } from '@civic-source/shared';
 import type { ImplementingRegulation, SourceRefreshMeta } from '@civic-source/types';
 import type { CaseAnnotation } from '../../lib/types';
@@ -35,56 +37,12 @@ export async function getStaticPaths() {
     regulationsMap.set(reg.id, reg);
   }
 
-  // Pre-compute chapter siblings for each entry
-  const byTitleChapter = new Map<string, typeof entries>();
-  for (const entry of entries) {
-    const key = `${entry.data.usc_title}-${entry.data.chapter}`;
-    if (!byTitleChapter.has(key)) {
-      byTitleChapter.set(key, []);
-    }
-    byTitleChapter.get(key)!.push(entry);
-  }
-
-  // Sort each chapter's sections using natural legal section comparison
-  for (const [, chapterEntries] of byTitleChapter) {
-    chapterEntries.sort((a, b) => compareSectionNumbers(a.data.usc_section, b.data.usc_section));
-  }
-
-  // Pre-compute sorted chapter list per title for cross-chapter nav
-  const titleChapters = new Map<string, number[]>();
-  for (const [key] of byTitleChapter) {
-    const [titleStr, chapterStr] = key.split('-');
-    const titleNum = titleStr ?? '';
-    const chapterNum = parseInt(chapterStr ?? '0', 10);
-    if (!titleChapters.has(titleNum)) titleChapters.set(titleNum, []);
-    titleChapters.get(titleNum)!.push(chapterNum);
-  }
-  for (const [, chapters] of titleChapters) {
-    chapters.sort((a, b) => a - b);
-  }
-
+  const navigation = sectionNavigation(entries);
+  if (!navigation.ok) throw navigation.error;
   return entries.map((entry) => {
-    const key = `${entry.data.usc_title}-${entry.data.chapter}`;
-    const chapterSiblings = byTitleChapter.get(key) ?? [];
-    const titleNum = entry.data.usc_title;
-    const chapterNum = entry.data.chapter;
-    const chapters = titleChapters.get(titleNum) ?? [];
-    const chapterIdx = chapters.indexOf(chapterNum);
-
-    // Cross-chapter boundary links
-    let prevChapterLast: typeof entry | null = null;
-    let nextChapterFirst: typeof entry | null = null;
-
-    if (chapterIdx > 0) {
-      const prevCh = chapters[chapterIdx - 1];
-      const prevEntries = byTitleChapter.get(`${titleNum}-${prevCh}`) ?? [];
-      prevChapterLast = prevEntries.length > 0 ? prevEntries[prevEntries.length - 1] ?? null : null;
-    }
-    if (chapterIdx < chapters.length - 1) {
-      const nextCh = chapters[chapterIdx + 1];
-      const nextEntries = byTitleChapter.get(`${titleNum}-${nextCh}`) ?? [];
-      nextChapterFirst = nextEntries.length > 0 ? nextEntries[0] ?? null : null;
-    }
+    const neighbors = navigation.value.get(entry.id);
+    if (!neighbors) throw new Error('Missing collected section navigation');
+    const { chapterSiblings, prevChapterLast, nextChapterFirst } = neighbors;
 
     const sidecarId = `title-${entry.data.usc_title}/section-${entry.data.usc_section}`;
     const annotation = annotationsMap.get(sidecarId);
@@ -150,7 +108,9 @@ const {
   sectionRegulations = [],
   regulationRefreshStatus,
 } = Astro.props;
-const { Content } = await render(entry);
+const anchoredEntry = await withSubsectionAnchors(entry);
+if (!anchoredEntry.ok) throw anchoredEntry.error;
+const { Content } = await render(anchoredEntry.value);
 
 // Compute prev/next section links (with cross-chapter fallback)
 const currentIdx = chapterSiblings.findIndex((s: typeof entry) => s.id === entry.id);
@@ -169,10 +129,15 @@ const windowStart =
     : Math.max(0, Math.min(currentIdx - SIBLING_RADIUS, chapterSiblings.length - MAX_NEARBY_SIBLINGS));
 const nearbySiblings = chapterSiblings.slice(windowStart, windowStart + MAX_NEARBY_SIBLINGS);
 
-const { usc_title, usc_section, chapter, classification, current_through, generated_at } = entry.data;
+const { usc_title, usc_section, classification, current_through, generated_at } = entry.data;
+const coordinates = routeCoordinates(entry.id);
+if (!coordinates.ok) throw coordinates.error;
+const chapter = coordinates.value.chapter;
 
 // Build the file path in the us-code repo for DiffViewer
-const sectionPath = `statutes/title-${usc_title}/chapter-${chapter}/section-${usc_section}.md`;
+const sourcePath = sectionSourcePath(entry);
+if (!sourcePath.ok) throw sourcePath.error;
+const sectionPath = sourcePath.value;
 
 const base = import.meta.env.BASE_URL;
 
@@ -359,7 +324,7 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
         </aside>
       )}
       <!-- Main statute content -->
-      <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} />
+      <HistoricalReleaseViewer client:load uscTitle={usc_title} uscSection={usc_section} currentRelease={current_through} acceptedDataTag={publicationReceipt.acceptedDataTag} />
       <div
         id="current-statute-body"
         data-base={base}
@@ -385,14 +350,14 @@ const readingTimeMin = Math.max(1, Math.round(wordCount / 200));
       <nav id="statute-section-nav" data-pagefind-ignore class="not-prose mt-8 flex items-center justify-between border-t border-[var(--border-default)] pt-4 font-sans" aria-label="Section navigation">
         {prevSection ? (
           <a href={`${base}statute/${prevSection.id}/`} class="flex flex-col gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%]">
-            <span class="text-[11px] text-[var(--text-muted)]">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.data.chapter})` : ''}</span>
+            <span class="text-[11px] text-[var(--text-muted)]">&larr; Previous{prevIsCrossChapter ? ` (Ch. ${prevSection.id.split('/')[1]?.replace(/^chapter-/, '')})` : ''}</span>
             <span class="text-sm font-semibold text-[var(--civic-action)]">&sect; {prevSection.data.usc_section}</span>
             <span class="truncate text-xs text-[var(--text-muted)]">{prevSection.data.title.replace(/^Section \S+ - /, '')}</span>
           </a>
         ) : <span></span>}
         {nextSection ? (
           <a href={`${base}statute/${nextSection.id}/`} class="flex flex-col items-end gap-0.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-sunken)] max-w-[45%] ml-auto text-right">
-            <span class="text-[11px] text-[var(--text-muted)]">Next{nextIsCrossChapter ? ` (Ch. ${nextSection.data.chapter})` : ''} &rarr;</span>
+            <span class="text-[11px] text-[var(--text-muted)]">Next{nextIsCrossChapter ? ` (Ch. ${nextSection.id.split('/')[1]?.replace(/^chapter-/, '')})` : ''} &rarr;</span>
             <span class="text-sm font-semibold text-[var(--civic-action)]">&sect; {nextSection.data.usc_section}</span>
             <span class="truncate text-xs text-[var(--text-muted)]">{nextSection.data.title.replace(/^Section \S+ - /, '')}</span>
           </a>

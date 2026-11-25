@@ -1,0 +1,27 @@
+{
+  "releaseId": "pl-119-142",
+  "uscTitle": "18",
+  "sourceUrl": "https://uscode.house.gov/download/releasepoints/us/pl/119/142/xml_usc18@119-142.zip",
+  "archiveSha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+  "archiveBytes": 1972686,
+  "member": "usc18.xml",
+  "memberSha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+  "memberBytes": 12138748,
+  "witnesses": [
+    {
+      "chapterId": "1",
+      "heading": "GENERAL PROVISIONS",
+      "chapter_identifier": "/us/usc/t18/ptI/ch1",
+      "chapter_id": "idd320e251-b5bd-11f1-a405-86f9ef1fd617",
+      "source_num_text": "CHAPTER 1\u2014"
+    },
+    {
+      "chapterId": "7",
+      "heading": "ASSAULT",
+      "chapter_identifier": "/us/usc/t18/ptI/ch7",
+      "chapter_id": "idd32f137b-b5bd-11f1-a405-86f9ef1fd617",
+      "source_num_text": "CHAPTER 7\u2014"
+    }
+  ],
+  "scope": "Exactly two direct chapter headings; no claim for other chapter headings or source-text fidelity."
+}
