@@ -4,7 +4,7 @@ import { USLM_ELEMENTS, INDENT_PER_LEVEL, MAX_NESTING_DEPTH } from './constants.
 import { extractTextFromNodes, findElements, getElementName, extractHeading } from './xml-utils.js';
 import {
   FrontmatterSchema, detectSectionStatus, generateFrontmatter, buildSectionPath,
-  formatListItem, nestingDepthFor,
+  formatListItem,
 } from './markdown-format.js';
 import {
   extractStructuredNotes, extractStructuredTables, formatTableMarkdown,
@@ -140,7 +140,7 @@ function walkListElements(
 
     const marker = extractMarker(itemChildren);
     const text = [extractHeading(itemChildren), extractContent(itemChildren)].filter(Boolean).join(' ');
-    const childDepth = nestingDepthFor(elemName);
+    const childDepth = depth;
 
     if (marker || text) {
       lines.push(formatListItem(marker, text, childDepth));

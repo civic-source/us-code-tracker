@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "usct.historical-generations/v1",
+  "generations": [
+    {
+      "recipeSha256": "3c19099e859fe3e6c807ebffd5c01fa2d25d230fa2ac38be03900fdcb4e1a5ad",
+      "materializationsSha256": "14472b9dc765216b600292e9df1dbb70d51783748129fd4afee7a1827bfeaeec",
+      "qualificationSha256": "7c2223c252fab82b04329eedaf9a3328f3b833ca4f6177316b9307daf368ba05"
+    },
+    {
+      "recipeSha256": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+      "materializationsSha256": "e88771767d692f0f2c7e10d6c43b8ac4610eae60cee1cf31e49c993136f8af75",
+      "qualificationSha256": "ca6d4e7b6fa0db5f9bb9e8002e75a0f3cc83356d251efc64e487beab6328b0bd"
+    }
+  ],
+  "active": {
+    "pl-119-73": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f",
+    "pl-119-142": "ec6bdb638f414a142a29770af66d4e2895664bfc0290e168d17d6ac67e9c4d3f"
+  }
+}

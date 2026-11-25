@@ -55,7 +55,7 @@ export function retainedCitation(entries: readonly RetainedRoute[], release: str
     if (!anchor.ok) return anchor;
     const publisher = entry.publisherReleaseId ?? '';
     const coordinates = /^olrc-pilot-[a-f0-9]{64}$/.test(release) && /^pl-[0-9]+-[0-9]+$/.test(publisher) && /^[0-9]+$/.test(jump.title) && /^[0-9]+[a-z]*$/.test(jump.section);
-    const expected = `${base}history/${publisher}/${jump.title}/${jump.section}/`;
+    const expected = `${base}history/collection/${release}/${jump.title}/${jump.section}/`;
     if (!coordinates || !/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(base) || entry.historicalUrl !== expected ||
       entry.sourceQualification.releaseId !== publisher || entry.sourceQualification.sectionIdentifier !== `/us/usc/t${jump.title}/s${jump.section}`) {
       return err(new Error('Source-qualified historical route identity mismatch'));
