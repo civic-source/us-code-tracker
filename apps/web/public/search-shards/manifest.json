@@ -33,7 +33,8 @@
       "observedAt": "2026-11-25T00:02:04.000Z",
       "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
       "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
-      "sourceUrl": "https://uscode.house.gov/download.html"
+      "sourceUrl": "https://uscode.house.gov/download.html",
+      "replacementPath": "history/pl-119-73/18/111/"
     },
     {
       "releaseId": "pl-119-73",
@@ -44,7 +45,8 @@
       "observedAt": "2026-11-25T00:02:04.000Z",
       "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
       "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
-      "sourceUrl": "https://uscode.house.gov/download.html"
+      "sourceUrl": "https://uscode.house.gov/download.html",
+      "replacementPath": "history/pl-119-73/18/1001/"
     }
   ],
   "availableReleases": [
@@ -55,8 +57,8 @@
         "18"
       ],
       "missingTitles": [
-        "title-18/section-111",
-        "title-18/section-1001"
+        "title-18/section-1001",
+        "title-18/section-111"
       ],
       "coverageState": "partial"
     },
@@ -67,9 +69,27 @@
         "18"
       ],
       "missingTitles": [
-        "title-18/section-111",
-        "title-18/section-1001"
+        "title-18/section-1001",
+        "title-18/section-111"
       ],
+      "coverageState": "partial"
+    },
+    {
+      "releaseId": "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba",
+      "label": "Online@119-73 (source-qualified pilot, 3 of 1399)",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
+      "coverageState": "partial"
+    },
+    {
+      "releaseId": "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0",
+      "label": "Online@119-142 (source-qualified pilot, 3 of 1399)",
+      "titlesAvailable": [
+        "18"
+      ],
+      "missingTitles": [],
       "coverageState": "partial"
     }
   ],
@@ -83,6 +103,16 @@
       "shardPath": "search-shards/pl-119-73__title-18.json",
       "shardDigest": "f343f41a39d49e75a2532a9b03ad8117a2e9e19e4487dbf7e5a83e7b3a9560d5",
       "entryCount": 6
+    },
+    "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba__title-18": {
+      "shardPath": "search-shards/olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba__title-18.json",
+      "shardDigest": "ca459738c8564e94f4e67128bdaf5d9390a2668675c43e08171b340bcb989f4f",
+      "entryCount": 3
+    },
+    "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0__title-18": {
+      "shardPath": "search-shards/olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0__title-18.json",
+      "shardDigest": "3c0d6db6c7e5356f78b666e9d2f434681dc3056de80c7a857c906511f9320714",
+      "entryCount": 3
     }
   }
 }

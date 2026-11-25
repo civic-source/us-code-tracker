@@ -55,8 +55,14 @@ describe.runIf(PG_AVAILABLE)('PostgreSQL 16 + Apache Parquet + DuckDB E2E Integr
       dataRepoPath,
     });
 
+    expect(Buffer.byteLength(JSON.stringify(catalog.getSnapshot()))).toBeGreaterThan(128 * 1024);
+
     // 1. Sync full 15-entity canonical catalog to real PostgreSQL 16 and read back
-    const syncRes = await syncCatalogToPostgres(catalog, DEFAULT_POSTGRES_URL, { resetFirst: true });
+    const { catalog: legacyCatalog } = await buildCanonicalVerticalSlice({
+      sliceDir: join(sliceWorkDir, 'legacy-control'), dataRepoPath, legacyOnly: true,
+    });
+    expect((await syncCatalogToPostgres(legacyCatalog, DEFAULT_POSTGRES_URL, { resetFirst: true })).ok).toBe(true);
+    const syncRes = await syncCatalogToPostgres(catalog, DEFAULT_POSTGRES_URL, { resetFirst: false });
     expect(syncRes.ok).toBe(true);
     if (!syncRes.ok) return;
     expect(syncRes.value.tablesWritten).toBe(15);
@@ -78,8 +84,25 @@ describe.runIf(PG_AVAILABLE)('PostgreSQL 16 + Apache Parquet + DuckDB E2E Integr
     expect(ftsRes.value.length).toBeGreaterThan(0);
     expect(ftsRes.value[0]?.provisionId).toBe('prov-18-371');
     expect(ftsRes.value[0]?.evidenceSpans).toEqual([]);
+    const sourceCollection = catalog.getSnapshot().releases.find(release => release.publisherReleaseId === 'pl-119-73')!.releaseId;
     const withdrawn = await queryPostgresLexical({ query: '18 U.S.C. 1001', releaseId: 'pl-119-73' }, DEFAULT_POSTGRES_URL);
     expect(withdrawn.ok && withdrawn.value).toEqual([]);
+    const qualified = await queryPostgresLexical({ query: '18 U.S.C. 1001', releaseId: sourceCollection }, DEFAULT_POSTGRES_URL);
+    expect(qualified.ok).toBe(true);
+    if (!qualified.ok) throw qualified.error;
+    expect(qualified.value).toHaveLength(1);
+    expect(qualified.value[0]?.provisionVersionId).toMatch(/^pv-olrc-pilot-/);
+    expect(qualified.value.some(item => item.provisionVersionId === 'pv-18-1001-pl-119-73')).toBe(false);
+    const original = catalog.getSnapshot().provisionVersions.find(item => item.provisionVersionId === qualified.value[0]!.provisionVersionId)!;
+    const alterBody = (body: string) => execFileSync('python3', ['-c',
+      'import json,sys,psycopg2; p=json.load(sys.stdin); c=psycopg2.connect(sys.argv[1]); cur=c.cursor(); cur.execute("UPDATE provision_versions SET body_markdown=%s WHERE provision_version_id=%s",(p["body"],p["id"])); c.commit(); c.close()',
+      DEFAULT_POSTGRES_URL], { input: JSON.stringify({ id: original.provisionVersionId, body }), stdio: ['pipe', 'pipe', 'pipe'] });
+    try {
+      alterBody('Unreviewed replacement under a previously qualified identity');
+      const corrupted = await queryPostgresLexical({ query: '18 U.S.C. 1001', releaseId: sourceCollection }, DEFAULT_POSTGRES_URL);
+      expect(corrupted.ok && corrupted.value).toEqual([]);
+    } finally { alterBody(original.bodyMarkdown); }
+
 
     // 3. Immutable conflict rejection in real PostgreSQL transaction (AUD-002 / USCT-009)
     const mutatedSnap = catalog.getSnapshot();

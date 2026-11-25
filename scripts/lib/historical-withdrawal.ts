@@ -158,8 +158,11 @@ export function historicalSourceGaps(snapshot: CatalogStateSnapshot) {
     const provisionId = `prov-18-${section}`;
     if (!snapshot.releases.some((release) => release.releaseId === releaseId) ||
       snapshot.memberships.some((member) => member.sourceReleaseId === releaseId && member.provisionId === provisionId)) return [];
+    const replacement = snapshot.provisionVersions.some(version => version.uscSection === section &&
+      version.sourceQualification?.releaseId === releaseId);
     return [{ releaseId, provisionId, uscTitle: '18', uscSection: section,
-      ...HISTORICAL_SOURCE_CORRECTION }];
+      ...HISTORICAL_SOURCE_CORRECTION,
+      ...(replacement ? { replacementPath: `history/${releaseId}/18/${section}/` } : {}) }];
   }));
 }
 

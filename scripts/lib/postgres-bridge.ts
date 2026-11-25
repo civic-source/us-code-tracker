@@ -16,6 +16,8 @@ import {
   type WorkbenchLexicalHit,
 } from './workbench-catalog.js';
 
+import { runPythonPgScript } from './postgres-payload.js';
+import { reviewedHistoricalVersions, historicalCollectionIdentity } from './historical-qualification.js';
 import { historicalWithdrawalIdentifiers } from './historical-withdrawal.js';
 
 const execFileAsync = promisify(execFile);
@@ -23,25 +25,6 @@ const execFileAsync = promisify(execFile);
 export const DEFAULT_POSTGRES_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://usct:usct@127.0.0.1:54329/usct_workbench';
 
-async function runPythonPgScript<T>(script: string, payload: unknown, dbUrl = DEFAULT_POSTGRES_URL): Promise<Result<T>> {
-  try {
-    const { stdout } = await execFileAsync(
-      'python3',
-      ['-c', script, dbUrl],
-      {
-        maxBuffer: 64 * 1024 * 1024,
-        env: { ...process.env, PG_PAYLOAD_JSON: JSON.stringify(payload) },
-      }
-    );
-    const parsed = JSON.parse(stdout.trim()) as { ok: boolean; data?: T; error?: string };
-    if (!parsed.ok) {
-      return err(new Error(parsed.error ?? 'PostgreSQL operation failed'));
-    }
-    return ok(parsed.data as T);
-  } catch (e: unknown) {
-    return err(e instanceof Error ? e : new Error(String(e)));
-  }
-}
 
 /**
  * Apply the full 17-table PostgreSQL DDL migration (15 catalog entity tables + 2 durable task fencing tables).
@@ -55,7 +38,7 @@ export async function migratePostgres(
 import json, os, sys, psycopg2
 
 db_url = sys.argv[1]
-payload = json.loads(os.environ["PG_PAYLOAD_JSON"])
+payload = json.load(open(os.environ["PG_PAYLOAD_FILE"], encoding="utf-8"))
 conn = psycopg2.connect(db_url)
 try:
     with conn:
@@ -105,7 +88,7 @@ export async function syncCatalogToPostgres(
 import json, os, sys, psycopg2
 
 db_url = sys.argv[1]
-snap = json.loads(os.environ["PG_PAYLOAD_JSON"])
+snap = json.load(open(os.environ["PG_PAYLOAD_FILE"], encoding="utf-8"))
 conn = psycopg2.connect(db_url)
 rows = 0
 try:
@@ -350,7 +333,7 @@ export async function syncTaskCoordinatorToPostgres(
 import json, os, sys, psycopg2
 
 db_url = sys.argv[1]
-state = json.loads(os.environ["PG_PAYLOAD_JSON"])
+state = json.load(open(os.environ["PG_PAYLOAD_FILE"], encoding="utf-8"))
 conn = psycopg2.connect(db_url)
 try:
     with conn:
@@ -435,7 +418,7 @@ export async function queryPostgresLexical(
 import json, os, sys, psycopg2
 
 db_url = sys.argv[1]
-p = json.loads(os.environ["PG_PAYLOAD_JSON"])
+p = json.load(open(os.environ["PG_PAYLOAD_FILE"], encoding="utf-8"))
 q = (p.get("query") or "").strip()
 release_id = p.get("releaseId")
 usc_title = p.get("uscTitle")
@@ -444,6 +427,8 @@ limit = int(p.get("limit", 25))
 withdrawal = p["withdrawal"]
 withdrawn_versions = set(withdrawal["versionIds"])
 withdrawn_hashes = set(withdrawal["artifactDigests"])
+reviewed_versions = {item["provisionVersionId"]: item for item in p["reviewedHistoricalVersions"]}
+reviewed_collections = p["reviewedHistoricalCollections"]
 
 conn = psycopg2.connect(db_url)
 try:
@@ -487,6 +472,15 @@ try:
                 pv_id, prov_id, title, sec, heading, body, pv_json, fts_rank = r
                 if pv_id in withdrawn_versions or any(ev_map.get(eid, {}).get("artifactSha256") in withdrawn_hashes for eid in pv_json.get("evidenceIds", [])):
                     continue
+                source_qualified = pv_id.startswith("pv-olrc-pilot-") or pv_json.get("sourceQualification") is not None
+                if source_qualified:
+                    approved = reviewed_versions.get(pv_id)
+                    if not approved or pv_json != approved:
+                        continue
+                    if [prov_id, title, sec, heading, body] != [approved["provisionId"], approved["uscTitle"], approved["uscSection"], approved["heading"], approved["bodyMarkdown"]]:
+                        continue
+                    if release_id and release_id != reviewed_collections[approved["sourceQualification"]["releaseId"]]:
+                        continue
                 matched_ca = None
                 for ca in assignments:
                     if ca["provisionId"] == prov_id and (not release_id or release_id in ca.get("releaseIds", [])):
@@ -494,7 +488,7 @@ try:
                         break
                 if only_accepted and (not matched_ca or matched_ca.get("editorialReview") != "accepted"):
                     continue
-                citation = matched_ca["normalizedCitation"] if matched_ca else f"{title} U.S.C. {sec}"
+                citation = f"{title} U.S.C. {sec}" if source_qualified else matched_ca["normalizedCitation"] if matched_ca else f"{title} U.S.C. {sec}"
                 exact_bonus = 2.0 if citation.lower() == q.lower() else 0.0
                 score = float(fts_rank or 0.1) + exact_bonus
                 ev_ids = pv_json.get("evidenceIds", [])
@@ -519,7 +513,8 @@ except Exception as e:
 finally:
     conn.close()
 `;
-  return runPythonPgScript(script, { ...params, withdrawal: historicalWithdrawalIdentifiers() }, dbUrl);
+  return runPythonPgScript(script, { ...params, withdrawal: historicalWithdrawalIdentifiers(), reviewedHistoricalVersions: reviewedHistoricalVersions(), reviewedHistoricalCollections: Object.fromEntries(
+    ['pl-119-73', 'pl-119-142'].map(releaseId => [releaseId, historicalCollectionIdentity(releaseId).releaseId])) }, dbUrl);
 }
 
 /**

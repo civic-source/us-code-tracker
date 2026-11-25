@@ -30,7 +30,7 @@ export async function publishedCitation(jump: CitationJump, base: string, fetche
   } catch { return err(new Error('Accepted section route unavailable')); }
 }
 
-interface RetainedRoute { releaseId: string; uscTitle: string; uscSection: string; historicalUrl: string }
+interface RetainedRoute { releaseId: string; uscTitle: string; uscSection: string; historicalUrl: string; publisherReleaseId?: string; sourceQualification?: { releaseId: string; sectionIdentifier: string }; subsectionAnchorIds?: string[] }
 
 function retainedEdition(url: URL, release: string): boolean {
   return url.searchParams.get('release') === release && [...url.searchParams.keys()].every(key => key === 'release') && !url.hash;
@@ -49,7 +49,21 @@ function retainedUrl(raw: string, release: string, jump: CitationJump, base: str
 export function retainedCitation(entries: readonly RetainedRoute[], release: string, jump: CitationJump, base: string): Result<string> {
   const matches = entries.filter(entry => entry.releaseId === release && entry.uscTitle === jump.title && entry.uscSection.toLowerCase() === jump.section.toLowerCase());
   if (matches.length !== 1) return err(new Error('Exact historical source unavailable or ambiguous'));
-  const url = retainedUrl(matches[0]!.historicalUrl, release, jump, base);
+  const entry = matches[0]!;
+  if (entry.sourceQualification) {
+    const anchor = pinpointAnchor(jump.pinpoint);
+    if (!anchor.ok) return anchor;
+    const publisher = entry.publisherReleaseId ?? '';
+    const coordinates = /^olrc-pilot-[a-f0-9]{64}$/.test(release) && /^pl-[0-9]+-[0-9]+$/.test(publisher) && /^[0-9]+$/.test(jump.title) && /^[0-9]+[a-z]*$/.test(jump.section);
+    const expected = `${base}history/${publisher}/${jump.title}/${jump.section}/`;
+    if (!coordinates || !/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(base) || entry.historicalUrl !== expected ||
+      entry.sourceQualification.releaseId !== publisher || entry.sourceQualification.sectionIdentifier !== `/us/usc/t${jump.title}/s${jump.section}`) {
+      return err(new Error('Source-qualified historical route identity mismatch'));
+    }
+    if (anchor.value && !entry.subsectionAnchorIds?.includes(anchor.value.slice(1))) return err(new Error('Pinpoint representation unavailable in this retained edition'));
+    return { ok: true, value: expected + anchor.value };
+  }
+  const url = retainedUrl(entry.historicalUrl, release, jump, base);
   if (!url.ok) return url;
   const anchor = pinpointAnchor(jump.pinpoint);
   if (!anchor.ok) return anchor;

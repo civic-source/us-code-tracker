@@ -1,7 +1,13 @@
 {
   "schemaVersion": "usct.relationship-neighborhood-manifest/v1",
-  "shardCount": 12,
+  "shardCount": 18,
   "shards": [
+    "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-1001.json",
+    "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-111.json",
+    "olrc-pilot-bd7fd5494952f80d55f9e2edc5b1853b37dbeed1b9d72bc890211525e46d4eb0/18-1114.json",
+    "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18-1001.json",
+    "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18-111.json",
+    "olrc-pilot-efb0c94e4fb3c6280589eff510cca25e1d91340b4c6ef064ac2af05f24654dba/18-1114.json",
     "pl-116-220/18-1341.json",
     "pl-116-220/18-1343.json",
     "pl-116-220/18-1951.json",
@@ -47,7 +53,8 @@
       "observedAt": "2026-11-25T00:02:04.000Z",
       "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
       "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
-      "sourceUrl": "https://uscode.house.gov/download.html"
+      "sourceUrl": "https://uscode.house.gov/download.html",
+      "replacementPath": "history/pl-119-73/18/111/"
     },
     {
       "releaseId": "pl-119-73",
@@ -58,7 +65,8 @@
       "observedAt": "2026-11-25T00:02:04.000Z",
       "priorPublicationId": "pub-pl-119-142-7297bf86fe00",
       "reason": "Constructed historical snapshots were withdrawn pending independently retained OLRC editions.",
-      "sourceUrl": "https://uscode.house.gov/download.html"
+      "sourceUrl": "https://uscode.house.gov/download.html",
+      "replacementPath": "history/pl-119-73/18/1001/"
     }
   ]
 }

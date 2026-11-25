@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "usct.olrc-source-pins/v1",
+  "sources": [
+    {
+      "releaseId": "pl-119-73",
+      "uscTitle": "18",
+      "publisher": "Office of the Law Revision Counsel",
+      "requestedUrl": "https://uscode.house.gov/download/releasepoints/us/pl/119/73/xml_usc18@119-73.zip",
+      "finalUrl": "https://uscode.house.gov/download/releasepoints/us/pl/119/73/xml_usc18@119-73.zip",
+      "retrievedAt": "2026-11-25T02:02:48.278345Z",
+      "httpStatus": 200,
+      "archive": {
+        "sha256": "449d340683089579811836942bee64f44ac58497f647d54f8aac092dfad1a358",
+        "byteLength": 1968165
+      },
+      "member": {
+        "name": "usc18.xml",
+        "sha256": "a99ccb727aa6a036482000e3b76789110b67e1a60529d7bc270e7e86ed416ac2",
+        "byteLength": 12117979
+      },
+      "namespace": "http://xml.house.gov/schemas/uslm/1.0",
+      "publisherEdition": "Online@119-73",
+      "canonicalProvisionCount": 1399
+    },
+    {
+      "releaseId": "pl-119-142",
+      "uscTitle": "18",
+      "publisher": "Office of the Law Revision Counsel",
+      "requestedUrl": "https://uscode.house.gov/download/releasepoints/us/pl/119/142/xml_usc18@119-142.zip",
+      "finalUrl": "https://uscode.house.gov/download/releasepoints/us/pl/119/142/xml_usc18@119-142.zip",
+      "retrievedAt": "2026-11-25T02:02:48.486531Z",
+      "httpStatus": 200,
+      "archive": {
+        "sha256": "14d9cf0ecaeb557246546fb837d2fa2e0871ae0d73e27ab8ea954d0f1de57836",
+        "byteLength": 1972686
+      },
+      "member": {
+        "name": "usc18.xml",
+        "sha256": "d7cee2875371e43ada68ec936bc43fe5e8be62b86fa8175cabd8c80c261232c2",
+        "byteLength": 12138748
+      },
+      "namespace": "http://xml.house.gov/schemas/uslm/1.0",
+      "publisherEdition": "Online@119-142",
+      "canonicalProvisionCount": 1399
+    }
+  ]
+}

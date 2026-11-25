@@ -444,6 +444,7 @@ export const SourceReleaseSchema = z.object({
   schemaVersion: z.literal('usct.source-release/v1').default('usct.source-release/v1'),
   releaseId: z.string().min(1),
   publisherReleaseLabel: z.string().min(1),
+  publisherReleaseId: z.string().regex(/^pl-[0-9]+-[0-9]+$/).optional(),
   releaseSegment: z.string().min(1),
   congress: z.number().int().positive(),
   lawIdentifier: z.string().min(1),
@@ -574,6 +575,21 @@ export const StructuredTableSchema = z.object({
 });
 export type StructuredTable = z.infer<typeof StructuredTableSchema>;
 
+export const HistoricalSourceQualificationSchema = z.object({
+  schemaVersion: z.literal('usct.historical-source-qualification/v1'),
+  releaseId: z.string().regex(/^pl-[0-9]+-[0-9]+$/),
+  archiveSha256: Sha256HexSchema,
+  memberName: z.literal('usc18.xml'),
+  memberSha256: Sha256HexSchema,
+  sectionIdentifier: z.string().regex(/^\/us\/usc\/t18\/s[0-9]+[a-z]*$/),
+  recipeSha256: Sha256HexSchema,
+  markdownSha256: Sha256HexSchema,
+  htmlSha256: Sha256HexSchema,
+  witnessSha256: Sha256HexSchema,
+  scope: z.literal('text-lanes-and-list-placement-v1'),
+});
+export type HistoricalSourceQualification = z.infer<typeof HistoricalSourceQualificationSchema>;
+
 export const ProvisionVersionSchema = z.object({
   schemaVersion: z.literal('usct.provision-version/v1').default('usct.provision-version/v1'),
   provisionVersionId: z.string().min(1),
@@ -598,6 +614,8 @@ export const ProvisionVersionSchema = z.object({
   })).default([]),
   evidenceIds: z.array(z.string()).default([]),
   legacyDerived: z.boolean().default(false),
+  sourceQualification: HistoricalSourceQualificationSchema.optional(),
+  renderedHtml: z.string().max(2 * 1024 ** 2).optional(),
 });
 export type ProvisionVersion = z.infer<typeof ProvisionVersionSchema>;
 
