@@ -313,15 +313,16 @@
   }
 </script>
 
-<div class="relative font-sans space-y-1" role="search">
+<div class="relative min-w-0 w-full font-sans space-y-1" role="search">
   <label for="search-input" class="sr-only">Search the US Code</label>
+  <noscript><p class="text-xs">Search requires JavaScript. <a href={`${getBaseUrl()}browse/`} class="underline">Browse all titles</a>.</p></noscript>
   {#if historicalManifest && historicalManifest.availableReleases.length > 0}
     <div class="flex items-center justify-between gap-1 text-[10px]">
       <label for="search-release-scope" class="text-gray-500 dark:text-gray-400">Scope:</label>
       <select
         id="search-release-scope"
         bind:value={selectedRelease}
-        class="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+        class="min-w-0 max-w-full flex-1 rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
       >
         <option value="current">Current Law</option>
         {#each historicalManifest.availableReleases as rel}
@@ -351,7 +352,7 @@
       aria-activedescendant={activeIndex >= 0 ? `result-${activeIndex}` : undefined}
       aria-autocomplete="list"
       aria-haspopup="listbox"
-      class="w-full rounded border border-gray-300 bg-white py-1 pl-8 pr-2 text-xs text-gray-900 placeholder-gray-400 focus:border-teal focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600 lg:w-48"
+      class="w-full rounded border border-gray-300 bg-white py-1 pl-8 pr-2 text-xs text-gray-900 placeholder-gray-400 focus:border-teal focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-600"
     />
   </div>
 
@@ -360,7 +361,7 @@
     id="search-results"
     role="listbox"
     aria-label="Search results"
-    class="absolute left-0 top-full z-50 mt-1 w-72 overflow-y-auto rounded border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 {showResults ? 'max-h-80' : 'hidden'}"
+    class="absolute left-0 top-full z-50 mt-1 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 {showResults ? 'max-h-80' : 'hidden'}"
   >
     {#if showResults}
       {#if historicalWarning}
