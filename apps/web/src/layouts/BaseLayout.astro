@@ -7,7 +7,7 @@ import CivicBanner from '../components/CivicBanner.astro';
 import ThemeToggle from '../components/ThemeToggle.svelte';
 import SearchBar from '../components/SearchBar.svelte';
 import BackToTop from '../components/BackToTop.svelte';
-import { TITLE_NAMES } from '../data/title-names';
+import { collectedNavigation } from '../lib/collected-navigation';
 import { getCurrentReleaseDisplay } from '../lib/release-currency';
 
 interface Props {
@@ -25,15 +25,10 @@ const {
 const base = import.meta.env.BASE_URL;
 const releaseDisplay = getCurrentReleaseDisplay();
 
-// Determine the current title number from the URL for highlighting
 const pathname = Astro.url.pathname;
-const titleMatch = pathname.match(/\/browse\/title-(\d+)/);
-const currentTitleNum = titleMatch ? Number(titleMatch[1]) : null;
-
-// Build sorted title entries
-const titleEntries = Object.entries(TITLE_NAMES)
-  .map(([num, name]) => ({ num: Number(num), name }))
-  .sort((a, b) => a.num - b.num);
+const titleMatch = pathname.match(/\/(?:browse|statute)\/title-(\d+[a-z]?)(?:\/|$)/);
+const currentTitleNum = titleMatch?.[1] ?? null;
+const titleEntries = await collectedNavigation();
 ---
 
 <!doctype html>
@@ -45,6 +40,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
     <meta name="base-url" content={base} />
+    <meta name="accepted-release" content={releaseDisplay.tag} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <link rel="alternate" type="application/rss+xml" title="US Code Tracker — Recent Updates" href={`${base}feed.xml`} />
     <!-- Open Graph -->
@@ -76,42 +72,23 @@ const titleEntries = Object.entries(TITLE_NAMES)
       Skip to content
     </a>
 
-    <!-- USWDS Civic Transparency Banner atop all views -->
-    <CivicBanner />
-
     <div class="flex flex-1 min-h-0 flex-col lg:flex-row">
       <!-- Sidebar — USWDS-aligned usa-sidenav navigation -->
       <aside class="w-full border-b border-[var(--border-default)] bg-[var(--surface-sunken)] font-sans lg:w-64 lg:flex-shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col lg:h-auto 2xl:w-64">
-        <div class="flex items-center justify-between p-4 lg:flex-col lg:items-start lg:gap-3">
-          <div class="flex items-center gap-2">
-            <a href={base} class="text-lg font-bold tracking-tight text-navy dark:text-amber">
-              US Code Tracker
-            </a>
-          </div>
-          <span class="hidden rounded bg-navy/10 px-2 py-0.5 text-[11px] font-medium text-navy dark:bg-amber/15 dark:text-amber lg:inline">
-            Current through {releaseDisplay.shortLabel}
-          </span>
-          <div class="flex items-center gap-2 lg:w-full lg:flex-col lg:items-stretch lg:pt-1">
-            <ThemeToggle client:load />
-            <SearchBar client:load />
-            <a
-              href={`${base}topics/`}
-              class="inline-flex items-center justify-center rounded border border-teal/30 bg-teal/5 px-2.5 py-1 text-xs font-semibold text-teal hover:bg-teal/10 dark:text-teal-bright"
-            >
-              Curated Topics &amp; Feeds
-            </a>
-          </div>
-        </div>
-        <button
-          id="menu-toggle"
-          class="mx-4 mb-2 rounded border border-gray-300 px-2.5 py-1 text-xs font-medium font-sans lg:hidden dark:border-gray-700 dark:text-gray-200"
-          aria-expanded="false"
-          aria-controls="main-nav"
-          aria-label="Open menu"
-        >
-          Browse Titles Menu
-        </button>
-        <nav id="main-nav" class="hidden px-4 pb-4 font-sans lg:flex lg:min-h-0 lg:flex-1 lg:flex-col" aria-label="Main navigation">
+        <div class="site-header">
+          <a href={base} class="site-brand text-lg font-bold tracking-tight text-navy dark:text-amber">
+            US Code Tracker
+          </a>
+          <details id="site-menu" class="site-menu">
+            <summary id="menu-toggle" aria-controls="main-nav" class="site-menu-toggle">Menu</summary>
+            <nav id="main-nav" class="site-menu-panel font-sans" aria-label="Main navigation">
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <ThemeToggle client:load />
+                <a href={`${base}topics/`} class="rounded border border-teal/30 px-3 py-2 text-xs font-semibold text-teal dark:text-teal-bright">
+                  Curated Topics &amp; Feeds
+                </a>
+              </div>
+              <p class="mb-3 text-xs text-[var(--text-secondary)]">Current through {releaseDisplay.shortLabel}</p>
           <label for="title-filter" class="sr-only">Filter titles</label>
           <input
             type="text"
@@ -121,21 +98,24 @@ const titleEntries = Object.entries(TITLE_NAMES)
             class="mb-2.5 w-full rounded border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-900 placeholder-gray-400 focus:border-state-blue focus:outline-none focus:ring-1 focus:ring-state-blue dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-amber dark:focus:ring-amber"
           />
           <ul id="title-list" class="space-y-0.5 overflow-y-auto text-xs lg:max-h-[calc(100vh-270px)]">
-            {titleEntries.map(({ num, name }) => {
+            {titleEntries.map(({ id: num, name, available }) => {
               const isActive = currentTitleNum === num;
               const linkClass = isActive ? 'sidenav-link sidenav-link-active' : 'sidenav-link';
               return (
                 <li data-title-num={num} data-title-name={name.toLowerCase()}>
-                  <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
+                  {available ? <a href={`${base}browse/title-${num}/`} class={linkClass} aria-current={isActive ? 'page' : undefined}>
                     <span class="sidenav-num">{num}</span>
                     <span class="mx-1">&mdash;</span>
                     <span>{name}</span>
-                  </a>
+                  </a> : <span class="sidenav-link text-gray-500"><span class="sidenav-num">{num}</span> — {name}<span class="ml-1 text-[10px]">({num === '53' ? 'reserved; uncollected' : 'uncollected'})</span></span>}
                 </li>
               );
             })}
           </ul>
-        </nav>
+            </nav>
+          </details>
+          <div class="site-search"><SearchBar client:load /></div>
+        </div>
       </aside>
 
       <!-- Main content — vertical container with full-width bottom footer -->
@@ -155,6 +135,7 @@ const titleEntries = Object.entries(TITLE_NAMES)
 
         <!-- Footer -->
         <footer class="border-t border-[var(--border-default)] bg-[var(--surface-sunken)] px-6 py-8 font-sans text-xs text-[var(--text-secondary)]">
+          <CivicBanner />
           <div class:list={['mx-auto grid grid-cols-1 gap-6 sm:grid-cols-3', wide ? 'max-w-7xl 2xl:max-w-[1680px]' : 'max-w-4xl']}>
             <div>
               <h2 class="mb-2 text-xs font-bold uppercase tracking-wider text-navy dark:text-gray-200">About US Code Tracker</h2>
@@ -197,14 +178,19 @@ const titleEntries = Object.entries(TITLE_NAMES)
     </div>
 
     <script>
-      const btn = document.getElementById('menu-toggle');
-      const nav = document.getElementById('main-nav');
-      if (btn && nav) {
-        btn.addEventListener('click', () => {
-          const expanded = btn.getAttribute('aria-expanded') === 'true';
-          btn.setAttribute('aria-expanded', String(!expanded));
-          btn.setAttribute('aria-label', expanded ? 'Open menu' : 'Close menu');
-          nav.classList.toggle('hidden', expanded);
+      const menu = document.getElementById('site-menu');
+      const toggle = document.getElementById('menu-toggle');
+      if (menu instanceof HTMLDetailsElement && toggle) {
+        const desktop = window.matchMedia('(min-width: 1024px)');
+        const synchronizeMenu = () => { menu.open = desktop.matches; };
+        synchronizeMenu();
+        desktop.addEventListener('change', synchronizeMenu);
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && menu.open && !desktop.matches) {
+            menu.open = false;
+            toggle.focus();
+            event.preventDefault();
+          }
         });
       }
 

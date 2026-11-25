@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export * from './ecfr-bulk.js';
+export * from './navigation.js';
 
 // --- Result type ---
 

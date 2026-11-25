@@ -1,8 +1,13 @@
 ---
 import { getCollection, render } from 'astro:content';
-import { compareSectionNumbers } from '@civic-source/shared';
+import { buildOlrcSectionUrl, compareSectionNumbers } from '@civic-source/shared';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { requiresCurrentSourceFallback } from '../../../lib/source-withdrawal';
+import publicationReceipt from '../../../../public/publication-receipt.json';
+import { routeCoordinates } from '../../../lib/citation-routes';
+import { officialChapterHeading } from '../../../lib/chapter-headings';
+import { getCurrentReleaseDisplay } from '../../../lib/release-currency';
 import { TITLE_NAMES } from '../../../data/title-names';
 
 export async function getStaticPaths() {
@@ -11,7 +16,9 @@ export async function getStaticPaths() {
   // Group by title+chapter
   const byTitleChapter = new Map<string, typeof entries>();
   for (const entry of entries) {
-    const key = `${entry.data.usc_title}-${entry.data.chapter}`;
+    const coordinates = routeCoordinates(entry.id);
+    if (!coordinates.ok) throw coordinates.error;
+    const key = `${coordinates.value.title}-${coordinates.value.chapter}`;
     if (!byTitleChapter.has(key)) {
       byTitleChapter.set(key, []);
     }
@@ -19,8 +26,10 @@ export async function getStaticPaths() {
   }
 
   return [...byTitleChapter.values()].map((chapterEntries) => {
-    const titleNum = chapterEntries[0]!.data.usc_title;
-    const chapterNum = chapterEntries[0]!.data.chapter;
+    const coordinates = routeCoordinates(chapterEntries[0]!.id);
+    if (!coordinates.ok) throw coordinates.error;
+    const titleNum = coordinates.value.title;
+    const chapterNum = coordinates.value.chapter;
     return {
       params: { title: `title-${titleNum}`, chapter: `chapter-${chapterNum}` },
       props: { titleNum, chapterNum, entries: chapterEntries },
@@ -29,6 +38,7 @@ export async function getStaticPaths() {
 }
 
 const { titleNum, chapterNum, entries } = Astro.props;
+const chapterHeading = officialChapterHeading(getCurrentReleaseDisplay().tag, titleNum, String(chapterNum));
 const titleName = TITLE_NAMES[titleNum] ?? `Title ${titleNum}`;
 
 // Sort sections using natural legal section comparison
@@ -55,7 +65,11 @@ const sectionMeta = sortedSections.map((entry) => {
 const renderedSections = await Promise.all(
   sectionMeta.map(async ({ entry, isInactive, statusLabel }) => {
     const { Content } = await render(entry);
-    return { entry, Content, isInactive, statusLabel };
+    const currentSourceUnavailable = requiresCurrentSourceFallback({
+      dataCommit: publicationReceipt.acceptedDataCommitSha, title: String(entry.data.usc_title),
+      section: entry.data.usc_section, body: entry.body ?? '',
+    });
+    return { entry, Content, isInactive, statusLabel, currentSourceUnavailable };
   })
 );
 
@@ -79,7 +93,7 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
   ]} />
 
   <h1 class="text-navy dark:text-amber">
-    Title {titleNum}, Chapter {chapterNum}
+    Title {titleNum}, Chapter {chapterNum}{chapterHeading ? ` — ${chapterHeading}` : ''}
   </h1>
   <p class="not-prose font-sans text-sm text-slate dark:text-gray-400">
     {titleName} &mdash; {activeCount} active section{activeCount !== 1 ? 's' : ''}{sortedSections.length !== activeCount ? `, ${sortedSections.length - activeCount} inactive` : ''}
@@ -135,7 +149,7 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
 
   <!-- Full chapter content — statically pre-rendered at build time -->
   <div id="full-content" class:list={[isSmallChapter ? '' : 'hidden', 'mt-6 space-y-8']}>
-    {renderedSections.map(({ entry, Content, isInactive, statusLabel }) => (
+    {renderedSections.map(({ entry, Content, isInactive, statusLabel, currentSourceUnavailable }) => (
       <article
         id={`section-${entry.data.usc_section}`}
         class:list={['scroll-mt-4', isInactive && 'opacity-60']}
@@ -159,7 +173,14 @@ const activeCount = sectionMeta.filter(s => !s.isInactive).length;
           </div>
         </div>
         <div class="prose prose-gray min-w-0 font-serif dark:prose-invert [&>h1]:hidden">
-          <Content />
+          {currentSourceUnavailable ? (
+            <section data-current-source-fallback data-pagefind-ignore class="not-prose rounded-lg border border-amber-600 p-4 font-sans text-sm">
+              <h3>Current text temporarily unavailable</h3>
+              <p>This publication's rendering of {entry.data.classification} is incomplete and has been withdrawn while it is regenerated from independently retained OLRC source.</p>
+              <a href={buildOlrcSectionUrl(String(entry.data.usc_title), entry.data.usc_section)}>Read this section at the official OLRC source</a>
+              {' · '}<a href={`${base}publication-history.json`}>Retained publication records</a>
+            </section>
+          ) : <Content />}
         </div>
       </article>
     ))}
