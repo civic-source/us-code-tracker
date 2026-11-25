@@ -53,21 +53,14 @@ export function initStatutePage(): void {
       }
     }
 
-    const items = statuteBody.querySelectorAll('li');
-    let currentParent = '';
-    for (const li of items) {
-      const strong = li.querySelector('strong');
-      const marker = (strong?.textContent?.trim() ?? '').replace(/[()]/g, '');
-      if (!marker) continue;
-      if (/^[a-z]$/.test(marker)) {
-        currentParent = marker;
-        li.id = `subsec-${marker}`;
-      } else if (/^\d{1,2}$/.test(marker) && currentParent) {
-        li.id = `subsec-${currentParent}-${marker}`;
-      } else if (/^[A-Z]$/.test(marker) && currentParent) {
-        li.id = `subsec-${currentParent}-${marker}`;
-      }
+    if (/^#subsec-[a-zA-Z0-9-]+$/.test(window.location.hash) && !document.getElementById(window.location.hash.slice(1))) {
+      const notice = document.createElement('p');
+      notice.setAttribute('role', 'status');
+      notice.dataset.pinpointGap = 'true';
+      notice.textContent = 'The requested subsection anchor is unavailable in this local representation. This does not establish that the subsection is absent from the law; check the official source.';
+      statuteBody.before(notice);
     }
+
   }
 
   document.addEventListener('keydown', (e: KeyboardEvent) => {
