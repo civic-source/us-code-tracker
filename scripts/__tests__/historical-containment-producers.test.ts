@@ -30,6 +30,16 @@ async function retainedLegacyCohort() {
 }
 
 describe('constructed history producer containment', () => {
+  it('records this run processing time separately from deterministic legacy observation metadata', async () => {
+    const { root, repo } = await retainedLegacyCohort();
+    const started = Date.now();
+    const { catalog, coordinator } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo, legacyOnly: true });
+    const finished = Date.now();
+    const accepted = Date.parse(coordinator.getTaskState('build-canonical-vertical-slice')!.acceptedAtIso!);
+    expect(accepted).toBeGreaterThanOrEqual(started);
+    expect(accepted).toBeLessThanOrEqual(finished);
+    expect(catalog.getSnapshot().releases.every(release => release.observedAt === '2026-11-22T06:30:00.000Z')).toBe(true);
+  });
   it('exports the six retained legacy controls with partial coverage after source withdrawal', async () => {
     const { root, repo } = await retainedLegacyCohort();
     const { catalog } = await buildCanonicalVerticalSlice({ sliceDir: join(root, 'cas'), dataRepoPath: repo, legacyOnly: true });

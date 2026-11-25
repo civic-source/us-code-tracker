@@ -5,9 +5,8 @@
  */
 
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { promisify } from 'node:util';
 import { type Result, ok, err } from '@civic-source/types';
 import {
@@ -17,6 +16,7 @@ import {
   type WorkbenchLexicalHit,
 } from './workbench-catalog.js';
 
+import { runPythonPgScript } from './postgres-payload.js';
 import { reviewedHistoricalVersions, historicalCollectionIdentity } from './historical-qualification.js';
 import { historicalWithdrawalIdentifiers } from './historical-withdrawal.js';
 
@@ -25,27 +25,6 @@ const execFileAsync = promisify(execFile);
 export const DEFAULT_POSTGRES_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://usct:usct@127.0.0.1:54329/usct_workbench';
 
-async function runPythonPgScript<T>(script: string, payload: unknown, dbUrl = DEFAULT_POSTGRES_URL): Promise<Result<T>> {
-  let directory: string | undefined;
-  let result: Result<T>;
-  try {
-    directory = await mkdtemp(join(tmpdir(), 'usct-pg-payload-'));
-    const path = join(directory, 'payload.json');
-    await writeFile(path, JSON.stringify(payload), { flag: 'wx', mode: 0o600 });
-    const { stdout } = await execFileAsync('python3', ['-c', script, dbUrl], {
-      maxBuffer: 64 * 1024 * 1024, env: { ...process.env, PG_PAYLOAD_FILE: path },
-    });
-    const parsed = JSON.parse(stdout.trim()) as { ok: boolean; data?: T; error?: string };
-    result = parsed.ok ? ok(parsed.data as T) : err(new Error(parsed.error ?? 'PostgreSQL operation failed'));
-  } catch (error: unknown) {
-    result = err(error instanceof Error ? error : new Error(String(error)));
-  }
-  if (directory) {
-    try { await rm(directory, { recursive: true }); }
-    catch (error) { return err(error instanceof Error ? error : new Error(String(error))); }
-  }
-  return result;
-}
 
 /**
  * Apply the full 17-table PostgreSQL DDL migration (15 catalog entity tables + 2 durable task fencing tables).

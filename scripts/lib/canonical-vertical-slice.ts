@@ -13,6 +13,7 @@ export { COHORT_LEGACY_PATHS } from './legacy-history-cohort.js';
 export async function buildCanonicalVerticalSlice(options: {
   sliceDir: string; dataRepoPath: string; observedAtIso?: string; legacyOnly?: boolean;
 }): Promise<{ catalog: CanonicalWorkbenchCatalog; coordinator: FencedTaskCoordinator }> {
+  const processingStartedAt = Date.now();
   const observedAt = options.observedAtIso ?? '2026-11-22T06:30:00.000Z';
   let snapshot = await buildLegacyHistoryCohort({ dataRepoPath: options.dataRepoPath, observedAt });
   if (!options.legacyOnly) {
@@ -26,9 +27,10 @@ export async function buildCanonicalVerticalSlice(options: {
   const coordinator = new FencedTaskCoordinator();
   coordinator.startAttempt({ taskId: 'build-canonical-vertical-slice', attemptId: 'attempt-source-history-v1',
     inputIdentity: sha256Hex(JSON.stringify(snapshot)), ownerWorkerId: 'workbench-local-worker-1',
-    nowMs: Date.parse(observedAt), leaseDurationMs: 60_000 });
+    nowMs: processingStartedAt, leaseDurationMs: 60_000 });
+  const processingCompletedAt = Date.now();
   const accepted = coordinator.proposeAcceptance({ attemptId: 'attempt-source-history-v1',
-    outputArtifactHash: sha256Hex(JSON.stringify(catalog.getSnapshot())), nowMs: Date.parse(observedAt) + 100, nowIso: observedAt });
+    outputArtifactHash: sha256Hex(JSON.stringify(catalog.getSnapshot())), nowMs: processingCompletedAt, nowIso: new Date(processingCompletedAt).toISOString() });
   if (!accepted.ok) throw accepted.error;
   return { catalog, coordinator };
 }
