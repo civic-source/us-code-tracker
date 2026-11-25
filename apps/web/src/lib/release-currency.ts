@@ -1,3 +1,4 @@
+import { acceptedReleaseContext } from './accepted-release-context';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +7,7 @@ export interface ReleaseCurrencyDisplay {
   tag: string;
   shortLabel: string;
   formalLabel: string;
+  dataRevision?: number;
 }
 
 const FALLBACK_DISPLAY: ReleaseCurrencyDisplay = {
@@ -16,16 +18,14 @@ const FALLBACK_DISPLAY: ReleaseCurrencyDisplay = {
 
 /** Format an OLRC release tag (e.g. `pl-119-142` or `pl-119-102not101`) for UI badges. */
 export function formatReleaseTag(rawTag: string): ReleaseCurrencyDisplay {
-  const trimmed = rawTag.trim();
-  const match = /^pl-(\d+)-([0-9a-zA-Z-]+)$/i.exec(trimmed);
-  if (!match?.[1] || !match[2]) {
-    return FALLBACK_DISPLAY;
-  }
-  const suffix = `${match[1]}-${match[2]}`;
+  const context = acceptedReleaseContext(rawTag);
+  if (!context) return FALLBACK_DISPLAY;
+  const suffix = context.publisherReleaseId.slice(3);
   return {
-    tag: `pl-${suffix}`,
+    tag: context.dataTag,
     shortLabel: `PL ${suffix}`,
     formalLabel: `Pub. L. ${suffix}`,
+    ...(context.dataRevision === undefined ? {} : { dataRevision: context.dataRevision }),
   };
 }
 
