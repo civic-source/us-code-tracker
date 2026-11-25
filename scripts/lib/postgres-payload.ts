@@ -28,4 +28,3 @@ export async function runPythonPgScript<T>(script: string, payload: unknown, dbU
   }
   return result;
 }
-
