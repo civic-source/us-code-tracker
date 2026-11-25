@@ -11,14 +11,15 @@ export async function extractArchiveMember(options: {
   archivePath: string; archivePin: SourceBlobPin; memberPin: SourceBlobPin & { name: string };
 }): Promise<Result<Buffer>> {
   try {
-    if (options.memberPin.name !== 'usc18.xml') throw new Error('Unknown OLRC archive member');
+    if (!/^usc\d+[A-Za-z]?\.xml$/.test(options.memberPin.name)) throw new Error('Invalid OLRC archive member');
     for (const pin of [options.archivePin, options.memberPin]) {
       if (!/^[a-f0-9]{64}$/.test(pin.sha256) || !Number.isSafeInteger(pin.byteLength) ||
         pin.byteLength < 1 || pin.byteLength > 128 * 1024 ** 2) throw new Error('Invalid archive/member pin');
     }
     const { stdout } = await exec('python3', [helper, '--archive', options.archivePath,
       '--archive-sha256', options.archivePin.sha256, '--archive-bytes', String(options.archivePin.byteLength),
-      '--member-sha256', options.memberPin.sha256, '--member-bytes', String(options.memberPin.byteLength)],
+      '--member-sha256', options.memberPin.sha256, '--member-bytes', String(options.memberPin.byteLength),
+      '--member-name', options.memberPin.name],
     { encoding: 'buffer', maxBuffer: options.memberPin.byteLength + 8192, timeout: 30_000 });
     return ok(stdout);
   } catch (error: unknown) { return err(error instanceof Error ? error : new Error(String(error))); }

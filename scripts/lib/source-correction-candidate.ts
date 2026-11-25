@@ -17,6 +17,7 @@ export interface SourceCorrectionOptions {
   releaseLabel: string;
   generatedAt: string;
   outputDirectory: string;
+  purpose?: 'bounded-audit';
 }
 
 export interface SourceCorrectionCandidate {
@@ -38,6 +39,7 @@ function sha256(bytes: string | Buffer): string {
 }
 
 function validateOptions(options: SourceCorrectionOptions): void {
+  if (options.purpose !== undefined && options.purpose !== 'bounded-audit') throw new Error('Unknown source-correction purpose');
   if (!/^[0-9a-f]{64}$/.test(options.expectedSha256)) throw new Error('Expected XML SHA-256 is required');
   if (normalizeUscTitle(options.title) !== options.title) throw new Error('A canonical title is required');
   if (!options.sections.length || options.sections.length > 100
@@ -74,7 +76,7 @@ async function readPinnedXml(options: SourceCorrectionOptions): Promise<Buffer> 
   }
 }
 
-async function compilerDistributions(): Promise<Record<string, string>> {
+export async function compilerDistributions(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   for (const name of ['@civic-source/transformer', '@civic-source/shared', '@civic-source/types']) {
     const directory = dirname(fileURLToPath(import.meta.resolve(name)));
@@ -113,6 +115,7 @@ function selectedFiles(xml: string, options: SourceCorrectionOptions): Array<{ p
     }
     if (!/^generated_at: .+$/m.test(file.content)) throw new Error('Compiler generation timestamp field is missing');
     const content = file.content.replace(/^generated_at: .+$/m, `generated_at: "${options.generatedAt}"`);
+    if (options.purpose === 'bounded-audit' && Buffer.byteLength(content) > 2 * 1024 ** 2) throw new Error('Audit candidate Markdown exceeds 2 MiB');
     return { path: file.path, content };
   }).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 }
@@ -149,20 +152,32 @@ export async function prepareSourceCorrection(options: SourceCorrectionOptions):
       files: files.map((file) => ({ path: file.path, sha256: sha256(file.content) })),
     };
     const manifest = `${JSON.stringify(candidate, null, 2)}\n`;
+    if (options.purpose === 'bounded-audit' && Buffer.byteLength(manifest) > 2 * 1024 ** 2) throw new Error('Audit candidate manifest exceeds 2 MiB');
     const required = files.reduce((sum, file) => sum + Buffer.byteLength(file.content), Buffer.byteLength(manifest));
     const capacity = await statfs(dirname(output), { bigint: true });
-    if (capacity.bavail * capacity.bsize < BigInt(required + OUTPUT_RESERVE_BYTES)) {
-      throw new Error('Insufficient output capacity including 16 MiB reserve');
+    const reserve = options.purpose === 'bounded-audit' ? 2 * 1024 ** 3 : OUTPUT_RESERVE_BYTES;
+    if (capacity.bavail * capacity.bsize < BigInt(required + reserve)) {
+      throw new Error(`Insufficient output capacity including ${reserve / 1024 ** 2} MiB reserve`);
     }
     await mkdir(output, { mode: 0o700 });
     for (const file of files) {
       const target = join(output, file.path);
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
-      await writeFile(target, file.content, { flag: 'wx' });
+      await writeCandidate(target, file.content, options.purpose === 'bounded-audit');
     }
-    await writeFile(join(output, 'candidate-manifest.json'), manifest, { flag: 'wx' });
+    await writeCandidate(join(output, 'candidate-manifest.json'), manifest, options.purpose === 'bounded-audit');
     return ok(candidate);
   } catch (error: unknown) {
     return err(error instanceof Error ? error : new Error(String(error)));
   }
+}
+
+async function writeCandidate(path: string, content: string, audit: boolean): Promise<void> {
+  if (audit) {
+    const fs = await statfs(dirname(path), { bigint: true });
+    if (fs.bavail * fs.bsize < BigInt(Buffer.byteLength(content)) + 2n * 1024n ** 3n) {
+      throw new Error('Insufficient output capacity including 2048 MiB reserve');
+    }
+  }
+  await writeFile(path, content, { flag: 'wx' });
 }

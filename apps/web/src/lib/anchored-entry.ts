@@ -2,7 +2,7 @@ import { unified } from '@astrojs/markdown-remark';
 import rehypeSanitize from 'rehype-sanitize';
 import { err, ok } from '@civic-source/types';
 import type { Result } from '@civic-source/types';
-import subsectionAnchors from './subsection-anchors';
+import subsectionAnchors from './subsection-anchors.js';
 
 export const statuteMarkdown = unified({ rehypePlugins: [rehypeSanitize] });
 const anchoredMarkdown = unified({ rehypePlugins: [rehypeSanitize, subsectionAnchors] });
