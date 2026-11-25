@@ -56,6 +56,8 @@
     citation: string;
     releaseId: string;
     edges: RelationshipEdge[];
+    availability?: 'source_gap';
+    sourceCorrection?: { reason: string };
   }
 
   let relationshipShard = $state<RelationshipShard | null>(null);
@@ -87,7 +89,13 @@
         relationshipsError = `No static relationship neighborhood shard available for ${uscTitle} U.S.C. § ${uscSection} in ${urlRelease}.`;
         return;
       }
-      relationshipShard = (await res.json()) as RelationshipShard;
+      const shard = (await res.json()) as RelationshipShard;
+      if (shard.availability === 'source_gap') {
+        relationshipShard = null;
+        relationshipsError = shard.sourceCorrection?.reason ?? 'Historical relationship source unavailable.';
+        return;
+      }
+      relationshipShard = shard;
     } catch {
       relationshipShard = null;
       relationshipsError = `Relationship shard unavailable for ${uscTitle} U.S.C. § ${uscSection}.`;

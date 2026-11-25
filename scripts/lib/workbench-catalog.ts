@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { containHistoricalSources, historicalSourceGaps } from './historical-withdrawal.js';
 
 import {
   type ApplicabilityClaim,
@@ -503,7 +504,8 @@ export interface AsPublishedQueryResult {
   mode: 'as_published';
   releaseId: string;
   citation: string;
-  status: 'found' | 'not_present_in_snapshot' | 'release_unavailable' | 'ambiguous_identity';
+  status: 'found' | 'not_present_in_snapshot' | 'release_unavailable' | 'ambiguous_identity' | 'source_unavailable';
+  sourceCorrection?: ReturnType<typeof historicalSourceGaps>[number];
   provisionId?: string;
   provisionVersion?: ProvisionVersion;
   release?: SourceRelease;
@@ -920,7 +922,7 @@ COMMIT;
         upsert(next.derivedArtifacts, da, (x) => x.artifactKey);
       }
 
-      this.state = next;
+      this.state = containHistoricalSources(next);
       return ok(undefined);
     } catch (e: unknown) {
       return err(e instanceof Error ? e : new Error(String(e)));
@@ -1218,6 +1220,13 @@ COMMIT;
         identityTransitions: [],
       };
     }
+
+    const normalizedCitation = params.citation.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const gap = historicalSourceGaps(this.state).find((item) => item.releaseId === params.releaseId &&
+      normalizedCitation === `${item.uscTitle}usc${item.uscSection}`);
+    if (gap) return { mode: 'as_published', releaseId: params.releaseId, citation: params.citation,
+      status: 'source_unavailable', sourceCorrection: gap, release, provisionId: gap.provisionId,
+      recordedObservedAt: release.observedAt, evidenceSpans: [], identityTransitions: [] };
 
     const scopedAssignments = this.state.citationAssignments.filter(
       (ca) =>
@@ -1756,6 +1765,7 @@ export interface HistoricalSearchShard {
 }
 
 export interface HistoricalSearchIndexManifest {
+  sourceGaps?: ReturnType<typeof historicalSourceGaps>;
   schemaVersion: 'usct.historical-search-manifest/v1';
   generatedForPublicationId: string;
   availableReleases: Array<{
@@ -1877,6 +1887,7 @@ export function buildHistoricalSearchShards(
     manifest: {
       schemaVersion: 'usct.historical-search-manifest/v1',
       generatedForPublicationId: publicationId,
+      sourceGaps: historicalSourceGaps(snap),
       availableReleases,
       shards: manifestShards,
     },

@@ -16,6 +16,8 @@ import {
   type WorkbenchLexicalHit,
 } from './workbench-catalog.js';
 
+import { historicalWithdrawalIdentifiers } from './historical-withdrawal.js';
+
 const execFileAsync = promisify(execFile);
 
 export const DEFAULT_POSTGRES_URL =
@@ -439,6 +441,9 @@ release_id = p.get("releaseId")
 usc_title = p.get("uscTitle")
 only_accepted = bool(p.get("onlyAcceptedReview", False))
 limit = int(p.get("limit", 25))
+withdrawal = p["withdrawal"]
+withdrawn_versions = set(withdrawal["versionIds"])
+withdrawn_hashes = set(withdrawal["artifactDigests"])
 
 conn = psycopg2.connect(db_url)
 try:
@@ -480,6 +485,8 @@ try:
             hits = []
             for r in rows:
                 pv_id, prov_id, title, sec, heading, body, pv_json, fts_rank = r
+                if pv_id in withdrawn_versions or any(ev_map.get(eid, {}).get("artifactSha256") in withdrawn_hashes for eid in pv_json.get("evidenceIds", [])):
+                    continue
                 matched_ca = None
                 for ca in assignments:
                     if ca["provisionId"] == prov_id and (not release_id or release_id in ca.get("releaseIds", [])):
@@ -512,7 +519,7 @@ except Exception as e:
 finally:
     conn.close()
 `;
-  return runPythonPgScript(script, params, dbUrl);
+  return runPythonPgScript(script, { ...params, withdrawal: historicalWithdrawalIdentifiers() }, dbUrl);
 }
 
 /**

@@ -25,7 +25,7 @@ export async function GET(context: APIContext) {
     items: topic.changeEvents.map((evt) => ({
       title: `[${evt.eventKind}] ${evt.title}`,
       pubDate: new Date(evt.occurredAt),
-      link: `/us-code-tracker/topics/${topic.topicSlug}/`,
+      link: `/us-code-tracker/topics/${topic.topicSlug}/#${encodeURIComponent(evt.eventId)}`,
       description: `${evt.summary} (Locator: ${evt.evidenceLocator})`,
     })),
   });

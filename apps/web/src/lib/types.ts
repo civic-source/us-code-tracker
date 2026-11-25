@@ -22,7 +22,7 @@ export interface CuratedTopicDataset {
     url: string;
     roleInTopic: string;
     extractionState: 'verified';
-    editorialReview: 'accepted';
+    editorialReview: 'accepted' | 'unreviewed';
     legacyDerived: boolean;
   }>;
   relatedAuthorities: Array<{
@@ -46,6 +46,8 @@ export interface CuratedTopicDataset {
     summary: string;
     diffUrl?: string;
     evidenceLocator: string;
+    sourceUrl?: string;
+    priorPublicationId?: string;
     artifactSha256?: string;
   }>;
 }
