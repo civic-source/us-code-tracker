@@ -1,6 +1,7 @@
 """Public navigation journeys against a production-mode Civic Source preview."""
 import argparse
 import hashlib
+import html
 import json
 import re
 from pathlib import Path
@@ -150,7 +151,27 @@ def chapter_and_gap(page, base):
     return {'chapter_1': 'GENERAL PROVISIONS', 'chapter_7': 'ASSAULT', 'missing_route': 'explicit gap'}
 
 
-def crawl(dist):
+def crawl_navigation_hrefs(dist, base):
+    paths = set()
+    count = 0
+    grammar = re.compile(re.escape(base) + r'(?:browse/(?:title-\d+[a-z]?/(?:chapter-\d+[A-Za-z-]*/)?'+r')?|statute/title-\d+[a-z]?/chapter-\d+[A-Za-z-]*/section-[0-9A-Za-z-]+/)')
+    for page in dist.rglob('*.html'):
+        count += 1
+        for match in re.finditer(r'href=["\']([^"\']+)["\']', page.read_text()):
+            url = urlparse(html.unescape(match[1]))
+            if url.scheme or url.netloc:
+                continue
+            if not any(url.path.startswith(base + kind + '/') for kind in ('browse', 'statute')):
+                continue
+            path = url.path.rstrip('/') + '/'
+            assert grammar.fullmatch(path), {'page': str(page), 'href': match[1]}
+            paths.add(path)
+    missing = [path for path in sorted(paths) if not (dist / path[len(base):] / 'index.html').is_file()]
+    assert not missing, missing[:20]
+    return {'html_files': count, 'unique_navigation_paths': len(paths), 'missing': missing}
+
+
+def crawl(dist, base):
     checked = 0
     sizes = []
     for index in sorted((dist / 'route-index').rglob('*.json')):
@@ -163,7 +184,7 @@ def crawl(dist):
             checked += 1
         sizes.append({'path': str(index.relative_to(dist)), 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
     assert sizes and checked > 0, 'No route indexes emitted'
-    return {'routes_checked': checked, 'indexes': sizes}
+    return {'routes_checked': checked, 'indexes': sizes, 'html_navigation': crawl_navigation_hrefs(dist, base)}
 
 
 def main():
@@ -184,7 +205,7 @@ def main():
             page.route('**/pagefind/**', lambda route: route.abort())
         receipt = {'directory': directory(page, base, args.out), 'citation': citation(page, base, args.out), 'chapters_and_gap': chapter_and_gap(page, base), 'cold_control': cold_control(browser, base), 'historical_scope': historical_scope(page, base), 'rollup_containment': rollup_containment(page, base), 'cold_rollups': cold_rollups(browser, base), 'alphanumeric_navigation': alphanumeric_navigation(page, base)}
         if args.dist:
-            receipt['crawl'] = crawl(args.dist)
+            receipt['crawl'] = crawl(args.dist, urlparse(base).path)
         browser.close()
     (args.out / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
 

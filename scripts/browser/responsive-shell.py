@@ -69,25 +69,37 @@ def shell(page, width, javascript):
     return observations
 
 
+def reader_observation(page, url, state):
+    page.goto(url, wait_until='domcontentloaded')
+    hydrated(page)
+    if state != 'current-control':
+        assert page.locator('#current-statute-body [id^=subsec-]').count() == 0
+        assert page.locator('[data-current-source-fallback]').count() == 1
+    if state == 'historical-gap':
+        page.locator('[data-historical-release-viewer] [role=alert]').wait_for(state='visible')
+    selector = '#current-statute-body h1' if state == 'current-control' else '[data-source-correction] strong'
+    page.locator(selector).wait_for(state='visible')
+    value = page.evaluate("""(selector) => {
+      const heading=document.querySelector(selector);
+      const body=heading?.nextElementSibling;
+      return {heading:heading?.textContent,headingBottom:heading?.getBoundingClientRect().bottom,
+              openingTop:body?.getBoundingClientRect().top,openingText:body?.textContent.slice(0,80)};
+    }""", selector)
+    return {'state': state, **value}
+
+
 def reader_start(browser, base, out):
     context = browser.new_context(viewport={'width': 390, 'height': 844})
     context.route('https://api.github.com/**', lambda route: route.abort())
     page = context.new_page()
     records = []
-    for state, path in [('current', 'statute/title-18/chapter-7/section-111/'),
-                        ('historical', 'statute/title-18/chapter-47/section-1001/?release=pl-119-73')]:
-        page.goto(base.rstrip('/') + '/' + path, wait_until='domcontentloaded')
-        hydrated(page)
-        page.locator('main h1:visible').first.wait_for(state='visible', timeout=10000)
-        value = page.evaluate("""() => {
-          const heading=[...document.querySelectorAll('main h1')].find(e=>e.checkVisibility());
-          const body=heading?.nextElementSibling;
-          return {heading:heading?.textContent,headingBottom:heading?.getBoundingClientRect().bottom,
-                  openingTop:body?.getBoundingClientRect().top,openingText:body?.textContent.slice(0,80)};
-        }""")
-        records.append({'state': state, **value})
+    cases = [('current-control', 'statute/title-18/chapter-1/section-2/'),
+             ('current-gap', 'statute/title-18/chapter-7/section-111/'),
+             ('historical-gap', 'statute/title-18/chapter-47/section-1001/?release=pl-119-73')]
+    for state, path in cases:
+        records.append(reader_observation(page, base.rstrip('/') + '/' + path, state))
         page.screenshot(path=str(out / f'reader-{state}-390.png'))
-    page.goto(base.rstrip('/') + '/statute/title-18/chapter-7/section-111/', wait_until='domcontentloaded')
+    page.goto(base.rstrip('/') + '/statute/title-18/chapter-1/section-2/', wait_until='domcontentloaded')
     hydrated(page)
     body = page.locator('#current-statute-body')
     original_text = body.text_content()
